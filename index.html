@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="cs">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Leeuwenhoek Escape</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#17171c">
+</head>
+<body>
+  <header class="topbar">
+    <div class="title">Leeuwenhoek Escape</div>
+    <div class="controls">
+      <button id="btnRestart" title="Restart">↺ Restart</button>
+      <button id="btnEditor" title="Toggle editor">✎ Edit</button>
+    </div>
+  </header>
+
+  <main id="gameRoot">
+    <div id="sceneContainer">
+      <img id="sceneImage" alt="scene" />
+      <div id="hotspotLayer"></div>
+      <div id="editorOverlay" class="hidden"></div>
+    </div>
+
+    <section id="uiBar">
+      <div id="inventory"></div>
+      <div id="msg"></div>
+    </section>
+  </main>
+
+  <div id="modal" class="hidden">
+    <div class="modal-content">
+      <div id="modalTitle" class="modal-title"></div>
+      <div id="modalBody" class="modal-body"></div>
+      <div class="modal-actions">
+        <button id="modalCancel">Cancel</button>
+        <button id="modalOk">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { Game } from './engine/engine.js';
+    import { Editor } from './engine/editor.js';
+
+    const game = new Game({
+      sceneImage: document.getElementById('sceneImage'),
+      hotspotLayer: document.getElementById('hotspotLayer'),
+      inventoryRoot: document.getElementById('inventory'),
+      messageBox: document.getElementById('msg'),
+      modalRoot: document.getElementById('modal'),
+      modalTitle: document.getElementById('modalTitle'),
+      modalBody: document.getElementById('modalBody'),
+      modalCancel: document.getElementById('modalCancel'),
+      modalOk: document.getElementById('modalOk'),
+      scenesUrl: './game/scenes.json'
+    });
+
+    const editor = new Editor({
+      game,
+      overlay: document.getElementById('editorOverlay'),
+      hotspotLayer: document.getElementById('hotspotLayer')
+    });
+
+    document.getElementById('btnRestart').addEventListener('click', () => game.restart());
+    const btnEditor = document.getElementById('btnEditor');
+    btnEditor.addEventListener('click', () => editor.toggle());
+
+    if ('serviceWorker' in navigator) {
+      const params = new URLSearchParams(location.search);
+      if (params.get('pwa') === '1') {
+        navigator.serviceWorker.register('./service-worker.js').catch(console.error);
+      }
+    }
+
+    game.init();
+  </script>
+</body>
+</html>

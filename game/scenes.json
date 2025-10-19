@@ -1,0 +1,277 @@
+{
+  "items": [
+    {
+      "id": "glass_key",
+      "label": "Skleněný klíč",
+      "icon": "assets/key_glass.png"
+    },
+    {
+      "id": "golden_key",
+      "label": "Zlatý klíč",
+      "icon": "assets/key_glass.png",
+      "meta": {
+        "description": "Obřadní klíč k východu."
+      }
+    },
+    {
+      "id": "slip_1",
+      "label": "Papírek 1",
+      "icon": "assets/slip1.png",
+      "meta": {
+        "word": "VIDÍM"
+      }
+    },
+    {
+      "id": "slip_2",
+      "label": "Papírek 2",
+      "icon": "assets/slip2.png",
+      "meta": {
+        "word": "VÍC"
+      }
+    },
+    {
+      "id": "microscope_schema",
+      "label": "Schéma mikroskopu",
+      "icon": "assets/micro_schema.png",
+      "meta": {
+        "description": "Nákres optické cesty jednoduchého mikroskopu (17. století)."
+      }
+    }
+  ],
+  "scenes": [
+    {
+      "id": "workshop",
+      "title": "Leeuwenhoekův workshop, Delft (1670s)",
+      "image": "assets/workshop.png",
+      "hotspots": [
+        {
+          "type": "pickup",
+          "itemId": "glass_key",
+          "rect": {
+            "x": 72,
+            "y": 58,
+            "w": 8,
+            "h": 10
+          }
+        },
+        {
+          "type": "pickup",
+          "itemId": "slip_1",
+          "rect": {
+            "x": 18,
+            "y": 62,
+            "w": 7,
+            "h": 8
+          }
+        },
+        {
+          "type": "goTo",
+          "target": "steel_door",
+          "rect": {
+            "x": 5,
+            "y": 20,
+            "w": 15,
+            "h": 60
+          }
+        }
+      ]
+    },
+    {
+      "id": "steel_door",
+      "title": "Chodba s ocelovými dveřmi",
+      "image": "assets/corridor.png",
+      "hotspots": [
+        {
+          "type": "goTo",
+          "target": "chest_room",
+          "requireItems": [
+            "glass_key"
+          ],
+          "rect": {
+            "x": 60,
+            "y": 25,
+            "w": 20,
+            "h": 50
+          }
+        },
+        {
+          "type": "goTo",
+          "target": "study",
+          "rect": {
+            "x": 10,
+            "y": 30,
+            "w": 12,
+            "h": 40
+          }
+        }
+      ]
+    },
+    {
+      "id": "study",
+      "title": "Studovna s mikroskopem",
+      "image": "assets/study.png",
+      "hotspots": [
+        {
+          "type": "pickup",
+          "itemId": "slip_2",
+          "rect": {
+            "x": 66,
+            "y": 70,
+            "w": 10,
+            "h": 10
+          }
+        },
+        {
+          "type": "puzzle",
+          "rect": {
+            "x": 24,
+            "y": 68,
+            "w": 18,
+            "h": 12
+          },
+          "puzzle": {
+            "kind": "order",
+            "title": "Seřaď kroky pozorování",
+            "prompt": "Tapni správné pořadí:",
+            "tokens": [
+              "Připrav vzorek",
+              "Zaostři čočkou",
+              "Pozoruj obraz",
+              "Zapiš závěr"
+            ],
+            "solution": [
+              "Připrav vzorek",
+              "Zaostři čočkou",
+              "Pozoruj obraz",
+              "Zapiš závěr"
+            ]
+          },
+          "onSuccess": {
+            "message": "Získal jsi schéma mikroskopu.",
+            "giveItem": "microscope_schema"
+          }
+        },
+        {
+          "type": "goTo",
+          "target": "steel_door",
+          "rect": {
+            "x": 5,
+            "y": 45,
+            "w": 10,
+            "h": 40
+          }
+        }
+      ]
+    },
+    {
+      "id": "chest_room",
+      "title": "Místnost s truhlou",
+      "image": "assets/chest_room.png",
+      "hotspots": [
+        {
+          "type": "puzzle",
+          "rect": {
+            "x": 40,
+            "y": 55,
+            "w": 20,
+            "h": 12
+          },
+          "requireItems": [
+            "slip_1",
+            "slip_2"
+          ],
+          "puzzle": {
+            "kind": "phrase",
+            "prompt": "Seřaď slova v hlavě a napiš větu:",
+            "solution": "VIDÍM VÍC"
+          },
+          "onSuccess": {
+            "message": "Víko truhly povolilo, získáš předmět Zlatý klíč.",
+            "giveItem": "golden_key"
+          }
+        },
+        {
+          "type": "puzzle",
+          "rect": {
+            "x": 10,
+            "y": 78,
+            "w": 18,
+            "h": 12
+          },
+          "puzzle": {
+            "kind": "match",
+            "title": "Přiřaď pojmy o optice",
+            "prompt": "Spoj správné dvojice:",
+            "pairs": [
+              [
+                "Čočka",
+                "Skleněný prvek"
+              ],
+              [
+                "Zvětšení",
+                "Poměr obrazu a předlohy"
+              ]
+            ]
+          },
+          "onSuccess": {
+            "message": "Škvírou zaslechneš cvaknutí – tajný poklop je odjištěn.",
+            "setFlags": [
+              "hatch_open"
+            ]
+          }
+        },
+        {
+          "type": "goTo",
+          "target": "secret_lab",
+          "requireFlags": [
+            "hatch_open"
+          ],
+          "rect": {
+            "x": 80,
+            "y": 85,
+            "w": 12,
+            "h": 10
+          }
+        },
+        {
+          "type": "goTo",
+          "target": "exit",
+          "rect": {
+            "x": 85,
+            "y": 5,
+            "w": 10,
+            "h": 10
+          },
+          "requireItems": [
+            "golden_key"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "secret_lab",
+      "title": "Skrytá laboratoř – prvoci pod mikroskopem",
+      "image": "assets/secret_lab.png",
+      "hotspots": [
+        {
+          "type": "goTo",
+          "target": "chest_room",
+          "rect": {
+            "x": 5,
+            "y": 80,
+            "w": 12,
+            "h": 12
+          }
+        }
+      ]
+    },
+    {
+      "id": "exit",
+      "title": "Únik",
+      "image": "assets/exit.png",
+      "end": true,
+      "hotspots": []
+    }
+  ],
+  "startScene": "workshop"
+}
