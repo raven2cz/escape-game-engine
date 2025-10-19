@@ -23,6 +23,11 @@ export class Game {
     this.currentScene = null;
     this._modalResolve = null;
 
+    // Toast container (neblokující bannery)
+    this.toastRoot = document.createElement('div');
+    this.toastRoot.className = 'toast-container';
+    document.body.appendChild(this.toastRoot);
+
     this.modalCancel.addEventListener('click', () => this._closeModal(false));
     this.modalOk.addEventListener('click', () => this._closeModal(true));
   }
@@ -31,8 +36,16 @@ export class Game {
     this.data = await fetch(this.scenesUrl).then(r => r.json());
     this.modalRoot.classList.add('hidden');
     const saved = this._loadState();
-    this.state = saved || { inventory: [], solved: {}, flags: {}, visited: {}, scene: this.data.startScene || this.data.scenes[0]?.id };
+    this.state = saved || {
+      inventory: [],
+      solved: {},
+      flags: {},
+      visited: {},
+      eventsFired: {},   // <- přidáno pro jednorázové eventy
+      scene: this.data.startScene || this.data.scenes[0]?.id
+    };
     if (!this.state.flags) this.state.flags = {};
+    if (!this.state.eventsFired) this.state.eventsFired = {};
     await this.goto(this.state.scene, { noSave: true });
     this._renderInventory();
   }
@@ -50,6 +63,10 @@ export class Game {
     await new Promise(res => { if (this.sceneImage.complete) res(); else this.sceneImage.onload = () => res(); });
     this._renderHotspots();
     this._msg(scene.title || '');
+
+    // Spusť "enterScene" eventy pro právě otevřenou scénu
+    await this._processEvents({ on: 'enterScene', scene: sceneId });
+
     if (scene.end) this._msg('🎉 Gratulujeme! Našel jsi preparát!');
   }
 
@@ -85,9 +102,14 @@ export class Game {
     if (h.type === 'goTo') { await this.goto(h.target); return; }
     if (h.type === 'pickup') {
       if (!this.state.inventory.includes(h.itemId)) {
-        this.state.inventory.push(h.itemId); this._saveState(); this._renderInventory();
+        // přidáme item, vykreslíme inventář, vyvoláme stateChange eventy
+        this.state.inventory.push(h.itemId);
+        this._renderInventory();
         this._msg('Picked up: ' + this._itemLabel(h.itemId));
-      } else { this._msg('You already have: ' + this._itemLabel(h.itemId)); }
+        await this._stateChanged();
+      } else {
+        this._msg('You already have: ' + this._itemLabel(h.itemId));
+      }
       return;
     }
     if (h.type === 'puzzle') {
@@ -101,7 +123,11 @@ export class Game {
       else if (kind === 'match') ok = await openMatchModal(this, h.puzzle);
       else throw new Error('Unknown puzzle kind: ' + kind);
       if (!ok) throw new Error('Puzzle failed.');
-      this._msg('Solved!'); this.state.solved[solvedKey] = true; this._saveState(); await this._applyOnSuccess(h.onSuccess); return;
+      this._msg('Solved!');
+      this.state.solved[solvedKey] = true;
+      this._saveState();
+      await this._applyOnSuccess(h.onSuccess);
+      return;
     }
     this._msg('Unknown hotspot type: ' + h.type);
   }
@@ -109,21 +135,46 @@ export class Game {
   async _applyOnSuccess(actions) {
     if (!actions) return;
     if (actions.message) this._msg(actions.message);
+
+    let changed = false;
+
     if (actions.giveItem) {
       const give = Array.isArray(actions.giveItem) ? actions.giveItem : [actions.giveItem];
-      let added = 0; for (const id of give) { if (!this.state.inventory.includes(id)) { this.state.inventory.push(id); added++; } }
-      if (added) { this._saveState(); this._renderInventory(); }
+      let added = 0;
+      for (const id of give) {
+        if (!this.state.inventory.includes(id)) { this.state.inventory.push(id); added++; changed = true; }
+      }
+      if (added) { this._renderInventory(); }
     }
+
     if (actions.setFlags) {
-      if (Array.isArray(actions.setFlags)) { for (const f of actions.setFlags) this.state.flags[f] = true; }
-      else { for (const [k, v] of Object.entries(actions.setFlags)) this.state.flags[k] = !!v; }
-      this._saveState(); this._renderHotspots();
+      if (Array.isArray(actions.setFlags)) {
+        for (const f of actions.setFlags) { if (!this.state.flags[f]) { this.state.flags[f] = true; changed = true; } }
+      } else {
+        for (const [k, v] of Object.entries(actions.setFlags)) {
+          if (!!this.state.flags[k] !== !!v) { this.state.flags[k] = !!v; changed = true; }
+        }
+      }
     }
+
     if (actions.clearFlags && Array.isArray(actions.clearFlags)) {
-      for (const f of actions.clearFlags) delete this.state.flags[f];
-      this._saveState(); this._renderHotspots();
+      for (const f of actions.clearFlags) {
+        if (this.state.flags[f]) { delete this.state.flags[f]; changed = true; }
+      }
     }
+
+    if (changed) {
+      // uložit a přepočítat eventy; hotspoty překreslíme, pokud se tím odemkly/zamkly
+      await this._stateChanged();
+      this._renderHotspots();
+    }
+
     if (actions.goTo) await this.goto(actions.goTo);
+  }
+
+  async _stateChanged() {
+    this._saveState();
+    await this._processEvents({ on: 'stateChange' });
   }
 
   _renderInventory() {
@@ -152,6 +203,7 @@ export class Game {
 
   _msg(t) { this.messageBox.textContent = t; }
 
+  // === Modal ===
   openModal({ title, body, okLabel = 'OK', cancelLabel = 'Cancel' }) {
     this.modalTitle.textContent = title || '';
     this.modalBody.innerHTML = ''; this.modalBody.appendChild(body);
@@ -160,6 +212,75 @@ export class Game {
     return new Promise(res => { this._modalResolve = res; });
   }
   _closeModal(ok) { this.modalRoot.classList.add('hidden'); const r = this._modalResolve; this._modalResolve = null; if (r) r(ok); }
+
+  // === Toasty (neblokující bannery) ===
+  toast(text, ms = 5000) {
+    const wrap = document.createElement('div');
+    wrap.className = 'toast';
+    wrap.setAttribute('role','status');
+    wrap.setAttribute('aria-live','polite');
+    wrap.textContent = text;
+    this.toastRoot.appendChild(wrap);
+    // auto-hide
+    setTimeout(() => {
+      wrap.classList.add('hide');
+      setTimeout(() => wrap.remove(), 350);
+    }, Math.max(500, ms | 0));
+  }
+
+  // === Dispatcher pro události z `data.events` ===
+  async _processEvents(trigger) {
+    const events = this.data.events || [];
+    for (const ev of events) {
+      if (!ev || !ev.id) continue;
+      if (ev.once && this.state.eventsFired?.[ev.id]) continue;
+
+      const w = ev.when || {};
+      if (w.on && w.on !== trigger.on) continue;
+      if (w.scene && w.scene !== (trigger.scene || this.state.scene)) continue;
+      if (w.requireItems && !this._hasAll(w.requireItems)) continue;
+      if (w.requireFlags && !this._hasAllFlags(w.requireFlags)) continue;
+
+      const act = ev.then || {};
+
+      // 1) Toast
+      if (act.toast && act.toast.text) {
+        this.toast(String(act.toast.text), act.toast.ms ?? 5000);
+      }
+
+      // 2) Změna obrázku scény
+      if (act.setSceneImage && act.setSceneImage.sceneId && act.setSceneImage.image) {
+        const sc = this.data.scenes.find(s => s.id === act.setSceneImage.sceneId);
+        if (sc) {
+          sc.image = act.setSceneImage.image;
+          if (this.currentScene?.id === sc.id) {
+            // pokud jsme v té scéně, přepiš obrázek hned
+            this.sceneImage.src = sc.image;
+          }
+        }
+      }
+
+      // 3) Volitelné: setFlags (pro budoucí rozšíření)
+      if (act.setFlags) {
+        let changed = false;
+        if (Array.isArray(act.setFlags)) {
+          for (const f of act.setFlags) { if (!this.state.flags[f]) { this.state.flags[f] = true; changed = true; } }
+        } else {
+          for (const [k, v] of Object.entries(act.setFlags)) {
+            if (!!this.state.flags[k] !== !!v) { this.state.flags[k] = !!v; changed = true; }
+          }
+        }
+        if (changed) this._saveState();
+      }
+
+      // Označ jako odpálené, pokud je jednorázová
+      if (ev.once) {
+        this.state.eventsFired = this.state.eventsFired || {};
+        this.state.eventsFired[ev.id] = true;
+        this._saveState();
+      }
+    }
+  }
 
   _saveState() { localStorage.setItem('leeuwenhoek_escape_state', JSON.stringify(this.state)); }
   _loadState() { try { const raw = localStorage.getItem('leeuwenhoek_escape_state'); return raw ? JSON.parse(raw) : null; } catch (e) { return null; } }

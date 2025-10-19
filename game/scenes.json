@@ -13,7 +13,7 @@
       "label": "Indicie 2",
       "icon": "assets/indicie-2.png",
       "meta": {
-        "description": "na mikroskopování!"
+        "description": "na mikroskopování"
       }
     },
     {
@@ -203,7 +203,7 @@
     },
     {
       "id": "trepka-velka",
-      "title": "Najdi vzorek Trepky Velké.",
+      "title": "Najdi vzorek trepky velké.",
       "image": "assets/trepka-velka.png",
       "hotspots": [
         {
@@ -271,7 +271,7 @@
     },
     {
       "id": "chloroplasty",
-      "title": "Najdi vzorek chloroplasty.",
+      "title": "Najdi vzorek chloroplastů.",
       "image": "assets/chloroplasty.png",
       "hotspots": [
         {
@@ -542,11 +542,14 @@
           "puzzle": {
             "kind": "phrase",
             "prompt": "Slož z indicií větu a napiš ji:",
-            "solution": "pojďme se vrhnout na mikroskopování!"
+            "solution": "pojďme se vrhnout na mikroskopování"
           },
           "onSuccess": {
-            "message": "Víko truhly povolilo, získáš předmět Zlatý klíč.",
-            "giveItem": "golden_key"
+            "message": "Víko truhly povolilo, získáš předmět zlatý klíč.",
+            "giveItem": "golden_key",
+            "setFlags": [
+              "chest_opened"
+            ]
           }
         },
         {
@@ -570,6 +573,47 @@
       "image": "assets/exit.png",
       "end": true,
       "hotspots": []
+    }
+  ],
+  "events": [
+    {
+      "id": "hint-treasure-available",
+      "once": true,
+      "when": {
+        "on": "enterScene",
+        "scene": "main-room",
+        "requireItems": [
+          "indicie-1",
+          "indicie-2",
+          "indicie-3"
+        ]
+      },
+      "then": {
+        "toast": {
+          "text": "🔓 Dveře do pokladnice jsou nyní otevřeny! Máš všechny indicie.",
+          "ms": 5000
+        }
+      }
+    },
+    {
+      "id": "treasure-opened-visual",
+      "once": true,
+      "when": {
+        "on": "stateChange",
+        "requireFlags": [
+          "chest_opened"
+        ]
+      },
+      "then": {
+        "setSceneImage": {
+          "sceneId": "treasure-room",
+          "image": "assets/treasure-room-opened.png"
+        },
+        "toast": {
+          "text": "🗝️ Truhla je otevřená! Získal jsi zlatý klíč.",
+          "ms": 5000
+        }
+      }
     }
   ],
   "startScene": "welcome"
