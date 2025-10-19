@@ -50,7 +50,7 @@ export class Game {
     await new Promise(res => { if (this.sceneImage.complete) res(); else this.sceneImage.onload = () => res(); });
     this._renderHotspots();
     this._msg(scene.title || '');
-    if (scene.end) this._msg('🎉 Congratulations! You found the way out.');
+    if (scene.end) this._msg('🎉 Gratulujeme! Našel jsi preparát!');
   }
 
   _renderHotspots() {

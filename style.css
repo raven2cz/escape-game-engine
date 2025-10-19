@@ -270,3 +270,36 @@ body {
     padding: 6px 10px;
     cursor: pointer;
 }
+
+#hotspotLayer .hotspot {
+    position: absolute;
+    background: transparent !important;
+    border: 0 !important;
+    outline: none !important;
+    box-shadow: none !important;
+    padding: 0;
+    margin: 0;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    -webkit-tap-highlight-color: transparent;
+    /* mobile Safari/Chrome */
+    cursor: pointer;
+}
+
+#hotspotLayer .hotspot:focus,
+#hotspotLayer .hotspot:focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+.editor-on #hotspotLayer .hotspot {
+    border: 2px dashed rgba(0, 200, 255, .9) !important;
+    background: rgba(0, 200, 255, .12) !important;
+}
+
+.editor-on #hotspotLayer .hotspot.require {
+    border-style: dashed;
+    border-color: rgba(255, 255, 0, .9) !important;
+    background: rgba(255, 255, 0, .12) !important;
+}

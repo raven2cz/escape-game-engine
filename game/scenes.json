@@ -1,189 +1,548 @@
 {
   "items": [
     {
-      "id": "glass_key",
-      "label": "Skleněný klíč",
-      "icon": "assets/key_glass.png"
+      "id": "indicie-1",
+      "label": "Indicie 1",
+      "icon": "assets/indicie-1.png",
+      "meta": {
+        "description": "se vrhnout"
+      }
+    },
+    {
+      "id": "indicie-2",
+      "label": "Indicie 2",
+      "icon": "assets/indicie-2.png",
+      "meta": {
+        "description": "na mikroskopování!"
+      }
+    },
+    {
+      "id": "indicie-3",
+      "label": "Indicie 3",
+      "icon": "assets/indicie-3.png",
+      "meta": {
+        "description": "pojďme"
+      }
     },
     {
       "id": "golden_key",
       "label": "Zlatý klíč",
-      "icon": "assets/key_glass.png",
+      "icon": "assets/golden_key.png",
       "meta": {
-        "description": "Obřadní klíč k východu."
-      }
-    },
-    {
-      "id": "slip_1",
-      "label": "Papírek 1",
-      "icon": "assets/slip1.png",
-      "meta": {
-        "word": "VIDÍM"
-      }
-    },
-    {
-      "id": "slip_2",
-      "label": "Papírek 2",
-      "icon": "assets/slip2.png",
-      "meta": {
-        "word": "VÍC"
-      }
-    },
-    {
-      "id": "microscope_schema",
-      "label": "Schéma mikroskopu",
-      "icon": "assets/micro_schema.png",
-      "meta": {
-        "description": "Nákres optické cesty jednoduchého mikroskopu (17. století)."
+        "description": "Klíč k definitivnímu východu."
       }
     }
   ],
   "scenes": [
     {
-      "id": "workshop",
-      "title": "Leeuwenhoekův workshop, Delft (1670s)",
-      "image": "assets/workshop.png",
+      "id": "welcome",
+      "title": "Vítej, badateli! Únikovka začíná!",
+      "image": "assets/welcome.png",
       "hotspots": [
         {
-          "type": "pickup",
-          "itemId": "glass_key",
-          "rect": {
-            "x": 72,
-            "y": 58,
-            "w": 8,
-            "h": 10
-          }
-        },
-        {
-          "type": "pickup",
-          "itemId": "slip_1",
-          "rect": {
-            "x": 18,
-            "y": 62,
-            "w": 7,
-            "h": 8
-          }
-        },
-        {
           "type": "goTo",
-          "target": "steel_door",
+          "target": "title",
           "rect": {
-            "x": 5,
-            "y": 20,
-            "w": 15,
-            "h": 60
+            "x": 65.39,
+            "y": 78.41,
+            "w": 23.34,
+            "h": 16.66
           }
         }
       ]
     },
     {
-      "id": "steel_door",
-      "title": "Chodba s ocelovými dveřmi",
-      "image": "assets/corridor.png",
+      "id": "title",
+      "title": "Naše mikro-mise",
+      "image": "assets/title.png",
       "hotspots": [
         {
           "type": "goTo",
-          "target": "chest_room",
+          "target": "intro-1",
+          "rect": {
+            "x": 59.75,
+            "y": 78.64,
+            "w": 26.01,
+            "h": 17.9
+          }
+        }
+      ]
+    },
+    {
+      "id": "intro-1",
+      "title": "Přečti si text",
+      "image": "assets/intro-1.png",
+      "hotspots": [
+        {
+          "type": "goTo",
+          "target": "intro-2",
+          "rect": {
+            "x": 70.94,
+            "y": 79.34,
+            "w": 25.62,
+            "h": 16.97
+          }
+        }
+      ]
+    },
+    {
+      "id": "intro-2",
+      "title": "Přečti si text",
+      "image": "assets/intro-2.png",
+      "hotspots": [
+        {
+          "type": "goTo",
+          "target": "main-room",
+          "rect": {
+            "x": 70.77,
+            "y": 81.84,
+            "w": 25.7,
+            "h": 16.57
+          }
+        }
+      ]
+    },
+    {
+      "id": "main-room",
+      "title": "Nacházíš se v hlavní místnosti",
+      "image": "assets/main-room.png",
+      "hotspots": [
+        {
+          "type": "goTo",
+          "target": "casti-mikroskopu",
+          "rect": {
+            "x": 24.03,
+            "y": 23.78,
+            "w": 11.28,
+            "h": 43.89
+          }
+        },
+        {
+          "type": "goTo",
+          "target": "trepka-velka",
+          "rect": {
+            "x": 36.75,
+            "y": 62.07,
+            "w": 17.84,
+            "h": 18.05
+          }
+        },
+        {
+          "type": "goTo",
+          "target": "question-1",
+          "rect": {
+            "x": 11.27,
+            "y": 77.32,
+            "w": 13.37,
+            "h": 11.91
+          }
+        },
+        {
+          "type": "goTo",
+          "target": "treasure-room",
           "requireItems": [
-            "glass_key"
+            "indicie-1",
+            "indicie-2",
+            "indicie-3"
           ],
           "rect": {
-            "x": 60,
-            "y": 25,
-            "w": 20,
-            "h": 50
-          }
-        },
-        {
-          "type": "goTo",
-          "target": "study",
-          "rect": {
-            "x": 10,
-            "y": 30,
-            "w": 12,
-            "h": 40
+            "x": 64.43,
+            "y": 7.44,
+            "w": 30.82,
+            "h": 73.31
           }
         }
       ]
     },
     {
-      "id": "study",
-      "title": "Studovna s mikroskopem",
-      "image": "assets/study.png",
+      "id": "casti-mikroskopu",
+      "title": "Prohlédni si části mikroskopu",
+      "image": "assets/casti-mikroskopu.png",
+      "hotspots": [
+        {
+          "type": "goTo",
+          "target": "found-indicie-1",
+          "rect": {
+            "x": 70.12,
+            "y": 82.93,
+            "w": 25.37,
+            "h": 15.31
+          }
+        }
+      ]
+    },
+    {
+      "id": "found-indicie-1",
+      "title": "Našel jsi první indicii, zapamatuj si ji!",
+      "image": "assets/found-indicie-1.png",
       "hotspots": [
         {
           "type": "pickup",
-          "itemId": "slip_2",
+          "itemId": "indicie-1",
           "rect": {
-            "x": 66,
-            "y": 70,
-            "w": 10,
-            "h": 10
-          }
-        },
-        {
-          "type": "puzzle",
-          "rect": {
-            "x": 24,
-            "y": 68,
-            "w": 18,
-            "h": 12
-          },
-          "puzzle": {
-            "kind": "order",
-            "title": "Seřaď kroky pozorování",
-            "prompt": "Tapni správné pořadí:",
-            "tokens": [
-              "Připrav vzorek",
-              "Zaostři čočkou",
-              "Pozoruj obraz",
-              "Zapiš závěr"
-            ],
-            "solution": [
-              "Připrav vzorek",
-              "Zaostři čočkou",
-              "Pozoruj obraz",
-              "Zapiš závěr"
-            ]
-          },
-          "onSuccess": {
-            "message": "Získal jsi schéma mikroskopu.",
-            "giveItem": "microscope_schema"
+            "x": 70.43,
+            "y": 28.85,
+            "w": 20.56,
+            "h": 27.66
           }
         },
         {
           "type": "goTo",
-          "target": "steel_door",
+          "target": "main-room",
+          "requireItems": [
+            "indicie-1"
+          ],
           "rect": {
-            "x": 5,
-            "y": 45,
-            "w": 10,
-            "h": 40
+            "x": 89.78,
+            "y": 83.07,
+            "w": 7.17,
+            "h": 13.43
           }
         }
       ]
     },
     {
-      "id": "chest_room",
-      "title": "Místnost s truhlou",
-      "image": "assets/chest_room.png",
+      "id": "trepka-velka",
+      "title": "Najdi vzorek Trepky Velké.",
+      "image": "assets/trepka-velka.png",
+      "hotspots": [
+        {
+          "type": "goTo",
+          "target": "lidska-krev",
+          "rect": {
+            "x": 8.01,
+            "y": 54.9,
+            "w": 25.33,
+            "h": 45.1
+          }
+        }
+      ]
+    },
+    {
+      "id": "lidska-krev",
+      "title": "Najdi vzorek lidské krve.",
+      "image": "assets/lidska-krev.png",
+      "hotspots": [
+        {
+          "type": "goTo",
+          "target": "bakterie",
+          "rect": {
+            "x": 42.9,
+            "y": 7.51,
+            "w": 26.71,
+            "h": 47.69
+          }
+        }
+      ]
+    },
+    {
+      "id": "bakterie",
+      "title": "Najdi vzorek bakterií.",
+      "image": "assets/bakterie.png",
+      "hotspots": [
+        {
+          "type": "goTo",
+          "target": "sul",
+          "rect": {
+            "x": 74.37,
+            "y": 57.13,
+            "w": 25.58,
+            "h": 42.87
+          }
+        }
+      ]
+    },
+    {
+      "id": "sul",
+      "title": "Najdi vzorek soli.",
+      "image": "assets/sul.png",
+      "hotspots": [
+        {
+          "type": "goTo",
+          "target": "chloroplasty",
+          "rect": {
+            "x": 2.69,
+            "y": 9.05,
+            "w": 24.33,
+            "h": 46.31
+          }
+        }
+      ]
+    },
+    {
+      "id": "chloroplasty",
+      "title": "Najdi vzorek chloroplasty.",
+      "image": "assets/chloroplasty.png",
+      "hotspots": [
+        {
+          "type": "goTo",
+          "target": "kridlo-mouchy",
+          "rect": {
+            "x": 40.87,
+            "y": 55.67,
+            "w": 25.58,
+            "h": 44.33
+          }
+        }
+      ]
+    },
+    {
+      "id": "kridlo-mouchy",
+      "title": "Najdi vzorek křídla mouchy.",
+      "image": "assets/kridlo-mouchy.png",
+      "hotspots": [
+        {
+          "type": "goTo",
+          "target": "found-indicie-2",
+          "rect": {
+            "x": 71.34,
+            "y": 6.74,
+            "w": 24.63,
+            "h": 46.77
+          }
+        }
+      ]
+    },
+    {
+      "id": "found-indicie-2",
+      "title": "Našel jsi druhou indicii, zapamatuj si ji!",
+      "image": "assets/found-indicie-2.png",
+      "hotspots": [
+        {
+          "type": "pickup",
+          "itemId": "indicie-2",
+          "rect": {
+            "x": 3.12,
+            "y": 35.94,
+            "w": 32.38,
+            "h": 44
+          }
+        },
+        {
+          "type": "goTo",
+          "target": "main-room",
+          "requireItems": [
+            "indicie-2"
+          ],
+          "rect": {
+            "x": 89.82,
+            "y": 82.94,
+            "w": 6.97,
+            "h": 14.1
+          }
+        }
+      ]
+    },
+    {
+      "id": "question-1",
+      "title": "Kdo napsal tento dopis?",
+      "image": "assets/question-1.png",
+      "hotspots": [
+        {
+          "type": "goTo",
+          "target": "wrong-answer",
+          "rect": {
+            "x": 78.39,
+            "y": 47.27,
+            "w": 4.07,
+            "h": 7.32
+          }
+        },
+        {
+          "type": "goTo",
+          "target": "wrong-answer",
+          "rect": {
+            "x": 73.37,
+            "y": 58.59,
+            "w": 3.81,
+            "h": 7.09
+          }
+        },
+        {
+          "type": "goTo",
+          "target": "question-2",
+          "rect": {
+            "x": 79.82,
+            "y": 68.53,
+            "w": 4.07,
+            "h": 6.86
+          }
+        },
+        {
+          "type": "goTo",
+          "target": "wrong-answer",
+          "rect": {
+            "x": 73.37,
+            "y": 79.78,
+            "w": 3.81,
+            "h": 6.94
+          }
+        }
+      ]
+    },
+    {
+      "id": "wrong-answer",
+      "title": "Špatná odpověď, zkus to znova!",
+      "image": "assets/wrong-answer.png",
+      "hotspots": [
+        {
+          "type": "goTo",
+          "target": "main-room",
+          "rect": {
+            "x": 21.3,
+            "y": 39.25,
+            "w": 11.69,
+            "h": 21.42
+          }
+        }
+      ]
+    },
+    {
+      "id": "question-2",
+      "title": "Přiblížení objektivu.",
+      "image": "assets/question-2.png",
+      "hotspots": [
+        {
+          "type": "goTo",
+          "target": "wrong-answer",
+          "rect": {
+            "x": 70.73,
+            "y": 29.78,
+            "w": 3.77,
+            "h": 6.47
+          }
+        },
+        {
+          "type": "goTo",
+          "target": "question-3",
+          "rect": {
+            "x": 70.73,
+            "y": 42.8,
+            "w": 3.73,
+            "h": 7.09
+          }
+        },
+        {
+          "type": "goTo",
+          "target": "wrong-answer",
+          "rect": {
+            "x": 70.73,
+            "y": 61.06,
+            "w": 3.86,
+            "h": 7.17
+          }
+        },
+        {
+          "type": "goTo",
+          "target": "wrong-answer",
+          "rect": {
+            "x": 70.73,
+            "y": 73.16,
+            "w": 3.73,
+            "h": 7.24
+          }
+        }
+      ]
+    },
+    {
+      "id": "question-3",
+      "title": "Kolikrát se předmět zvětší?",
+      "image": "assets/question-3.png",
+      "hotspots": [
+        {
+          "type": "goTo",
+          "target": "wrong-answer",
+          "rect": {
+            "x": 38.66,
+            "y": 29.01,
+            "w": 3.64,
+            "h": 6.7
+          }
+        },
+        {
+          "type": "goTo",
+          "target": "wrong-answer",
+          "rect": {
+            "x": 46.23,
+            "y": 39.56,
+            "w": 3.64,
+            "h": 6.71
+          }
+        },
+        {
+          "type": "goTo",
+          "target": "found-indicie-3",
+          "rect": {
+            "x": 40.56,
+            "y": 50.73,
+            "w": 3.81,
+            "h": 6.71
+          }
+        },
+        {
+          "type": "goTo",
+          "target": "wrong-answer",
+          "rect": {
+            "x": 47.01,
+            "y": 59.75,
+            "w": 3.68,
+            "h": 6.78
+          }
+        }
+      ]
+    },
+    {
+      "id": "found-indicie-3",
+      "title": "Našel jsi třetí indicii, zapamatuj si ji!",
+      "image": "assets/found-indicie-3.png",
+      "hotspots": [
+        {
+          "type": "pickup",
+          "itemId": "indicie-3",
+          "rect": {
+            "x": 71.64,
+            "y": 26,
+            "w": 17.32,
+            "h": 23.66
+          }
+        },
+        {
+          "type": "goTo",
+          "target": "main-room",
+          "requireItems": [
+            "indicie-3"
+          ],
+          "rect": {
+            "x": 89.74,
+            "y": 82.94,
+            "w": 7.22,
+            "h": 12.87
+          }
+        }
+      ]
+    },
+    {
+      "id": "treasure-room",
+      "title": "Nacházíš se v místnosti s pokladem!",
+      "image": "assets/treasure-room.png",
       "hotspots": [
         {
           "type": "puzzle",
           "rect": {
-            "x": 40,
-            "y": 55,
-            "w": 20,
-            "h": 12
+            "x": 11.69,
+            "y": 46.8,
+            "w": 43.07,
+            "h": 50.17
           },
           "requireItems": [
-            "slip_1",
-            "slip_2"
+            "indicie-1",
+            "indicie-2",
+            "indicie-3"
           ],
           "puzzle": {
             "kind": "phrase",
-            "prompt": "Seřaď slova v hlavě a napiš větu:",
-            "solution": "VIDÍM VÍC"
+            "prompt": "Slož z indicií větu a napiš ji:",
+            "solution": "pojďme se vrhnout na mikroskopování!"
           },
           "onSuccess": {
             "message": "Víko truhly povolilo, získáš předmět Zlatý klíč.",
@@ -191,87 +550,27 @@
           }
         },
         {
-          "type": "puzzle",
-          "rect": {
-            "x": 10,
-            "y": 78,
-            "w": 18,
-            "h": 12
-          },
-          "puzzle": {
-            "kind": "match",
-            "title": "Přiřaď pojmy o optice",
-            "prompt": "Spoj správné dvojice:",
-            "pairs": [
-              [
-                "Čočka",
-                "Skleněný prvek"
-              ],
-              [
-                "Zvětšení",
-                "Poměr obrazu a předlohy"
-              ]
-            ]
-          },
-          "onSuccess": {
-            "message": "Škvírou zaslechneš cvaknutí – tajný poklop je odjištěn.",
-            "setFlags": [
-              "hatch_open"
-            ]
-          }
-        },
-        {
-          "type": "goTo",
-          "target": "secret_lab",
-          "requireFlags": [
-            "hatch_open"
-          ],
-          "rect": {
-            "x": 80,
-            "y": 85,
-            "w": 12,
-            "h": 10
-          }
-        },
-        {
           "type": "goTo",
           "target": "exit",
-          "rect": {
-            "x": 85,
-            "y": 5,
-            "w": 10,
-            "h": 10
-          },
           "requireItems": [
             "golden_key"
-          ]
-        }
-      ]
-    },
-    {
-      "id": "secret_lab",
-      "title": "Skrytá laboratoř – prvoci pod mikroskopem",
-      "image": "assets/secret_lab.png",
-      "hotspots": [
-        {
-          "type": "goTo",
-          "target": "chest_room",
+          ],
           "rect": {
-            "x": 5,
-            "y": 80,
-            "w": 12,
-            "h": 12
+            "x": 69.35,
+            "y": 0.73,
+            "w": 23.63,
+            "h": 80.36
           }
         }
       ]
     },
     {
       "id": "exit",
-      "title": "Únik",
+      "title": "Dokázal jsi to! 🎉🏆",
       "image": "assets/exit.png",
       "end": true,
       "hotspots": []
     }
   ],
-  "startScene": "workshop"
+  "startScene": "welcome"
 }
