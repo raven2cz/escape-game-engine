@@ -3,7 +3,7 @@
     {
       "id": "indicie-1",
       "label": "Indicie 1",
-      "icon": "assets/indicie-1.png",
+      "icon": "assets/indicie-1.jpg",
       "meta": {
         "description": "se vrhnout"
       }
@@ -11,7 +11,7 @@
     {
       "id": "indicie-2",
       "label": "Indicie 2",
-      "icon": "assets/indicie-2.png",
+      "icon": "assets/indicie-2.jpg",
       "meta": {
         "description": "na mikroskopování"
       }
@@ -19,7 +19,7 @@
     {
       "id": "indicie-3",
       "label": "Indicie 3",
-      "icon": "assets/indicie-3.png",
+      "icon": "assets/indicie-3.jpg",
       "meta": {
         "description": "pojďme"
       }
@@ -27,7 +27,7 @@
     {
       "id": "golden_key",
       "label": "Zlatý klíč",
-      "icon": "assets/golden_key.png",
+      "icon": "assets/golden_key.jpg",
       "meta": {
         "description": "Klíč k definitivnímu východu."
       }
@@ -37,7 +37,7 @@
     {
       "id": "welcome",
       "title": "Vítej, badateli! Únikovka začíná!",
-      "image": "assets/welcome.png",
+      "image": "assets/welcome.jpg",
       "hotspots": [
         {
           "type": "goTo",
@@ -54,7 +54,7 @@
     {
       "id": "title",
       "title": "Naše mikro-mise",
-      "image": "assets/title.png",
+      "image": "assets/title.jpg",
       "hotspots": [
         {
           "type": "goTo",
@@ -71,7 +71,7 @@
     {
       "id": "intro-1",
       "title": "Přečti si text",
-      "image": "assets/intro-1.png",
+      "image": "assets/intro-1.jpg",
       "hotspots": [
         {
           "type": "goTo",
@@ -88,7 +88,7 @@
     {
       "id": "intro-2",
       "title": "Přečti si text",
-      "image": "assets/intro-2.png",
+      "image": "assets/intro-2.jpg",
       "hotspots": [
         {
           "type": "goTo",
@@ -105,7 +105,7 @@
     {
       "id": "main-room",
       "title": "Nacházíš se v hlavní místnosti",
-      "image": "assets/main-room.png",
+      "image": "assets/main-room.jpg",
       "hotspots": [
         {
           "type": "goTo",
@@ -157,7 +157,7 @@
     {
       "id": "casti-mikroskopu",
       "title": "Prohlédni si části mikroskopu",
-      "image": "assets/casti-mikroskopu.png",
+      "image": "assets/casti-mikroskopu.jpg",
       "hotspots": [
         {
           "type": "goTo",
@@ -174,7 +174,7 @@
     {
       "id": "found-indicie-1",
       "title": "Našel jsi první indicii, zapamatuj si ji!",
-      "image": "assets/found-indicie-1.png",
+      "image": "assets/found-indicie-1.jpg",
       "hotspots": [
         {
           "type": "pickup",
@@ -204,7 +204,7 @@
     {
       "id": "trepka-velka",
       "title": "Najdi vzorek trepky velké.",
-      "image": "assets/trepka-velka.png",
+      "image": "assets/trepka-velka.jpg",
       "hotspots": [
         {
           "type": "goTo",
@@ -221,7 +221,7 @@
     {
       "id": "lidska-krev",
       "title": "Najdi vzorek lidské krve.",
-      "image": "assets/lidska-krev.png",
+      "image": "assets/lidska-krev.jpg",
       "hotspots": [
         {
           "type": "goTo",
@@ -238,7 +238,7 @@
     {
       "id": "bakterie",
       "title": "Najdi vzorek bakterií.",
-      "image": "assets/bakterie.png",
+      "image": "assets/bakterie.jpg",
       "hotspots": [
         {
           "type": "goTo",
@@ -255,7 +255,7 @@
     {
       "id": "sul",
       "title": "Najdi vzorek soli.",
-      "image": "assets/sul.png",
+      "image": "assets/sul.jpg",
       "hotspots": [
         {
           "type": "goTo",
@@ -272,7 +272,7 @@
     {
       "id": "chloroplasty",
       "title": "Najdi vzorek chloroplastů.",
-      "image": "assets/chloroplasty.png",
+      "image": "assets/chloroplasty.jpg",
       "hotspots": [
         {
           "type": "goTo",
@@ -289,7 +289,7 @@
     {
       "id": "kridlo-mouchy",
       "title": "Najdi vzorek křídla mouchy.",
-      "image": "assets/kridlo-mouchy.png",
+      "image": "assets/kridlo-mouchy.jpg",
       "hotspots": [
         {
           "type": "goTo",
@@ -306,7 +306,7 @@
     {
       "id": "found-indicie-2",
       "title": "Našel jsi druhou indicii, zapamatuj si ji!",
-      "image": "assets/found-indicie-2.png",
+      "image": "assets/found-indicie-2.jpg",
       "hotspots": [
         {
           "type": "pickup",
@@ -336,7 +336,7 @@
     {
       "id": "question-1",
       "title": "Kdo napsal tento dopis?",
-      "image": "assets/question-1.png",
+      "image": "assets/question-1.jpg",
       "hotspots": [
         {
           "type": "goTo",
@@ -383,7 +383,7 @@
     {
       "id": "wrong-answer",
       "title": "Špatná odpověď, zkus to znova!",
-      "image": "assets/wrong-answer.png",
+      "image": "assets/wrong-answer.jpg",
       "hotspots": [
         {
           "type": "goTo",
@@ -400,7 +400,7 @@
     {
       "id": "question-2",
       "title": "Přiblížení objektivu.",
-      "image": "assets/question-2.png",
+      "image": "assets/question-2.jpg",
       "hotspots": [
         {
           "type": "goTo",
@@ -447,7 +447,7 @@
     {
       "id": "question-3",
       "title": "Kolikrát se předmět zvětší?",
-      "image": "assets/question-3.png",
+      "image": "assets/question-3.jpg",
       "hotspots": [
         {
           "type": "goTo",
@@ -494,7 +494,7 @@
     {
       "id": "found-indicie-3",
       "title": "Našel jsi třetí indicii, zapamatuj si ji!",
-      "image": "assets/found-indicie-3.png",
+      "image": "assets/found-indicie-3.jpg",
       "hotspots": [
         {
           "type": "pickup",
@@ -524,7 +524,7 @@
     {
       "id": "treasure-room",
       "title": "Nacházíš se v místnosti s pokladem!",
-      "image": "assets/treasure-room.png",
+      "image": "assets/treasure-room.jpg",
       "hotspots": [
         {
           "type": "puzzle",
@@ -570,7 +570,7 @@
     {
       "id": "exit",
       "title": "Dokázal jsi to! 🎉🏆",
-      "image": "assets/exit.png",
+      "image": "assets/exit.jpg",
       "end": true,
       "hotspots": []
     }
@@ -607,7 +607,7 @@
       "then": {
         "setSceneImage": {
           "sceneId": "treasure-room",
-          "image": "assets/treasure-room-opened.png"
+          "image": "assets/treasure-room-opened.jpg"
         },
         "toast": {
           "text": "🗝️ Truhla je otevřená! Získal jsi zlatý klíč.",

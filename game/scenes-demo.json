@@ -3,12 +3,12 @@
     {
       "id": "glass_key",
       "label": "Skleněný klíč",
-      "icon": "assets/key_glass.png"
+      "icon": "assets/key_glass.jpg"
     },
     {
       "id": "golden_key",
       "label": "Zlatý klíč",
-      "icon": "assets/key_glass.png",
+      "icon": "assets/key_glass.jpg",
       "meta": {
         "description": "Obřadní klíč k východu."
       }
@@ -16,7 +16,7 @@
     {
       "id": "slip_1",
       "label": "Papírek 1",
-      "icon": "assets/slip1.png",
+      "icon": "assets/slip1.jpg",
       "meta": {
         "word": "VIDÍM"
       }
@@ -24,7 +24,7 @@
     {
       "id": "slip_2",
       "label": "Papírek 2",
-      "icon": "assets/slip2.png",
+      "icon": "assets/slip2.jpg",
       "meta": {
         "word": "VÍC"
       }
@@ -32,7 +32,7 @@
     {
       "id": "microscope_schema",
       "label": "Schéma mikroskopu",
-      "icon": "assets/micro_schema.png",
+      "icon": "assets/micro_schema.jpg",
       "meta": {
         "description": "Nákres optické cesty jednoduchého mikroskopu (17. století)."
       }
@@ -42,7 +42,7 @@
     {
       "id": "workshop",
       "title": "Leeuwenhoekův workshop, Delft (1670s)",
-      "image": "assets/workshop.png",
+      "image": "assets/workshop.jpg",
       "hotspots": [
         {
           "type": "pickup",
@@ -79,7 +79,7 @@
     {
       "id": "steel_door",
       "title": "Chodba s ocelovými dveřmi",
-      "image": "assets/corridor.png",
+      "image": "assets/corridor.jpg",
       "hotspots": [
         {
           "type": "goTo",
@@ -109,7 +109,7 @@
     {
       "id": "study",
       "title": "Studovna s mikroskopem",
-      "image": "assets/study.png",
+      "image": "assets/study.jpg",
       "hotspots": [
         {
           "type": "pickup",
@@ -166,7 +166,7 @@
     {
       "id": "chest_room",
       "title": "Místnost s truhlou",
-      "image": "assets/chest_room.png",
+      "image": "assets/chest_room.jpg",
       "hotspots": [
         {
           "type": "puzzle",
@@ -251,7 +251,7 @@
     {
       "id": "secret_lab",
       "title": "Skrytá laboratoř – prvoci pod mikroskopem",
-      "image": "assets/secret_lab.png",
+      "image": "assets/secret_lab.jpg",
       "hotspots": [
         {
           "type": "goTo",
@@ -268,7 +268,7 @@
     {
       "id": "exit",
       "title": "Únik",
-      "image": "assets/exit.png",
+      "image": "assets/exit.jpg",
       "end": true,
       "hotspots": []
     }
