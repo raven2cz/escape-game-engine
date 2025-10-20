@@ -592,6 +592,16 @@
         "toast": {
           "text": "🔓 Dveře do pokladnice jsou nyní otevřeny! Máš všechny indicie.",
           "ms": 5000
+        },
+        "highlightHotspot": {
+          "sceneId": "main-room",
+          "rect": {
+            "x": 59.95,
+            "y": 4.55,
+            "w": 37.61,
+            "h": 74.59
+          },
+          "ms": 5000
         }
       }
     },
@@ -612,6 +622,97 @@
         "toast": {
           "text": "🗝️ Truhla je otevřená! Získal jsi zlatý klíč.",
           "ms": 5000
+        },
+        "highlightHotspot": {
+          "sceneId": "treasure-room",
+          "rect": {
+            "x": 69.35,
+            "y": 0.73,
+            "w": 23.63,
+            "h": 80.36
+          },
+          "ms": 5000
+        }
+      }
+    },
+    {
+      "id": "hint-pick-indicie-1",
+      "once": false,
+      "when": {
+        "on": "enterScene",
+        "scene": "found-indicie-1",
+        "missingItems": [
+          "indicie-1"
+        ]
+      },
+      "then": {
+        "toast": {
+          "text": "👉 Klepni na indicii a seber ji.",
+          "ms": 4000
+        },
+        "highlightHotspot": {
+          "sceneId": "found-indicie-1",
+          "rect": {
+            "x": 68.87,
+            "y": 26.06,
+            "w": 23.25,
+            "h": 32.71
+          },
+          "ms": 6000
+        }
+      }
+    },
+    {
+      "id": "hint-pick-indicie-2",
+      "once": false,
+      "when": {
+        "on": "enterScene",
+        "scene": "found-indicie-2",
+        "missingItems": [
+          "indicie-2"
+        ]
+      },
+      "then": {
+        "toast": {
+          "text": "👉 Klepni na indicii a seber ji.",
+          "ms": 4000
+        },
+        "highlightHotspot": {
+          "sceneId": "found-indicie-2",
+          "rect": {
+            "x": 1.48,
+            "y": 32.33,
+            "w": 35.87,
+            "h": 51.3
+          },
+          "ms": 4000
+        }
+      }
+    },
+    {
+      "id": "hint-pick-indicie-3",
+      "once": false,
+      "when": {
+        "on": "enterScene",
+        "scene": "found-indicie-3",
+        "missingItems": [
+          "indicie-3"
+        ]
+      },
+      "then": {
+        "toast": {
+          "text": "👉 Klepni na indicii a seber ji.",
+          "ms": 4000
+        },
+        "highlightHotspot": {
+          "sceneId": "found-indicie-3",
+          "rect": {
+            "x": 70.08,
+            "y": 22.77,
+            "w": 20.69,
+            "h": 30.68
+          },
+          "ms": 6000
         }
       }
     }

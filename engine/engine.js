@@ -22,6 +22,7 @@ export class Game {
     this.state = null;
     this.currentScene = null;
     this._modalResolve = null;
+    this._pendingHighlights = {};
 
     // Toast container (neblokující bannery)
     this.toastRoot = document.createElement('div');
@@ -41,7 +42,7 @@ export class Game {
       solved: {},
       flags: {},
       visited: {},
-      eventsFired: {},   // <- přidáno pro jednorázové eventy
+      eventsFired: {},
       scene: this.data.startScene || this.data.scenes[0]?.id
     };
     if (!this.state.flags) this.state.flags = {};
@@ -54,7 +55,7 @@ export class Game {
 
   async goto(sceneId, opts = {}) {
     const scene = this.data.scenes.find(s => s.id === sceneId);
-    if (!scene) return this._msg(`Scene not found: ${sceneId}`);
+    if (!scene) return this._msg(`Scéna nenalezena: ${sceneId}`);
     this.currentScene = scene;
     this.state.scene = sceneId;
     this.state.visited[sceneId] = true;
@@ -64,7 +65,9 @@ export class Game {
     this._renderHotspots();
     this._msg(scene.title || '');
 
-    // Spusť "enterScene" eventy pro právě otevřenou scénu
+    // Podpora Highlights
+    this._drainHighlightsForScene(sceneId);
+    // Spusť "enterScene" události pro právě otevřenou scénu
     await this._processEvents({ on: 'enterScene', scene: sceneId });
 
     if (scene.end) this._msg('🎉 Gratulujeme! Našel jsi preparát!');
@@ -97,23 +100,23 @@ export class Game {
   }
 
   async _activateHotspot(h) {
-    if (h.requireItems && !this._hasAll(h.requireItems)) { this._msg('You are missing something…'); return; }
-    if (h.requireFlags && !this._hasAllFlags(h.requireFlags)) { this._msg('Something needs to be unlocked first…'); return; }
+    if (h.requireItems && !this._hasAll(h.requireItems)) { this._msg('Chybí ti potřebná věc…'); return; }
+    if (h.requireFlags && !this._hasAllFlags(h.requireFlags)) { this._msg('Nejdřív je potřeba něco odemknout…'); return; }
     if (h.type === 'goTo') { await this.goto(h.target); return; }
     if (h.type === 'pickup') {
       if (!this.state.inventory.includes(h.itemId)) {
-        // přidáme item, vykreslíme inventář, vyvoláme stateChange eventy
+        // přidáme předmět, vykreslíme inventář, vyvoláme stateChange události
         this.state.inventory.push(h.itemId);
         this._renderInventory();
-        this._msg('Picked up: ' + this._itemLabel(h.itemId));
+        this._msg('Sebráno: ' + this._itemLabel(h.itemId));
         await this._stateChanged();
       } else {
-        this._msg('You already have: ' + this._itemLabel(h.itemId));
+        this._msg('Tento předmět už máš: ' + this._itemLabel(h.itemId));
       }
       return;
     }
     if (h.type === 'puzzle') {
-      const solvedKey = 'solved:' + (h.key || (this.currentScene.id + ':' + JSON.stringify(h.rect)));
+      const solvedKey = 'vyřešeno:' + (h.key || (this.currentScene.id + ':' + JSON.stringify(h.rect)));
       if (this.state.solved[solvedKey]) { await this._applyOnSuccess(h.onSuccess); return; }
       const kind = h.puzzle?.kind;
       let ok = false;
@@ -121,15 +124,15 @@ export class Game {
       else if (kind === 'code') ok = await openCodeModal(this, h.puzzle);
       else if (kind === 'order') ok = await openOrderModal(this, h.puzzle);
       else if (kind === 'match') ok = await openMatchModal(this, h.puzzle);
-      else throw new Error('Unknown puzzle kind: ' + kind);
-      if (!ok) throw new Error('Puzzle failed.');
-      this._msg('Solved!');
+      else throw new Error('Neznámý typ hlavolamu: ' + kind);
+      if (!ok) throw new Error('Hlavolam se nepodařilo vyřešit.');
+      this._msg('Vyřešeno!');
       this.state.solved[solvedKey] = true;
       this._saveState();
       await this._applyOnSuccess(h.onSuccess);
       return;
     }
-    this._msg('Unknown hotspot type: ' + h.type);
+    this._msg('Neznámý typ akce: ' + h.type);
   }
 
   async _applyOnSuccess(actions) {
@@ -164,11 +167,13 @@ export class Game {
     }
 
     if (changed) {
-      // uložit a přepočítat eventy; hotspoty překreslíme, pokud se tím odemkly/zamkly
-      await this._stateChanged();
+      // 1) nejdřív překresli hotspoty (aby se změny požadavků projevily)
       this._renderHotspots();
+      // 2) spusť události (ty mohou přidat highlight/glow)
+      await this._stateChanged();
+      // 3) případné čekající highlighty hned vykresli v aktuální scéně
+      this._drainHighlightsForScene(this.currentScene.id);
     }
-
     if (actions.goTo) await this.goto(actions.goTo);
   }
 
@@ -181,7 +186,7 @@ export class Game {
     this.inventoryRoot.innerHTML = '';
     (this.state.inventory || []).forEach(id => {
       const item = this._itemById(id); if (!item) return;
-      const wrap = document.createElement('button'); wrap.type = 'button'; wrap.className = 'item'; wrap.title = 'Inspect';
+      const wrap = document.createElement('button'); wrap.type = 'button'; wrap.className = 'item'; wrap.title = 'Prohlédnout';
       if (item.icon) { const img = document.createElement('img'); img.src = item.icon; img.alt = item.label || id; wrap.appendChild(img); }
       const span = document.createElement('span'); span.textContent = item.label || id; wrap.appendChild(span);
       wrap.addEventListener('click', () => this._inspectItem(item)); this.inventoryRoot.appendChild(wrap);
@@ -193,7 +198,7 @@ export class Game {
     if (item.icon) { const img = document.createElement('img'); img.src = item.icon; img.alt = item.label || item.id; img.style.width = '100%'; img.style.maxHeight = '40vh'; img.style.objectFit = 'contain'; body.appendChild(img); }
     if (item.meta?.word) { const w = document.createElement('div'); w.textContent = String(item.meta.word); w.style.fontSize = '1.4rem'; w.style.fontWeight = '700'; w.style.textAlign = 'center'; body.appendChild(w); }
     if (item.meta?.description) { const d = document.createElement('div'); d.textContent = String(item.meta.description); body.appendChild(d); }
-    await this.openModal({ title: item.label || item.id, body, okLabel: 'OK', cancelLabel: 'Close' });
+    await this.openModal({ title: item.label || item.id, body, okLabel: 'OK', cancelLabel: 'Zavřít' });
   }
 
   _itemLabel(id) { return this._itemById(id)?.label || id; }
@@ -204,7 +209,7 @@ export class Game {
   _msg(t) { this.messageBox.textContent = t; }
 
   // === Modal ===
-  openModal({ title, body, okLabel = 'OK', cancelLabel = 'Cancel' }) {
+  openModal({ title, body, okLabel = 'OK', cancelLabel = 'Zrušit' }) {
     this.modalTitle.textContent = title || '';
     this.modalBody.innerHTML = ''; this.modalBody.appendChild(body);
     this.modalRoot.classList.remove('hidden');
@@ -213,12 +218,58 @@ export class Game {
   }
   _closeModal(ok) { this.modalRoot.classList.add('hidden'); const r = this._modalResolve; this._modalResolve = null; if (r) r(ok); }
 
+  // Převod % rectu na absolutní px v rámci hotspotLayer
+  _rectPercentToPx(rect) {
+    const w = this.hotspotLayer.clientWidth;
+    const h = this.hotspotLayer.clientHeight;
+    const px = (p, total) => (p / 100) * total;
+    return { left: px(rect.x, w), top: px(rect.y, h), width: px(rect.w, w), height: px(rect.h, h) };
+  }
+
+  // Vykreslení glow vrstvy pro daný rect (v %), na X ms (default 3500)
+  _showHighlightRect(rectPct, ms = 3500, { outline = false } = {}) {
+    const box = this._rectPercentToPx(rectPct);
+    const el = document.createElement('div');
+    el.className = 'hs-glow' + (outline ? ' outline' : '');
+    el.style.left = box.left + 'px';
+    el.style.top = box.top + 'px';
+    el.style.width = box.width + 'px';
+    el.style.height = box.height + 'px';
+    // Umístíme do stejné vrstvy jako hotspoty (zarovnání)
+    this.hotspotLayer.appendChild(el);
+    // Zhasni po čase
+    setTimeout(() => el.remove(), Math.max(500, ms | 0));
+  }
+
+  // Ulož highlight, pokud scéna není aktuální; jinak rovnou zobraz
+  _enqueueOrShowHighlight({ sceneId, rect, ms = 3500, outline = false }) {
+    if (!sceneId || sceneId === this.currentScene?.id) {
+      this._showHighlightRect(rect, ms, { outline });
+    } else {
+      this._pendingHighlights[sceneId] = this._pendingHighlights[sceneId] || [];
+      this._pendingHighlights[sceneId].push({ rect, ms, outline });
+    }
+  }
+
+  // Po příchodu do scény vykresli případné čekající highlighty
+  _drainHighlightsForScene(sceneId) {
+    const list = this._pendingHighlights[sceneId];
+    if (!list || !list.length) return;
+    // vykresli jeden po druhém s mírným rozestupem
+    let delay = 0;
+    list.forEach(({ rect, ms, outline }) => {
+      setTimeout(() => this._showHighlightRect(rect, ms, { outline }), delay);
+      delay += 200; // drobné rozfázování
+    });
+    this._pendingHighlights[sceneId] = [];
+  }
+
   // === Toasty (neblokující bannery) ===
   toast(text, ms = 5000) {
     const wrap = document.createElement('div');
     wrap.className = 'toast';
-    wrap.setAttribute('role','status');
-    wrap.setAttribute('aria-live','polite');
+    wrap.setAttribute('role', 'status');
+    wrap.setAttribute('aria-live', 'polite');
     wrap.textContent = text;
     this.toastRoot.appendChild(wrap);
     // auto-hide
@@ -240,6 +291,7 @@ export class Game {
       if (w.scene && w.scene !== (trigger.scene || this.state.scene)) continue;
       if (w.requireItems && !this._hasAll(w.requireItems)) continue;
       if (w.requireFlags && !this._hasAllFlags(w.requireFlags)) continue;
+      if (w.missingItems && (w.missingItems.some(x => this.state.inventory.includes(x)))) continue;
 
       const act = ev.then || {};
 
@@ -248,19 +300,33 @@ export class Game {
         this.toast(String(act.toast.text), act.toast.ms ?? 5000);
       }
 
-      // 2) Změna obrázku scény
+      // 2) Změna obrázku scény (s čekáním, pokud měníme právě zobrazenou scénu)
       if (act.setSceneImage && act.setSceneImage.sceneId && act.setSceneImage.image) {
         const sc = this.data.scenes.find(s => s.id === act.setSceneImage.sceneId);
         if (sc) {
           sc.image = act.setSceneImage.image;
           if (this.currentScene?.id === sc.id) {
-            // pokud jsme v té scéně, přepiš obrázek hned
             this.sceneImage.src = sc.image;
+            await new Promise(res => {
+              if (this.sceneImage.complete && this.sceneImage.naturalWidth) res();
+              else this.sceneImage.onload = () => res();
+            });
           }
         }
       }
 
-      // 3) Volitelné: setFlags (pro budoucí rozšíření)
+      // 3) Highlight hotspotu (glow) – rect v % v rámci scény
+      if (act.highlightHotspot && act.highlightHotspot.rect) {
+        const h = act.highlightHotspot;
+        this._enqueueOrShowHighlight({
+          sceneId: h.sceneId || (w.scene || this.state.scene),
+          rect: h.rect,
+          ms: h.ms ?? 3500,
+          outline: !!h.outline
+        });
+      }
+
+      // 4) Volitelné: setFlags (pro budoucí rozšíření)
       if (act.setFlags) {
         let changed = false;
         if (Array.isArray(act.setFlags)) {

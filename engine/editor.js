@@ -1,13 +1,13 @@
 // engine/editor.js
-// Editor: kreslení hotspot obdélníku tahem (myš/touch/pero) + labels + JSON panel.
-// Fix: toolbar/JSON panel jsou mimo hotspotLayer, takže kliky na ně neprobublají do listeneru kreslení.
+// Editor: kreslení hotspot obdélníku tahem (myš/touch/pero) + souřadnicové štítky + JSON panel.
+// Toolbar a JSON panel jsou MIMO hotspotLayer, takže kliky na ně neprobublají do listeneru kreslení.
 
 export class Editor {
   constructor({ game, overlay, hotspotLayer }) {
     this.game = game;
-    this.overlay = overlay;            // vizuální vrstva (labels + temp box), child sceneContainer
+    this.overlay = overlay;            // vizuální vrstva (štítky + dočasný box), je sourozencem hotspotLayer
     this.hotspotLayer = hotspotLayer;  // sbíráme z něj pointer události
-    this.sceneContainer = hotspotLayer.parentElement; // <— rodič obou vrstev
+    this.sceneContainer = hotspotLayer.parentElement; // rodič obou vrstev
 
     this.enabled = false;
     this.dragging = null; // { start:{x,y}, end:{x,y} } v %
@@ -34,7 +34,7 @@ export class Editor {
     this._observeHotspots();
     this._renderStaticLabels();
 
-    this._hint('Editor ON: táhni po scéně pro vytvoření hotspotu.');
+    this._hint('Editor ZAPNUT: táhni po scéně pro vytvoření hotspotu.');
   }
 
   disable() {
@@ -87,20 +87,26 @@ export class Editor {
     tb.style.pointerEvents = 'auto'; // MUSÍ být klikací
 
     const btnCopy = document.createElement('button');
-    btnCopy.textContent = 'Copy JSON';
+    btnCopy.textContent = 'Zkopírovat JSON';
     btnCopy.title = 'Zkopírovat poslední obdélník do schránky';
     btnCopy.addEventListener('click', ()=> this._copyJson());
 
     const btnRect = document.createElement('button');
-    btnRect.textContent = 'Rect JSON';
+    btnRect.textContent = 'Zobrazit JSON';
     btnRect.title = 'Zobraz JSON posledního obdélníku';
     btnRect.addEventListener('click', ()=> this._toggleJsonPanel());
 
     const btnInfo = document.createElement('button');
-    btnInfo.textContent = 'Scene info';
+    btnInfo.textContent = 'Info o scéně';
+    btnInfo.title = 'Zobrazí základní údaje o aktuální scéně';
     btnInfo.addEventListener('click', ()=>{
       const s = this.game.currentScene;
-      alert(JSON.stringify({ id:s.id, title:s.title, image:s.image, hotspotCount:(s.hotspots||[]).length }, null, 2));
+      alert(JSON.stringify({
+        id: s.id,
+        title: s.title,
+        image: s.image,
+        hotspotCount: (s.hotspots||[]).length
+      }, null, 2));
     });
 
     tb.appendChild(btnCopy);
@@ -108,7 +114,7 @@ export class Editor {
     tb.appendChild(btnInfo);
 
     this.toolbar = tb;
-    // KLÍČOVÉ: vkládáme do sceneContainer (sourozenec hotspotLayer), ne dovnitř hotspotLayer
+    // KLÍČOVÉ: vložit do sceneContainer (sourozenec hotspotLayer), ne dovnitř hotspotLayer
     this.sceneContainer.appendChild(tb);
   }
 
@@ -166,7 +172,7 @@ export class Editor {
     this._renderTemp();
     this.rect = this._currentRect();
     this.dragging = null;
-    this._hint('Hotspot ready. Klikni „Copy JSON“ nebo „Rect JSON“.');
+    this._hint('Hotspot připraven. Klikni na „Zkopírovat JSON“ nebo „Zobrazit JSON“.');
     this._updateJsonPanel();
   }
 
@@ -199,7 +205,7 @@ export class Editor {
     box.style.width = r.w + '%';
     box.style.height = r.h + '%';
 
-    // Label pro dočasný box
+    // Štítek pro dočasný box (souřadnice)
     let lab = this.overlay.querySelector('.temp-label');
     if (!lab){
       lab = document.createElement('div');
@@ -253,8 +259,8 @@ export class Editor {
     const str = this._snippet();
     if (!str) { alert('Nakresli nejdřív hotspot.'); return; }
     const ok = await this._copyText(str);
-    if (ok) alert('JSON copied to clipboard.');
-    else    alert('Kopírování selhalo. Otevři „Rect JSON“ a zkopíruj ručně.');
+    if (ok) alert('JSON zkopírován do schránky.');
+    else    alert('Kopírování selhalo. Otevři „Zobrazit JSON“ a zkopíruj ručně.');
   }
 
   async _copyText(text){
@@ -292,7 +298,7 @@ export class Editor {
 
     const title = document.createElement('div');
     title.className = 'editor-jsonpanel-title';
-    title.textContent = 'Rect JSON';
+    title.textContent = 'JSON obdélníku';
 
     const ta = document.createElement('textarea');
     ta.className = 'editor-jsonpanel-text';
@@ -304,14 +310,14 @@ export class Editor {
     row.className = 'editor-jsonpanel-actions';
 
     const btnCopy = document.createElement('button');
-    btnCopy.textContent = 'Copy';
+    btnCopy.textContent = 'Zkopírovat';
     btnCopy.addEventListener('click', async () => {
       const ok = await this._copyText(ta.value);
       if (!ok) alert('Nepodařilo se zkopírovat – zkopíruj prosím ručně.');
     });
 
     const btnClose = document.createElement('button');
-    btnClose.textContent = 'Close';
+    btnClose.textContent = 'Zavřít';
     btnClose.addEventListener('click', ()=> this._hideJsonPanel());
 
     row.appendChild(btnCopy);
@@ -323,7 +329,7 @@ export class Editor {
 
     this.jsonPanel = panel;
 
-    // KLÍČOVÉ: vkládáme do sceneContainer (ne do hotspotLayer)
+    // KLÍČOVÉ: panel patří do sceneContainer (ne do hotspotLayer)
     this.sceneContainer.appendChild(panel);
   }
   _hideJsonPanel(){

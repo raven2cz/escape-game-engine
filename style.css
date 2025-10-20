@@ -304,35 +304,73 @@ body {
     background: rgba(255, 255, 0, .12) !important;
 }
 
-.toast-container{
-  position: fixed !important;
-  top: 0; right: 0; bottom: 0; left: 0;
-  width: 100vw;
-  height: 100vh;
-  display: flex !important;
-  align-items: center;
-  justify-content: center;
-  z-index: 1200;
-  pointer-events: none;
+.toast-container {
+    position: fixed !important;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    z-index: 1200;
+    pointer-events: none;
 }
 
 /* Samotný toast */
-.toast{
-  max-width: min(640px, 90vw);
-  background: rgba(20,20,26,.95);
-  color: #f5f5f5;
-  border: 1px solid #2a2a33;
-  border-radius: 12px;
-  padding: 12px 16px;
-  font-size: 16px;
-  text-align: center;
-  box-shadow: 0 8px 30px rgba(0,0,0,.35);
-  transition: opacity .3s ease, transform .3s ease;
-  opacity: 1;
-  transform: none;
+.toast {
+    max-width: min(640px, 90vw);
+    background: rgba(20, 20, 26, .95);
+    color: #f5f5f5;
+    border: 1px solid #2a2a33;
+    border-radius: 12px;
+    padding: 12px 16px;
+    font-size: 16px;
+    text-align: center;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, .35);
+    transition: opacity .3s ease, transform .3s ease;
+    opacity: 1;
+    transform: none;
 }
 
-.toast.hide{
-  opacity: 0;
-  transform: translateY(6px);
+.toast.hide {
+    opacity: 0;
+    transform: translateY(6px);
+}
+
+.hs-glow {
+    position: absolute;
+    pointer-events: none;
+    z-index: 50;
+    border-radius: 12px;
+    background: radial-gradient(ellipse at center,
+            rgba(0, 200, 255, 0.18) 0%,
+            rgba(0, 200, 255, 0.12) 60%,
+            rgba(0, 200, 255, 0.00) 100%);
+    box-shadow:
+        0 0 0.8rem rgba(0, 200, 255, .35),
+        0 0 2.2rem rgba(0, 200, 255, .25);
+    animation: hs-pulse 1.4s ease-in-out infinite;
+    will-change: opacity, transform;
+}
+
+/* .hs-glow.outline { background: transparent; border: 2px solid rgba(0,200,255,.9); } */
+
+@keyframes hs-pulse {
+    0% {
+        opacity: 0.65;
+        transform: scale(0.98);
+    }
+
+    50% {
+        opacity: 1.00;
+        transform: scale(1.00);
+    }
+
+    100% {
+        opacity: 0.65;
+        transform: scale(0.98);
+    }
 }
