@@ -1,4 +1,25 @@
 {
+  "meta": {
+    "id": "leeuwenhoek",
+    "name": "Úniková hra Mikroskop",
+    "description": "Mikro-mise v dílně Antonie van Leeuwenhoeka.",
+    "author": "raven2cz",
+    "version": "1.0.0",
+    "tags": [
+      "biology",
+      "microscope",
+      "history"
+    ],
+    "languages": [
+      "cs",
+      "en"
+    ]
+  },
+  "settings": {
+    "hints": {
+      "acceptNeed": true
+    }
+  },
   "items": [
     {
       "id": "indicie-1",
@@ -555,14 +576,22 @@
         {
           "type": "goTo",
           "target": "exit",
-          "requireItems": [
-            "golden_key"
-          ],
           "rect": {
             "x": 69.35,
             "y": 0.73,
             "w": 23.63,
             "h": 80.36
+          },
+          "acceptItems": [
+            {
+              "id": "golden_key",
+              "consume": false
+            }
+          ],
+          "showNeedHint": true,
+          "onApply": {
+            "message": "Dveře se odemkly.",
+            "goTo": "exit"
           }
         }
       ]

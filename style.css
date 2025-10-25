@@ -374,3 +374,14 @@ body {
         transform: scale(0.98);
     }
 }
+
+/* Selected inventory item (use-mode) */
+.item.selected {
+    outline: 2px solid rgba(30, 144, 255, 0.9);
+    outline-offset: 2px;
+}
+
+/* Optional: cursor hint while in use-mode */
+body.use-on #hotspotLayer {
+    cursor: crosshair;
+}

@@ -1,146 +1,150 @@
 // engine/puzzles.js
-function normalizeText(s) { return (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim(); }
+// Puzzles that are i18n-aware via game._text() and engine modal labels.
+
+import { normalizeText } from './utils.js';
 
 export async function openPhraseModal(game, opts) {
   const wrap = document.createElement('div');
+
   const p = document.createElement('p');
-  p.textContent = opts.prompt || 'Zadej větu (heslo):';
+  p.textContent = game._text(opts.prompt, 'Zadej frázi (heslo):');
+
   const input = document.createElement('input');
   input.type = 'text';
   input.autocomplete = 'off';
   input.placeholder = opts.placeholder || '...';
   input.addEventListener('keydown', (e) => { if (e.key === 'Enter') game._closeModal(true); });
-  wrap.appendChild(p);
-  wrap.appendChild(input);
+
+  wrap.appendChild(p); wrap.appendChild(input);
   setTimeout(() => input.focus(), 50);
 
   const ok = await game.openModal({
-    title: opts.title || 'Hlavolam',
+    title: game._text(opts.title, 'Puzzle'),
     body: wrap,
-    okLabel: 'Odemknout',
-    cancelLabel: 'Zrušit'
+    okLabel: game._t('engine.modal.ok', 'OK'),
+    cancelLabel: game._t('engine.modal.cancel', 'Zavřít')
   });
-  if (!ok) return false;
 
-  const typed = normalizeText(input.value);
-  const sol = normalizeText(opts.solution || '');
+  if (!ok) return false;
+  const typed = normalizeText(input.value), sol = normalizeText(opts.solution || '');
   return typed === sol;
 }
 
 export async function openCodeModal(game, opts) {
   const wrap = document.createElement('div');
+
   const p = document.createElement('p');
-  p.textContent = opts.prompt || 'Zadej kód:';
+  p.textContent = game._text(opts.prompt, 'Zadej kód:');
+
   const input = document.createElement('input');
   input.type = opts.mask === 'password' ? 'password' : 'text';
   input.autocomplete = 'off';
   input.placeholder = opts.placeholder || '....';
   input.addEventListener('keydown', (e) => { if (e.key === 'Enter') game._closeModal(true); });
-  wrap.appendChild(p);
-  wrap.appendChild(input);
+
+  wrap.appendChild(p); wrap.appendChild(input);
   setTimeout(() => input.focus(), 50);
 
   const ok = await game.openModal({
-    title: opts.title || 'Zámek',
+    title: game._text(opts.title, 'Zámek'),
     body: wrap,
-    okLabel: 'Ověřit',
-    cancelLabel: 'Zrušit'
+    okLabel: game._t('engine.modal.ok', 'OK'),
+    cancelLabel: game._t('engine.modal.cancel', 'Zavřít')
   });
-  if (!ok) return false;
 
-  const typed = normalizeText(input.value);
-  const sol = normalizeText(opts.solution || '');
+  if (!ok) return false;
+  const typed = normalizeText(input.value), sol = normalizeText(opts.solution || '');
   return typed === sol;
 }
 
 export async function openOrderModal(game, opts) {
   const tokens = (opts.tokens || []).slice();
-  if (!tokens.length) throw new Error('Chybí položky pro hlavolam s pořadím.');
+  if (!tokens.length) throw new Error('Order puzzle missing tokens');
 
   const solution = (opts.solution || tokens).map(normalizeText);
   const shuffled = tokens.slice().sort(() => Math.random() - 0.5);
   const chosen = [];
 
   const wrap = document.createElement('div');
+
   const p = document.createElement('p');
-  p.textContent = opts.prompt || 'Klepni na kartičky a sestav správné pořadí:';
+  p.textContent = game._text(opts.prompt, 'Tapni na pořadí:');
+  wrap.appendChild(p);
 
   const pool = document.createElement('div');
-  pool.style.display = 'flex';
-  pool.style.flexWrap = 'wrap';
-  pool.style.gap = '6px';
-  pool.style.margin = '8px 0';
+  pool.style.display = 'flex'; pool.style.flexWrap = 'wrap';
+  pool.style.gap = '6px'; pool.style.margin = '8px 0';
 
   const out = document.createElement('div');
-  out.style.display = 'flex';
-  out.style.flexWrap = 'wrap';
-  out.style.gap = '6px';
-  out.style.margin = '8px 0';
-  out.style.minHeight = '36px';
+  out.style.display = 'flex'; out.style.flexWrap = 'wrap';
+  out.style.gap = '6px'; out.style.margin = '8px 0'; out.style.minHeight = '36px';
 
   function btn(label) {
     const b = document.createElement('button');
-    b.textContent = label;
-    b.style.padding = '6px 10px';
-    b.style.borderRadius = '8px';
+    b.textContent = typeof label === 'string' ? label : (label?.text || '');
+    b.style.padding = '8px 12px';
+    b.style.borderRadius = '12px';
     b.style.border = '1px solid #3a3a47';
-    b.style.background = '#22232a';
+    b.style.background = 'rgba(0,0,0,.35)';
+    b.style.backdropFilter = 'blur(6px)';
     b.style.color = '#fff';
     b.style.cursor = 'pointer';
+    b.style.minHeight = '44px';
     return b;
   }
 
   function render() {
-    pool.innerHTML = '';
-    out.innerHTML = '';
+    pool.innerHTML = ''; out.innerHTML = '';
     shuffled.forEach((t, idx) => {
       if (chosen.includes(idx)) return;
-      const b = btn(t);
+      const label = t?.text || t?.image || t;
+      const b = btn(label);
       b.addEventListener('click', () => { chosen.push(idx); render(); });
       pool.appendChild(b);
     });
     chosen.forEach((idx, pos) => {
-      const b = btn(shuffled[idx]);
+      const label = shuffled[idx]?.text || shuffled[idx]?.image || shuffled[idx];
+      const b = btn(label);
       b.addEventListener('click', () => { chosen.splice(pos, 1); render(); });
       out.appendChild(b);
     });
   }
   render();
 
-  wrap.appendChild(p);
-  const lab1 = document.createElement('div'); lab1.textContent = 'Dostupné:'; wrap.appendChild(lab1);
-  wrap.appendChild(pool);
-  const lab2 = document.createElement('div'); lab2.textContent = 'Tvé pořadí:'; wrap.appendChild(lab2);
-  wrap.appendChild(out);
+  const lab1 = document.createElement('div'); lab1.textContent = 'Dostupné:';
+  const lab2 = document.createElement('div'); lab2.textContent = 'Tvoje pořadí:';
+  wrap.appendChild(lab1); wrap.appendChild(pool);
+  wrap.appendChild(lab2); wrap.appendChild(out);
 
   const ok = await game.openModal({
-    title: opts.title || 'Pořadí',
+    title: game._text(opts.title, 'Pořadí'),
     body: wrap,
-    okLabel: 'Ověřit',
-    cancelLabel: 'Zrušit'
+    okLabel: game._t('engine.modal.ok', 'OK'),
+    cancelLabel: game._t('engine.modal.cancel', 'Zavřít')
   });
+
   if (!ok) return false;
   if (chosen.length !== shuffled.length) return false;
 
-  const user = chosen.map(i => normalizeText(shuffled[i]));
+  const user = chosen.map(i => normalizeText(shuffled[i]?.text || shuffled[i]));
   return user.every((v, i) => v === solution[i]);
 }
 
 export async function openMatchModal(game, opts) {
   const pairs = (opts.pairs || []);
-  if (!pairs.length) throw new Error('Chybí dvojice pro hlavolam párování.');
+  if (!pairs.length) throw new Error('Match puzzle missing pairs');
 
-  const left = pairs.map(p => p[0]);
-  const right = pairs.map(p => p[1]);
+  const left = pairs.map(p => p[0]), right = pairs.map(p => p[1]);
   const idxL = left.map((_, i) => i).sort(() => Math.random() - 0.5);
   const idxR = right.map((_, i) => i).sort(() => Math.random() - 0.5);
 
-  const matched = new Set();
-  let selL = null, selR = null;
+  const matched = new Set(); let selL = null, selR = null;
 
   const wrap = document.createElement('div');
+
   const p = document.createElement('p');
-  p.textContent = opts.prompt || 'Spáruj položky z levého sloupce s pravým:';
+  p.textContent = game._text(opts.prompt, 'Spáruj dvojice:');
+  wrap.appendChild(p);
 
   const grid = document.createElement('div');
   grid.style.display = 'grid';
@@ -150,21 +154,21 @@ export async function openMatchModal(game, opts) {
   function btn(label) {
     const b = document.createElement('button');
     b.textContent = label;
-    b.style.padding = '6px 10px';
-    b.style.borderRadius = '8px';
+    b.style.padding = '8px 12px';
+    b.style.borderRadius = '12px';
     b.style.border = '1px solid #3a3a47';
-    b.style.background = '#22232a';
+    b.style.background = 'rgba(0,0,0,.35)';
+    b.style.backdropFilter = 'blur(6px)';
     b.style.color = '#fff';
     b.style.cursor = 'pointer';
+    b.style.minHeight = '44px';
     return b;
   }
 
-  const leftCol = document.createElement('div');
-  const rightCol = document.createElement('div');
+  const leftCol = document.createElement('div'); const rightCol = document.createElement('div');
 
   function render() {
-    leftCol.innerHTML = '';
-    rightCol.innerHTML = '';
+    leftCol.innerHTML = ''; rightCol.innerHTML = '';
 
     idxL.forEach(i => {
       const b = btn(left[i]);
@@ -193,22 +197,19 @@ export async function openMatchModal(game, opts) {
     selL = selR = null;
   }
 
-  wrap.appendChild(p);
-  const labL = document.createElement('div'); labL.textContent = 'Levá strana'; wrap.appendChild(labL);
-  const labR = document.createElement('div'); labR.textContent = 'Pravá strana'; wrap.appendChild(labR);
-
-  grid.appendChild(leftCol);
-  grid.appendChild(rightCol);
+  const labL = document.createElement('div'); labL.textContent = 'Levá'; wrap.appendChild(labL);
+  const labR = document.createElement('div'); labR.textContent = 'Pravá'; wrap.appendChild(labR);
+  grid.appendChild(leftCol); grid.appendChild(rightCol);
   wrap.appendChild(grid);
   render();
 
   const ok = await game.openModal({
-    title: opts.title || 'Párování',
+    title: game._text(opts.title, 'Přiřazení'),
     body: wrap,
-    okLabel: 'Ověřit',
-    cancelLabel: 'Zrušit'
+    okLabel: game._t('engine.modal.ok', 'OK'),
+    cancelLabel: game._t('engine.modal.cancel', 'Zavřít')
   });
-  if (!ok) return false;
 
+  if (!ok) return false;
   return matched.size === pairs.length * 2;
 }

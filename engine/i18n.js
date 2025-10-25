@@ -1,0 +1,40 @@
+// engine/i18n.js
+// Minimal engine i18n dictionary. Extend as needed.
+export const ENGINE_I18N = {
+    cs: {
+        'engine.sceneNotFound': 'Scéna nebyla nalezena: {id}',
+        'engine.missingItems': 'Něco ti chybí…',
+        'engine.needUnlock': 'Nejprve musíš něco odemknout…',
+        'engine.pickedUp': 'Sebráno: {name}',
+        'engine.alreadyHave': 'Už máš: {name}',
+        'engine.solved': 'Vyřešeno!',
+        'engine.puzzleFailed': 'Puzzle nevyřešeno.',
+        'engine.endCongrats': '🎉 Gratulujeme! Našel jsi cíl!',
+        'engine.modal.ok': 'OK',
+        'engine.modal.cancel': 'Zavřít',
+        'engine.use.selected': 'Vybráno k použití: {name}. Klepni na cíl.',
+        'engine.use.cleared': 'Režim použití vypnut.',
+        'engine.use.needItem': 'Potřebuješ použít: {need}.',
+        'engine.use.applied': 'Předmět byl použit.',
+        'engine.use.button': 'Použít',
+        'engine.use.notApplicable': 'Tento předmět tady nelze použít.',
+    },
+    en: {
+        'engine.sceneNotFound': 'Scene not found: {id}',
+        'engine.missingItems': 'You are missing something…',
+        'engine.needUnlock': 'Something needs to be unlocked first…',
+        'engine.pickedUp': 'Picked up: {name}',
+        'engine.alreadyHave': 'You already have: {name}',
+        'engine.solved': 'Solved!',
+        'engine.puzzleFailed': 'Puzzle failed.',
+        'engine.endCongrats': '🎉 Congratulations! You found the specimen!',
+        'engine.modal.ok': 'OK',
+        'engine.modal.cancel': 'Close',
+        'engine.use.selected': 'Selected to use: {name}. Tap a target.',
+        'engine.use.cleared': 'Use mode off.',
+        'engine.use.needItem': 'You need to use: {need}.',
+        'engine.use.applied': 'Item applied.',
+        'engine.use.button': 'Use',
+        'engine.use.notApplicable': 'You cannot use this item here.',
+    }
+};
