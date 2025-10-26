@@ -1,53 +1,52 @@
 <!doctype html>
 <html lang="cs">
-
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Úniková hra Mikroskop</title>
-  <link rel="stylesheet" href="style.css">
-  <link rel="manifest" href="manifest.webmanifest">
-  <meta name="theme-color" content="#17171c">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Úniková hra</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.webmanifest">
+    <meta name="theme-color" content="#17171c">
 </head>
 
 <body>
-  <header class="topbar">
-    <div class="title">Úniková hra Mikroskop</div>
+<header class="topbar">
+    <div class="title">Úniková hra</div>
     <div class="controls">
-      <button id="btnRestart" title="Restart">↺ Restart</button>
-      <button id="btnEditor" title="Přepnout editor">✎ Edit</button>
+        <button id="btnRestart" title="Restart">↺ Restart</button>
+        <button id="btnEditor" title="Přepnout editor">✎ Edit</button>
     </div>
-  </header>
+</header>
 
-  <main id="gameRoot">
+<main id="gameRoot">
     <div id="sceneContainer">
-      <img id="sceneImage" alt="scene">
-      <div id="hotspotLayer"></div>
-      <div id="editorOverlay" class="hidden"></div>
+        <img id="sceneImage" alt="scene">
+        <div id="hotspotLayer"></div>
+        <div id="editorOverlay" class="hidden"></div>
     </div>
 
     <section id="uiBar">
-      <div id="inventory"></div>
-      <div id="msg"></div>
+        <div id="inventory"></div>
+        <div id="msg"></div>
     </section>
-  </main>
+</main>
 
-  <!-- Modal -->
-  <div id="modal" class="hidden">
+<!-- Modal -->
+<div id="modal" class="hidden">
     <div class="modal-content">
-      <div id="modalTitle" class="modal-title"></div>
-      <div id="modalBody" class="modal-body"></div>
-      <div class="modal-actions">
-        <button id="modalCancel">Zrušit</button>
-        <button id="modalOk">OK</button>
-      </div>
+        <div id="modalTitle" class="modal-title"></div>
+        <div id="modalBody" class="modal-body"></div>
+        <div class="modal-actions">
+            <button id="modalCancel">Zrušit</button>
+            <button id="modalOk">OK</button>
+        </div>
     </div>
-  </div>
+</div>
 
-  <script type="module">
-    import { Game } from './engine/engine.js';
-    import { Editor } from './engine/editor.js';
-    import { ENGINE_I18N } from './engine/i18n.js';
+<script type="module">
+    import {Game} from './engine/engine.js';
+    import {Editor} from './engine/editor.js';
+    import {ENGINE_I18N} from './engine/i18n.js';
 
     // --- Query parsing
     const params = new URLSearchParams(location.search);
@@ -57,88 +56,92 @@
 
     // --- Helper: safe fetch JSON (returns {} on failure)
     async function fetchJsonSafe(url) {
-      try {
-        const r = await fetch(url, { cache: 'no-cache' });
-        if (!r.ok) throw new Error(r.statusText);
-        return await r.json();
-      } catch { return {}; }
+        try {
+            const r = await fetch(url, {cache: 'no-cache'});
+            if (!r.ok) throw new Error(r.statusText);
+            return await r.json();
+        } catch {
+            return {};
+        }
     }
 
     // --- Boot
     (async () => {
-      // Load per-game i18n (optional)
-      const gameI18n = await fetchJsonSafe(`${baseUrl}i18n/${lang}.json`);
+        // Load per-game i18n (optional)
+        const gameI18n = await fetchJsonSafe(`${baseUrl}i18n/${lang}.json`);
 
-      const game = new Game({
-        baseUrl,
-        scenesUrl: `${baseUrl}scenes.json`,
-        lang,
-        // Merge engine i18n map with per-game map
-        i18n: {
-          engine: ENGINE_I18N?.[lang] || ENGINE_I18N?.cs || {},
-          game: gameI18n || {},
-        },
-        // DOM refs
-        sceneImage: document.getElementById('sceneImage'),
-        hotspotLayer: document.getElementById('hotspotLayer'),
-        inventoryRoot: document.getElementById('inventory'),
-        messageBox: document.getElementById('msg'),
-        modalRoot: document.getElementById('modal'),
-        modalTitle: document.getElementById('modalTitle'),
-        modalBody: document.getElementById('modalBody'),
-        modalCancel: document.getElementById('modalCancel'),
-        modalOk: document.getElementById('modalOk'),
-      });
-
-      const editor = new Editor({
-        game,
-        overlay: document.getElementById('editorOverlay'),
-        hotspotLayer: document.getElementById('hotspotLayer')
-      });
-
-      // Expose instance for helper scripts (e.g., toast)
-      window.__game = game;
-
-      document.getElementById('btnRestart').addEventListener('click', () => game.restart());
-      document.getElementById('btnEditor').addEventListener('click', () => editor.toggle());
-
-      if ('serviceWorker' in navigator) {
-        if (params.get('pwa') === '1') {
-          navigator.serviceWorker.register('./service-worker.js').catch(console.error);
-        }
-      }
-
-      await game.init();
-
-      // --- Scene aspect: derive from first loaded image + warn on drift
-      (function () {
-        const sceneImg = document.getElementById('sceneImage');
-        let baselineAspect = null; // ih/iw
-
-        function setAspectFrom(img) {
-          const iw = img.naturalWidth || 16;
-          const ih = img.naturalHeight || 9;
-          const cssRatio = `${iw} / ${ih}`;
-          document.documentElement.style.setProperty('--scene-aspect', cssRatio);
-          baselineAspect = ih / iw;
-        }
-        function checkDrift(img) {
-          if (!baselineAspect) return;
-          const iw = img.naturalWidth || 16;
-          const ih = img.naturalHeight || 9;
-          const a = ih / iw;
-          const drift = Math.abs(a - baselineAspect) / baselineAspect;
-          if (drift > 0.02) {
-            window.__game?.toast?.('Pozor: tento obrázek má jiný poměr stran než baseline. Doporučeno sjednotit.', 5000);
-          }
-        }
-        sceneImg.addEventListener('load', function () {
-          if (!baselineAspect) setAspectFrom(sceneImg);
-          checkDrift(sceneImg);
+        const game = new Game({
+            baseUrl,
+            scenesUrl: `${baseUrl}scenes.json`,
+            dialogsUrl: `${baseUrl}dialogs.json`,   // source of dialogs for the chosen game
+            lang,
+            // Merge engine i18n map with per-game map
+            i18n: {
+                engine: ENGINE_I18N?.[lang] || ENGINE_I18N?.cs || {},
+                game: gameI18n || {},
+            },
+            // DOM refs
+            sceneImage: document.getElementById('sceneImage'),
+            hotspotLayer: document.getElementById('hotspotLayer'),
+            inventoryRoot: document.getElementById('inventory'),
+            messageBox: document.getElementById('msg'),
+            modalRoot: document.getElementById('modal'),
+            modalTitle: document.getElementById('modalTitle'),
+            modalBody: document.getElementById('modalBody'),
+            modalCancel: document.getElementById('modalCancel'),
+            modalOk: document.getElementById('modalOk'),
         });
-      })();
-    })();
-  </script>
-</body>
 
+        const editor = new Editor({
+            game,
+            overlay: document.getElementById('editorOverlay'),
+            hotspotLayer: document.getElementById('hotspotLayer')
+        });
+
+        // Expose instance for helper scripts (e.g., toast)
+        window.__game = game;
+
+        document.getElementById('btnRestart').addEventListener('click', () => game.restart());
+        document.getElementById('btnEditor').addEventListener('click', () => editor.toggle());
+
+        if ('serviceWorker' in navigator) {
+            if (params.get('pwa') === '1') {
+                navigator.serviceWorker.register('./service-worker.js').catch(console.error);
+            }
+        }
+
+        await game.init();
+
+        // --- Scene aspect: derive from first loaded image + warn on drift
+        (function () {
+            const sceneImg = document.getElementById('sceneImage');
+            let baselineAspect = null; // ih/iw
+
+            function setAspectFrom(img) {
+                const iw = img.naturalWidth || 16;
+                const ih = img.naturalHeight || 9;
+                const cssRatio = `${iw} / ${ih}`;
+                document.documentElement.style.setProperty('--scene-aspect', cssRatio);
+                baselineAspect = ih / iw;
+            }
+
+            function checkDrift(img) {
+                if (!baselineAspect) return;
+                const iw = img.naturalWidth || 16;
+                const ih = img.naturalHeight || 9;
+                const a = ih / iw;
+                const drift = Math.abs(a - baselineAspect) / baselineAspect;
+                if (drift > 0.02) {
+                    window.__game?.toast?.('Pozor: tento obrázek má jiný poměr stran než baseline. Doporučeno sjednotit.', 5000);
+                }
+            }
+
+            sceneImg.addEventListener('load', function () {
+                if (!baselineAspect) setAspectFrom(sceneImg);
+                checkDrift(sceneImg);
+            });
+        })();
+    })();
+</script>
+</body>
 </html>

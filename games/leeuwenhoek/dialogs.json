@@ -1,0 +1,180 @@
+{
+  "meta": { "id": "leeuwenhoek", "name": "Dialogs" },
+
+  "characters": [
+    {
+      "id": "leeuwenhoek",
+      "name": "@character.leeuwenhoek.name@Antoni",
+      "poses": {
+        "neutral": "assets/npc/leeu/neutral.png",
+        "smile":   "assets/npc/leeu/smile.png",
+        "angry":   "assets/npc/leeu/angry.png"
+      }
+    },
+    {
+      "id": "hero",
+      "name": "@character.hero.name@Hrdina",
+      "poses": {
+        "idle":     "assets/npc/hero/idle.png",
+        "thinking": "assets/npc/hero/thinking.png",
+        "happy":    "assets/npc/hero/happy.png"
+      }
+    }
+  ],
+
+  "dialogs": [
+    {
+      "id": "intro.welcome",
+      "once": true,
+      "title": "@dialog.intro.welcome.title@Laboratoř, rok 1674",
+      "left":  { "characterId": "leeuwenhoek", "defaultPose": "neutral" },
+      "right": { "characterId": "hero",        "defaultPose": "idle" },
+      "ui": { "tapToNext": true, "allowSkip": true },
+
+      "sequence": [
+        {
+          "id": "w1",
+          "speaker": "left",
+          "pose": "smile",
+          "text": "@dialog.intro.welcome.w1@Pssst. Ty tam. Vidím, že jsi vzhůru. Výborně."
+        },
+        {
+          "id": "w2",
+          "speaker": "right",
+          "pose": "thinking",
+          "text": "@dialog.intro.welcome.w2@Kde to jsem? A proč všude páchne olej a ocet?"
+        },
+        {
+          "id": "w3",
+          "speaker": "left",
+          "pose": "neutral",
+          "text": "@dialog.intro.welcome.w3@Jmenuji se Antoni van Leeuwenhoek. Tohle je moje dílna. A ty mi teď pomůžeš. Rozumíš?"
+        },
+        {
+          "id": "w4",
+          "speaker": "right",
+          "pose": "idle",
+          "text": "@dialog.intro.welcome.w4@Počkejte… já? Já jsem jen… ehm… návštěvník."
+        },
+        {
+          "id": "w5",
+          "speaker": "left",
+          "leftPose": "angry",
+          "rightPose": "thinking",
+          "text": "@dialog.intro.welcome.w5@Návštěvníci u mě nedostávají čaj. Návštěvníci dělají pokusy.",
+          "choices": [
+            {
+              "id": "curious",
+              "label": "@dialog.intro.welcome.choice.curious@Dobře… co mám dělat?",
+              "onChoose": { "jump": "w_more" }
+            },
+            {
+              "id": "resist",
+              "label": "@dialog.intro.welcome.choice.resist@Ne, díky. Já jen jdu kolem.",
+              "onChoose": { "jump": "w_pushback" }
+            }
+          ]
+        },
+
+        {
+          "id": "w_pushback",
+          "speaker": "left",
+          "pose": "angry",
+          "text": "@dialog.intro.welcome.w_pushback@Výborně. Vzpoura hned na začátku. Aspoň vidím charakter. Ale čas běží. Potřebujeme preparát. Teď.",
+          "onNext": { "jump": "w_more" }
+        },
+
+        {
+          "id": "w_more",
+          "speaker": "left",
+          "pose": "smile",
+          "text": "@dialog.intro.welcome.w_more@Za chvíli tě pustím k mikroskopu. Ale než začneš, musíš vědět, co hledáš.",
+          "onNext": { "setFlags": ["intro_seen", "met_leeuwenhoek"] }
+        }
+      ],
+
+      "onEnd": {
+        "message": "@dialog.intro.welcome.end@Získal jsi přístup k mikroskopu.",
+        "setFlags": ["can_use_microscope"]
+      }
+    },
+
+    {
+      "id": "intro.mainRoom",
+      "once": true,
+      "title": "@dialog.intro.mainRoom.title@Hlavní komora laboratoře",
+      "left":  { "characterId": "leeuwenhoek", "defaultPose": "neutral" },
+      "right": { "characterId": "hero",        "defaultPose": "idle" },
+      "ui": { "tapToNext": true, "allowSkip": true },
+
+      "sequence": [
+        {
+          "id": "m1",
+          "speaker": "left",
+          "pose": "neutral",
+          "text": "@dialog.intro.mainRoom.m1@Tohle je hlavní místnost. Tady připravuji vzorky – kapka vody, kousek mechu, dokonce i krev."
+        },
+        {
+          "id": "m2",
+          "speaker": "right",
+          "pose": "happy",
+          "text": "@dialog.intro.mainRoom.m2@Počkejte… krev?!"
+        },
+        {
+          "id": "m3",
+          "speaker": "left",
+          "pose": "smile",
+          "text": "@dialog.intro.mainRoom.m3@Věda není pro slabé žaludky. A teď poslouchej dobře."
+        },
+        {
+          "id": "m4",
+          "speaker": "left",
+          "leftPose": "neutral",
+          "rightPose": "thinking",
+          "text": "@dialog.intro.mainRoom.m4@Nejdřív potřebuju, abys našel správný preparát. Umíš rozeznat objektiv od okuláru?",
+          "choices": [
+            {
+              "id": "confident",
+              "label": "@dialog.intro.mainRoom.choice.confident@Jasně, jsem profík.",
+              "onChoose": { "jump": "m_confident" }
+            },
+            {
+              "id": "help",
+              "label": "@dialog.intro.mainRoom.choice.help@Ne… ukaž mi to radši.",
+              "onChoose": { "jump": "m_help" }
+            }
+          ]
+        },
+
+        {
+          "id": "m_confident",
+          "speaker": "right",
+          "pose": "happy",
+          "text": "@dialog.intro.mainRoom.m_confident@Tohle nahoře je okulár, tam koukám. A dole je objektiv, ten zvětšuje.",
+          "onNext": { "setFlags": ["knows_parts_basic"] }
+        },
+
+        {
+          "id": "m_help",
+          "speaker": "left",
+          "pose": "smile",
+          "text": "@dialog.intro.mainRoom.m_help@Správně. Okulár je to, do čeho se díváš. Objektiv je ta část u vzorku. A nesmíš do něj ťukat prstem. Nikdy.",
+          "onNext": { "setFlags": ["knows_parts_explained", "knows_parts_basic"] }
+        },
+
+        {
+          "id": "m5",
+          "speaker": "left",
+          "pose": "neutral",
+          "text": "@dialog.intro.mainRoom.m5@Fajn. Jakmile vybereš preparát, můžeš začít pozorovat. Ale jestli něco rozbiješ… budeš to platit.",
+          "onNext": { "setFlags": ["task_find_sample"] }
+        }
+      ],
+
+      "onEnd": {
+        "message": "@dialog.intro.mainRoom.end@Úkol: najdi správný preparát a použij mikroskop.",
+        "setFlags": ["mission_started"]
+      }
+    }
+  ]
+}

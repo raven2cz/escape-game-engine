@@ -1,0 +1,30 @@
+{
+  "game.name": "Microscope Escape",
+
+  "item.ind1": "Clue 1",
+  "item.ind2": "Clue 2",
+  "item.ind3": "Clue 3",
+  "item.gold": "Golden Key",
+
+  "scene.welcome.title": "Welcome, researcher!",
+  "scene.main.title": "Main Room",
+  "scene.treasure.title": "Treasure Room",
+
+  "puzzle.chest.title": "Chest",
+  "puzzle.chest.prompt": "Arrange the words in your head and type the sentence:",
+  "puzzle.chest.solution": "let's dive into microscopy",
+  "puzzle.chest.ok": "The lid gave way, you obtained the Golden Key.",
+
+  "hint.treasure": "You can try the chest in the treasure room!",
+
+  "character.leeuwenhoek.name": "Antoni",
+  "character.hero.name": "Hero",
+  "dialog.intro_lab.title": "Meeting in the Lab",
+  "dialog.intro_lab.n1": "Welcome, researcher! We need help with the slides.",
+  "dialog.intro_lab.n2": "I'm on it!",
+  "dialog.intro_lab.n3": "Don't forget the microscope parts.",
+  "dialog.intro_lab.choice.more": "Tell me more.",
+  "dialog.intro_lab.choice.skip": "Enough, let's go.",
+  "dialog.intro_lab.details": "First, review the microscope parts…",
+  "dialog.intro_lab.end": "Briefing complete."
+}
