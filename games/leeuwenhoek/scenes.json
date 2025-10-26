@@ -13,6 +13,21 @@
       "acceptNeed": true
     }
   },
+  "heroes": {
+    "adam": {
+      "id": "adam",
+      "gender": "m",
+      "name": "@hero.adam@Adam",
+      "assetsBase": "assets/npc/adam/"
+    },
+    "eva": {
+      "id": "eva",
+      "gender": "f",
+      "name": "@hero.eva@Eva",
+      "assetsBase": "assets/npc/eva/"
+    }
+  },
+  "defaultHero": "adam",
   "items": [
     {
       "id": "indicie-1",

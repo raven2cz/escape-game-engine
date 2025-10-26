@@ -29,9 +29,10 @@ export class DialogUI {
         <div class="dlg-nameplate"></div>
         <div class="dlg-text"></div>
         <div class="dlg-choices"></div>
-        <div class="dlg-continue">@ui.tapToNext@</div>
+        <div class="dlg-continue"></div>
       </div>
     `;
+        // i18n text pro "tap to next"
         const cont = root.querySelector('.dlg-continue');
         if (cont) cont.textContent = this.game._text('@ui.tapToNext@Klepni pro pokračování');
 
@@ -95,14 +96,67 @@ export class DialogUI {
 
     async close() { this.active = null; this._hide(); }
 
+    // ---------- public: refresh ----------
+    // Zavolej po game.setHero(...), aby se živý dialog přerenderoval (výměna portrétů)
+    refresh() {
+        if (!this.active) return;
+        this._dbg('refresh() – re-render current step');
+        this._renderStep();
+    }
+
     // ---------- utils ----------
     _findCharacter(charId) {
-        return (this.game.dialogsData?.characters || []).find(c => c && c.id === charId) || null;
+        const data  = this.game.dialogsData || {};
+        const chars = Array.isArray(data.characters) ? data.characters : [];
+
+        // 1) Alias "hero" → vždy nejdřív řešíme přemapování na vybraný profil (Eva/Adam/…)
+        if (charId === 'hero') {
+            const hero = this.game.getHero();
+
+            // a) pokud už je v dialogs.json definovaný plnohodnotný profil se stejným id (eva/adam), vrať ho
+            const byId = chars.find(c => c && c.id === hero.id);
+            if (byId) return byId;
+
+            // b) fallback: vezmi šablonu 'hero' a přepiš cesty do poses na konkrétní profil
+            const tpl = chars.find(c => c && c.id === 'hero');
+            if (tpl) {
+                const clone = JSON.parse(JSON.stringify(tpl));
+                clone.name = this.game._text(hero.name) || hero.name || clone.name;
+
+                const poses = clone.poses || {};
+                for (const [k, v] of Object.entries(poses)) {
+                    let p = String(v || '');
+
+                    // tokeny
+                    p = p.replaceAll('{heroId}', hero.id);
+                    p = p.replaceAll('{heroBase}', hero.assetsBase || '');
+
+                    // robustní přepsání segmentu '.../hero[/|$]...' na '.../<id>...'
+                    p = p.replace(/\/hero\//g, `/${hero.id}/`);   // s lomítkem
+                    p = p.replace(/\/hero(?=\/|$)/g, `/${hero.id}`); // i bez koncového lomítka
+
+                    poses[k] = p;
+                }
+                clone.poses = poses;
+
+                // Debug (volitelně): odkomentuj, pokud chceš vidět finální cesty
+                // this._dbg('HERO remapped poses →', clone.poses);
+
+                return clone;
+            }
+            // žádná šablona ani konkrétní profil neexistuje
+            return null;
+        }
+
+        // 2) Ostatní postavy: přímý match
+        return chars.find(c => c && c.id === charId) || null;
     }
+
     _els(side) {
         const wrap = this.overlay?.querySelector(side === 'left' ? '.dlg-char.left' : '.dlg-char.right');
         return { wrap, img: wrap?.querySelector('.dlg-char-img') };
     }
+
     _setSpeaking(side) {
         const L = this.overlay?.querySelector('.dlg-char.left');
         const R = this.overlay?.querySelector('.dlg-char.right');
@@ -118,15 +172,19 @@ export class DialogUI {
             this.overlay?.classList.add('speaker-right');
         }
     }
+
     _applyPortrait(side, poseOverride = null) {
         const { img } = this._els(side);
         const actor    = (side === 'left') ? this.active?.leftChar  : this.active?.rightChar;
         const basePose = (side === 'left') ? this.active?.leftPose  : this.active?.rightPose;
         const pose     = poseOverride || basePose;
+
         if (!img || !actor) { if (img) img.src = ''; return; }
+
+        // zdroj z actor.poses s ohledem na hero přemapování (_findCharacter už přepsal cesty)
         const poses = actor.poses || {};
-        const src = (pose && poses[pose]) || poses.neutral || Object.values(poses)[0] || '';
-        img.src = this.game._resolveAsset(src);
+        const src0  = (pose && poses[pose]) || poses.neutral || Object.values(poses)[0] || '';
+        img.src = this.game._resolveAsset(src0);
         img.alt = this.game._text(actor.name) || '';
     }
 

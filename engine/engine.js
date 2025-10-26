@@ -32,6 +32,7 @@ export class Game {
         this.dialogsUrl = opts.dialogsUrl || null;  // ./games/<game>/dialogs.json (optional)
         this.lang = (opts.lang || 'cs').toLowerCase();
         this.i18n = opts.i18n || {engine: {}, game: {}};
+        this.heroInitId = opts.heroId || null;
 
         // State
         this.data = null;
@@ -156,11 +157,28 @@ export class Game {
             visited: {},
             eventsFired: {},
             scene: this.data.startScene || this.data.scenes[0]?.id,
-            useItemId: null
+            useItemId: null,
+            hero: null,
         };
 
         if (!this.state.flags) this.state.flags = {};
         if (!this.state.eventsFired) this.state.eventsFired = {};
+
+        if (!this.state.hero) {
+            // 1) načti default z rootu nebo z meta
+            const defId =
+                this.data?.defaultHero
+                || this.data?.meta?.defaultHero
+                || Object.keys(this.data?.heroes || this.data?.meta?.heroes || {})[0]
+                || 'adam';
+
+            // 2) override z URL (pokud je a takový profil existuje)
+            const chosen = (this.heroInitId && this._getHeroProfileById(this.heroInitId))
+                ? this.heroInitId
+                : defId;
+
+            this._setHeroInternal(chosen);
+        }
 
         await this.goto(this.state.scene, {noSave: true});
         this._renderInventory();
@@ -195,6 +213,52 @@ export class Game {
         await this._processEvents({on: 'enterScene', scene: sceneId});
 
         if (scene.end) this._msg(this._t('engine.endCongrats', '🎉 Gratulujeme! Našel si cestu ven!'));
+    }
+
+    // --- hero ----------------------------------------------------------------
+
+    _getHeroProfileById(id) {
+        const mapRoot = this.data?.heroes || {};
+        const mapMeta = this.data?.meta?.heroes || {};
+        return (mapRoot[id] || mapMeta[id] || null);
+    }
+
+    _setHeroInternal(id) {
+        const prof = this._getHeroProfileById(id) || {
+            id: 'adam',
+            gender: 'm',
+            name: 'Adam',
+            assetsBase: 'assets/npc/adam/'
+        };
+        this.state.hero = {
+            id: prof.id,
+            gender: prof.gender || 'm',
+            name: this._text(prof.name) || prof.name || 'Hero',
+            assetsBase: prof.assetsBase || 'assets/npc/adam/'
+        };
+        this._saveState();
+    }
+
+    // Veřejné API – můžeš volat odkudkoli (i z UI/eventů)
+    setHero(id) {
+        this._setHeroInternal(id);
+    }
+
+    getHero() {
+        return this.state?.hero || this._getHeroProfileById(this.data?.defaultHero) || {
+            id: 'adam',
+            gender: 'm',
+            name: 'Adam',
+            assetsBase: 'assets/npc/adam/'
+        };
+    }
+
+    getHeroId() {
+        return this.getHero().id;
+    }
+
+    getHeroGender() {
+        return this.getHero().gender;
     }
 
     // --- use mode ------------------------------------------------------------

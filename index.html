@@ -52,6 +52,7 @@
     const params = new URLSearchParams(location.search);
     const gameId = params.get('game') || 'leeuwenhoek'; // default game
     const lang = (params.get('lang') || 'cs').toLowerCase();
+    const heroId = params.get('hero') || null;
     const baseUrl = `./games/${gameId}/`;
 
     // --- Helper: safe fetch JSON (returns {} on failure)
@@ -75,6 +76,7 @@
             scenesUrl: `${baseUrl}scenes.json`,
             dialogsUrl: `${baseUrl}dialogs.json`,   // source of dialogs for the chosen game
             lang,
+            heroId,
             // Merge engine i18n map with per-game map
             i18n: {
                 engine: ENGINE_I18N?.[lang] || ENGINE_I18N?.cs || {},
@@ -111,6 +113,12 @@
         }
 
         await game.init();
+
+        const heroParam = (params.get('hero') || '').toLowerCase();
+        if (heroParam && game._getHeroProfileById?.(heroParam)) {
+            game.setHero(heroParam);
+            console.debug('[HERO] set from URL →', heroParam, game.getHero());
+        }
 
         // --- Scene aspect: derive from first loaded image + warn on drift
         (function () {
