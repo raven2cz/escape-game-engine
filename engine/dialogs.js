@@ -1,12 +1,14 @@
 // engine/dialogs.js
-// Dialog UI – portréty jsou ukotvené k panelu přes .dlg-stage (bottom: 0)
+// Dialog UI — portraits are anchored to the dialog panel via .dlg-stage (bottom: 0)
 
 export class DialogUI {
     constructor(game) {
         this.game = game;
-        this.overlay = null;  // root .dlg-overlay
-        this.active  = null;  // { id, dlg, idx, leftChar, rightChar, leftPose, rightPose }
+        this.overlay = null; // root .dlg-overlay
+        this.active  = null; // { id, dlg, idx, leftChar, rightChar, leftPose, rightPose }
     }
+
+    // --- debug --------------------------------------------------------------
 
     _dbgOn() {
         try { return new URLSearchParams(location.search).get('debug') === '1'; }
@@ -14,7 +16,8 @@ export class DialogUI {
     }
     _dbg(...a) { if (this._dbgOn()) console.debug('[DLG]', ...a); }
 
-    // ---------- mount ----------
+    // --- mount --------------------------------------------------------------
+
     _ensureMounted() {
         if (this.overlay) return;
 
@@ -32,24 +35,26 @@ export class DialogUI {
         <div class="dlg-continue"></div>
       </div>
     `;
-        // i18n text pro "tap to next"
+
+        // i18n for "tap to continue"
         const cont = root.querySelector('.dlg-continue');
         if (cont) cont.textContent = this.game._text('@ui.tapToNext@Klepni pro pokračování');
 
-        // Kliknutí mimo volby → next
+        // Click anywhere (except on choices) → next()
         root.addEventListener('click', (e) => {
-            if (e.target && e.target.closest('.dlg-choices')) return;
-            void this.next();
+            if (e.target?.closest('.dlg-choices')) return;
+            void this.next(); // don't block UI
         });
 
-        // Uvnitř sceneContainer (absolutní overlay)
-        const host = this.game?.sceneImage?.closest('#sceneContainer')
-            || this.game?.sceneImage?.parentElement
-            || document.body;
+        // Mount inside scene container (absolute overlay)
+        const host =
+            this.game?.sceneImage?.closest('#sceneContainer') ||
+            this.game?.sceneImage?.parentElement ||
+            document.body;
         host.appendChild(root);
         this.overlay = root;
 
-        // kompaktní režim
+        // Compact mode toggle
         const onResize = () => {
             const compact = window.innerHeight < 560;
             this.overlay.classList.toggle('dlg-compact', compact);
@@ -63,18 +68,19 @@ export class DialogUI {
     _show() { if (!this.overlay) this._ensureMounted(); this.overlay.classList.remove('hidden'); }
     _hide() { if (this.overlay) this.overlay.classList.add('hidden'); }
 
-    // ---------- open/close ----------
+    // --- open / close --------------------------------------------------------
+
     async open(dialogId) {
-        this._dbg('open() begin →', dialogId);
+        this._dbg('open() →', dialogId);
 
-        const data = this.game.dialogsData;
-        const list = Array.isArray(data?.dialogs) ? data.dialogs : [];
+        const list = Array.isArray(this.game.dialogsData?.dialogs) ? this.game.dialogsData.dialogs : [];
 
-        let dlg = list.find(d => d && d.id === dialogId);
+        // 1) exact id, 2) fallback to last segment "a.b.c" -> "c"
+        let dlg = list.find(d => d?.id === dialogId);
         if (!dlg && typeof dialogId === 'string' && dialogId.includes('.')) {
             const tail = dialogId.split('.').pop();
-            dlg = list.find(d => d && d.id === tail);
-            this._dbg('open() fallback by tail', tail, '→', !!dlg);
+            dlg = list.find(d => d?.id === tail);
+            this._dbg('open() fallback tail', tail, '→', !!dlg);
         }
         if (!dlg) { this._dbg('open() abort: not found', dialogId); return; }
 
@@ -96,60 +102,59 @@ export class DialogUI {
 
     async close() { this.active = null; this._hide(); }
 
-    // ---------- public: refresh ----------
-    // Zavolej po game.setHero(...), aby se živý dialog přerenderoval (výměna portrétů)
+    /**
+     * Re-render current step (useful after game.setHero(...)).
+     */
     refresh() {
         if (!this.active) return;
-        this._dbg('refresh() – re-render current step');
+        this._dbg('refresh()');
         this._renderStep();
     }
 
-    // ---------- utils ----------
-    _findCharacter(charId) {
-        const data  = this.game.dialogsData || {};
-        const chars = Array.isArray(data.characters) ? data.characters : [];
+    // --- helpers -------------------------------------------------------------
 
-        // 1) Alias "hero" → vždy nejdřív řešíme přemapování na vybraný profil (Eva/Adam/…)
+    /**
+     * Resolve character by id with special handling for the "hero" alias.
+     * - If dialogs.json defines a concrete hero profile (eva/adam) → use it.
+     * - Else clone the 'hero' template and remap {heroId}/{heroBase} tokens and '/hero/' path segment.
+     */
+    _findCharacter(charId) {
+        const chars = Array.isArray(this.game.dialogsData?.characters) ? this.game.dialogsData.characters : [];
+
         if (charId === 'hero') {
             const hero = this.game.getHero();
 
-            // a) pokud už je v dialogs.json definovaný plnohodnotný profil se stejným id (eva/adam), vrať ho
-            const byId = chars.find(c => c && c.id === hero.id);
+            // concrete profile available?
+            const byId = chars.find(c => c?.id === hero.id);
             if (byId) return byId;
 
-            // b) fallback: vezmi šablonu 'hero' a přepiš cesty do poses na konkrétní profil
-            const tpl = chars.find(c => c && c.id === 'hero');
-            if (tpl) {
-                const clone = JSON.parse(JSON.stringify(tpl));
-                clone.name = this.game._text(hero.name) || hero.name || clone.name;
+            // fallback: clone 'hero' template and remap asset paths
+            const tpl = chars.find(c => c?.id === 'hero');
+            if (!tpl) return null;
 
-                const poses = clone.poses || {};
-                for (const [k, v] of Object.entries(poses)) {
-                    let p = String(v || '');
+            const clone = JSON.parse(JSON.stringify(tpl));
+            clone.name = this.game._text(hero.name) || hero.name || clone.name;
 
-                    // tokeny
-                    p = p.replaceAll('{heroId}', hero.id);
-                    p = p.replaceAll('{heroBase}', hero.assetsBase || '');
+            const poses = clone.poses || {};
+            for (const [k, v] of Object.entries(poses)) {
+                let p = String(v || '');
 
-                    // robustní přepsání segmentu '.../hero[/|$]...' na '.../<id>...'
-                    p = p.replace(/\/hero\//g, `/${hero.id}/`);   // s lomítkem
-                    p = p.replace(/\/hero(?=\/|$)/g, `/${hero.id}`); // i bez koncového lomítka
+                // token replacement
+                p = p.replaceAll('{heroId}', hero.id);
+                p = p.replaceAll('{heroBase}', hero.assetsBase || '');
 
-                    poses[k] = p;
-                }
-                clone.poses = poses;
+                // robust path segment replacement: /hero[/|$] → /<id>...
+                p = p.replace(/\/hero\//g, `/${hero.id}/`);
+                p = p.replace(/\/hero(?=\/|$)/g, `/${hero.id}`);
 
-                // Debug (volitelně): odkomentuj, pokud chceš vidět finální cesty
-                // this._dbg('HERO remapped poses →', clone.poses);
-
-                return clone;
+                poses[k] = p;
             }
-            // žádná šablona ani konkrétní profil neexistuje
-            return null;
+            clone.poses = poses;
+            return clone;
         }
 
-        // 2) Ostatní postavy: přímý match
-        return chars.find(c => c && c.id === charId) || null;
+        // non-hero: direct match
+        return chars.find(c => c?.id === charId) || null;
     }
 
     _els(side) {
@@ -160,17 +165,12 @@ export class DialogUI {
     _setSpeaking(side) {
         const L = this.overlay?.querySelector('.dlg-char.left');
         const R = this.overlay?.querySelector('.dlg-char.right');
-        if (L) L.classList.remove('speaking');
-        if (R) R.classList.remove('speaking');
+        L?.classList.remove('speaking');
+        R?.classList.remove('speaking');
         this.overlay?.classList.remove('speaker-left', 'speaker-right');
 
-        if (side === 'left') {
-            if (L) L.classList.add('speaking');
-            this.overlay?.classList.add('speaker-left');
-        } else if (side === 'right') {
-            if (R) R.classList.add('speaking');
-            this.overlay?.classList.add('speaker-right');
-        }
+        if (side === 'left')  { L?.classList.add('speaking'); this.overlay?.classList.add('speaker-left'); }
+        if (side === 'right') { R?.classList.add('speaking'); this.overlay?.classList.add('speaker-right'); }
     }
 
     _applyPortrait(side, poseOverride = null) {
@@ -181,26 +181,29 @@ export class DialogUI {
 
         if (!img || !actor) { if (img) img.src = ''; return; }
 
-        // zdroj z actor.poses s ohledem na hero přemapování (_findCharacter už přepsal cesty)
         const poses = actor.poses || {};
         const src0  = (pose && poses[pose]) || poses.neutral || Object.values(poses)[0] || '';
         img.src = this.game._resolveAsset(src0);
         img.alt = this.game._text(actor.name) || '';
     }
 
-    // ---------- render ----------
+    // --- render / flow --------------------------------------------------------
+
     _renderStep() {
         const step = this.active?.dlg?.sequence?.[this.active?.idx ?? -1];
         if (!step) { void this._end(); return; }
 
+        // default pose updates on step
         if (step.leftPose)  this.active.leftPose  = step.leftPose;
         if (step.rightPose) this.active.rightPose = step.rightPose;
 
+        // speaker + possible pose override
         const sp = step.speaker === 'left' ? 'left' : (step.speaker === 'right' ? 'right' : null);
         this._setSpeaking(sp);
         this._applyPortrait('left',  (step.pose && step.speaker === 'left')  ? step.pose : null);
         this._applyPortrait('right', (step.pose && step.speaker === 'right') ? step.pose : null);
 
+        // panel content
         const nameEl    = this.overlay?.querySelector('.dlg-nameplate');
         const textEl    = this.overlay?.querySelector('.dlg-text');
         const choicesEl = this.overlay?.querySelector('.dlg-choices');
@@ -220,7 +223,10 @@ export class DialogUI {
                     const b = document.createElement('button');
                     b.className = 'dlg-choice';
                     b.textContent = this.game._text(ch?.label || '');
-                    b.addEventListener('click', async (e) => { e.stopPropagation(); await this._applyChoice(step, ch || {}); });
+                    b.addEventListener('click', async (e) => {
+                        e.stopPropagation();
+                        await this._applyChoice(step, ch || {});
+                    });
                     choicesEl.appendChild(b);
                 });
             }
@@ -232,7 +238,7 @@ export class DialogUI {
         if (act.setFlags) await this._applyFlags(act.setFlags);
 
         if (act.jump) {
-            const to = (this.active?.dlg?.sequence || []).findIndex(n => n && n.id === act.jump);
+            const to = (this.active?.dlg?.sequence || []).findIndex(n => n?.id === act.jump);
             if (to >= 0) { this.active.idx = to; this._renderStep(); return; }
         }
         if (act.end) { await this._end(act.onEnd || null); return; }
@@ -244,6 +250,7 @@ export class DialogUI {
         if (!this.active) return;
         const step = this.active?.dlg?.sequence?.[this.active?.idx ?? -1];
         if (!step) { await this._end(); return; }
+
         if (step.onNext) await this._applyOnNodeEnd(step.onNext);
 
         this.active.idx++;
@@ -252,7 +259,9 @@ export class DialogUI {
         this._renderStep();
     }
 
-    async _applyOnNodeEnd(act) { if (act?.setFlags) await this._applyFlags(act.setFlags); }
+    async _applyOnNodeEnd(act) {
+        if (act?.setFlags) await this._applyFlags(act.setFlags);
+    }
 
     async _applyFlags(flags) {
         const g = this.game; let changed = false;

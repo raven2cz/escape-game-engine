@@ -282,8 +282,7 @@ body {
     appearance: none;
     -webkit-appearance: none;
     -moz-appearance: none;
-    -webkit-tap-highlight-color: transparent;
-    /* mobile Safari/Chrome */
+    -webkit-tap-highlight-color: transparent; /* mobile Safari/Chrome */
     cursor: pointer;
 }
 
@@ -319,7 +318,7 @@ body {
     pointer-events: none;
 }
 
-/* Samotný toast */
+/* Toast */
 .toast {
     max-width: min(640px, 90vw);
     background: rgba(20, 20, 26, .95);
@@ -346,12 +345,12 @@ body {
     z-index: 50;
     border-radius: 12px;
     background: radial-gradient(ellipse at center,
-            rgba(0, 200, 255, 0.18) 0%,
-            rgba(0, 200, 255, 0.12) 60%,
-            rgba(0, 200, 255, 0.00) 100%);
+    rgba(0, 200, 255, 0.18) 0%,
+    rgba(0, 200, 255, 0.12) 60%,
+    rgba(0, 200, 255, 0.00) 100%);
     box-shadow:
-        0 0 0.8rem rgba(0, 200, 255, .35),
-        0 0 2.2rem rgba(0, 200, 255, .25);
+            0 0 0.8rem rgba(0, 200, 255, .35),
+            0 0 2.2rem rgba(0, 200, 255, .25);
     animation: hs-pulse 1.4s ease-in-out infinite;
     will-change: opacity, transform;
 }
@@ -386,20 +385,20 @@ body.use-on #hotspotLayer {
     cursor: crosshair;
 }
 
-/* === Dialog UI – pevné ukotvení portrétů k panelu (baseline + speaking efekt) === */
+/* === Dialog UI – portraits pinned to panel (baseline + speaking effect) === */
 
 .dlg-overlay {
-    position: absolute;      /* uvnitř #sceneContainer */
+    position: absolute;      /* inside #sceneContainer */
     inset: 0;
     z-index: 1100;
     display: grid;
-    grid-template-rows: 1fr auto; /* stage nahoře, panel dole */
+    grid-template-rows: 1fr auto; /* stage on top, panel at bottom */
     background: rgba(0,0,0,0.35);
-    pointer-events: none;    /* kliky propouštíme; panel si je přebere */
+    pointer-events: none;    /* clicks pass through; panel handles them */
 }
 .dlg-overlay.hidden { display: none !important; }
 
-/* horní stage – její spodní hrana = horní hrana panelu */
+/* top stage – its bottom edge aligns with panel’s top edge */
 .dlg-stage {
     position: relative;
     min-height: 0;
@@ -407,35 +406,38 @@ body.use-on #hotspotLayer {
     pointer-events: none;
 }
 
-/* RÁM portrétu je absolutně ve .dlg-stage,
-   sedí NA SPODKU stage => přesně na panelu */
+/* Portrait frame is absolutely positioned in .dlg-stage,
+   sitting on the bottom => exactly on top of the panel */
 .dlg-char {
     position: absolute;
     left: 2vw;
     right: auto;
-    bottom: 0;               /* <<< KLÍČOVÉ: sedíme na panelu */
-    height: 100%;            /* výška = celá stage */
+    bottom: 0;               /* KEY: sit on the panel */
+    height: 100%;            /* height = full stage */
     width: min(42vw, 380px);
     display: flex;
-    align-items: flex-end;   /* obrázek stojí na "zemi" rámu */
+    align-items: flex-end;   /* image sits on the “ground” of the frame */
     justify-content: center;
     user-select: none;
     transform: translateY(0) scale(1);
     transition: transform .18s ease, filter .18s ease;
+    will-change: transform, filter;
 }
 .dlg-char.right { left: auto; right: 2vw; }
 
-/* Obrázky nikdy nepřesáhnou výšku rámu.
-   Malý bezpečnostní "odskok" 6px, aby se hlavy neřezaly na pixel. */
+/* Images never exceed the frame height.
+   Small safety offset so heads don’t clip on a pixel. */
 .dlg-char-img {
     width: 100%;
     height: auto;
     max-height: calc(100% - 6px);
     object-fit: contain;
     filter: drop-shadow(0 10px 28px rgba(0,0,0,.45));
+    backface-visibility: hidden;
+    transform: translateZ(0);
 }
 
-/* Zvýraznění mluvčího – BEZ opacity: jemný lift+scale a silnější stín */
+/* Speaker emphasis – NO opacity: gentle lift+scale and stronger shadow */
 .dlg-char.speaking {
     transform: translateY(-6px) scale(1.02);
 }
@@ -443,7 +445,7 @@ body.use-on #hotspotLayer {
     filter: drop-shadow(0 12px 34px rgba(0,0,0,.55)) saturate(1.04);
 }
 
-/* Nemluvčí nijak neprůhledňujeme; pro lehké odlišení jen minimální útlum */
+/* Non-speaker: tiny attenuation only (no transparency) */
 .dlg-char:not(.speaking) .dlg-char-img {
     filter: drop-shadow(0 10px 28px rgba(0,0,0,.45)) brightness(.95);
 }
@@ -458,10 +460,10 @@ body.use-on #hotspotLayer {
     border-radius: 14px 14px 0 0;
     padding: 12px 14px 32px 14px;
     box-shadow: 0 -8px 30px rgba(0,0,0,.35);
-    pointer-events: auto; /* panel přijímá kliky */
+    pointer-events: auto; /* panel accepts clicks */
 }
 
-/* jmenovka mluvčího – sedí na panelu vlevo */
+/* speaker nameplate – sits on the panel, left-aligned */
 .dlg-nameplate {
     position: absolute;
     left: 16px;
@@ -479,7 +481,7 @@ body.use-on #hotspotLayer {
     text-overflow: ellipsis;
 }
 
-/* text/volby */
+/* text / choices */
 .dlg-text {
     min-height: 56px;
     line-height: 1.45;
@@ -512,6 +514,6 @@ body.use-on #hotspotLayer {
     user-select: none;
 }
 
-/* kompaktní režim */
+/* compact mode */
 .dlg-compact .dlg-char { width: min(36vw, 300px); }
 @media (max-width: 720px) { .dlg-char { width: min(46vw, 300px); } }

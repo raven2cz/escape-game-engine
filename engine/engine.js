@@ -1,41 +1,32 @@
 // engine/engine.js
-// Engine core with multi-game + i18n + dialogs plumbing.
-// - Supports baseUrl for per-game assets
-// - i18n via opts.i18n { engine: {...}, game: {...} } and opts.lang
-// - _text(val): string | {key} | "@key@fallback" resolver with fallback to raw string
-// - _t(key, fallback, params): lookup in game → engine → fallback
-// - Asset paths auto-prefixed with baseUrl unless absolute
-// - Dialogs: optional dialogsUrl + DialogUI (engine/dialogs.js)
+// Game engine core: scenes, i18n, dialogs, hero profile, inventory, puzzles, events.
 
-import {openPhraseModal, openCodeModal, openOrderModal, openMatchModal} from './puzzles.js';
-import {DialogUI} from './dialogs.js';
+import { openPhraseModal, openCodeModal, openOrderModal, openMatchModal } from './puzzles.js';
+import { DialogUI } from './dialogs.js';
 
 export class Game {
     constructor(opts) {
-        // DOM
-        this.sceneImage = opts.sceneImage;
+        // DOM refs
+        this.sceneImage   = opts.sceneImage;
         this.hotspotLayer = opts.hotspotLayer;
         this.inventoryRoot = opts.inventoryRoot;
-        this.messageBox = opts.messageBox;
-        this.modalRoot = opts.modalRoot;
-        this.modalTitle = opts.modalTitle;
-        this.modalBody = opts.modalBody;
-        this.modalCancel = opts.modalCancel;
-        this.modalOk = opts.modalOk;
-
-        // Dialog UI instance (created even if dialogsUrl is not provided; will no-op)
-        this.dialogUI = new DialogUI(this);
+        this.messageBox   = opts.messageBox;
+        this.modalRoot    = opts.modalRoot;
+        this.modalTitle   = opts.modalTitle;
+        this.modalBody    = opts.modalBody;
+        this.modalCancel  = opts.modalCancel;
+        this.modalOk      = opts.modalOk;
 
         // Data sources
-        this.baseUrl = opts.baseUrl || './';
-        this.scenesUrl = opts.scenesUrl;           // already prefixed by caller
-        this.dialogsUrl = opts.dialogsUrl || null;  // ./games/<game>/dialogs.json (optional)
-        this.lang = (opts.lang || 'cs').toLowerCase();
-        this.i18n = opts.i18n || {engine: {}, game: {}};
-        this.heroInitId = opts.heroId || null;
+        this.baseUrl    = opts.baseUrl || './';
+        this.scenesUrl  = opts.scenesUrl;          // already prefixed by caller
+        this.dialogsUrl = opts.dialogsUrl || null; // ./games/<id>/dialogs.json (optional)
+        this.lang       = (opts.lang || 'cs').toLowerCase();
+        this.i18n       = opts.i18n || { engine: {}, game: {} };
 
         // State
         this.data = null;
+        this.meta = {};
         this.dialogsData = null;
         this.state = null;
         this.currentScene = null;
@@ -47,11 +38,14 @@ export class Game {
         this.toastRoot.className = 'toast-container';
         document.body.appendChild(this.toastRoot);
 
-        // Modal controls
+        // Dialog UI
+        this.dialogUI = new DialogUI(this);
+
+        // Modal events
         this.modalCancel.addEventListener('click', () => this._closeModal(false));
         this.modalOk.addEventListener('click', () => this._closeModal(true));
 
-        // ESC cancels use-mode
+        // ESC = exit use-mode
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && this.state?.useItemId) {
                 this.exitUseMode();
@@ -60,36 +54,30 @@ export class Game {
         });
     }
 
+    // --- debug toggles ----------------------------------------------------------
+
     _debugOn() {
-        try {
-            const p = new URLSearchParams(location.search);
-            return p.get('debug') === '1';
-        } catch {
-            return false;
-        }
+        try { return new URLSearchParams(location.search).get('debug') === '1'; }
+        catch { return false; }
     }
+    _dbg(...args) { if (this._debugOn()) console.debug('[GAME]', ...args); }
 
-    _dbg(...args) {
-        if (this._debugOn()) console.debug('[GAME]', ...args);
-    }
+    // --- version signature for safe restore ------------------------------------
 
-    // --- signature helpers (invalidate old local state when game/lang/version changes)
     _signature() {
-        const gid = this.meta?.id || 'unknown';
+        const gid  = this.meta?.id || 'unknown';
         const gver = this.meta?.version || '0';
         const lang = this.lang || 'cs';
         return `${gid}|${gver}|${lang}`;
     }
 
-    // --- i18n helpers ---------------------------------------------------------
+    // --- i18n helpers -----------------------------------------------------------
 
-    /** Interpolate params: 'Hello {name}' + {name:'A'} -> 'Hello A' */
     _fmt(str, params) {
         if (!params) return str;
         return String(str).replace(/\{(\w+)\}/g, (_, k) => (params[k] ?? `{${k}}`));
     }
 
-    /** Lookup translation by key in game → engine → fallback text */
     _t(key, fallback = '', params = null) {
         const g = this.i18n?.game?.[key];
         const e = this.i18n?.engine?.[key];
@@ -98,10 +86,7 @@ export class Game {
     }
 
     /**
-     * Resolve string | {key} | "@key@fallback" using i18n.
-     * - { key: "scene.main.title" }
-     * - "@scene.main.title@Main Room"
-     * - "Plain text" → returned as is
+     * Resolve string | {key} | "@key@fallback".
      */
     _text(val, fallback = '') {
         if (val && typeof val === 'object' && val.key) {
@@ -109,48 +94,44 @@ export class Game {
         }
         if (typeof val === 'string') {
             const m = val.match(/^@([^@]+)@(.*)$/s);
-            if (m) {
-                const key = m[1].trim();
-                const def = m[2];
-                return this._t(key, def);
-            }
+            if (m) return this._t(m[1].trim(), m[2]);
             return val;
         }
         return (val != null ? String(val) : String(fallback));
     }
 
-    /** Prefix relative asset path with baseUrl */
+    /** Prefix relative paths with baseUrl. */
     _resolveAsset(path) {
         if (!path) return path;
         const s = String(path);
-        if (/^(?:https?:)?\/\//i.test(s)) return s;       // absolute URL
+        if (/^(?:https?:)?\/\//i.test(s)) return s;           // absolute URL
         if (s.startsWith('./') || s.startsWith('/')) return s; // already rooted
         return this.baseUrl.replace(/\/+$/, '/') + s.replace(/^\/+/, '');
     }
 
-    // --- lifecycle ------------------------------------------------------------
+    // --- lifecycle --------------------------------------------------------------
 
     async init() {
-        this.data = await fetch(this.scenesUrl, {cache: 'no-cache'}).then(r => r.json());
+        this.data = await fetch(this.scenesUrl, { cache: 'no-cache' }).then(r => r.json());
         this.modalRoot.classList.add('hidden');
 
         this.meta = this.data?.meta || {};
 
+        // Query flags
         let forceReset = false;
+        let urlHero = null;
         try {
-            const params = new URLSearchParams(location.search);
-            forceReset = params.get('reset') === '1';
-        } catch {
-        }
+            const p = new URLSearchParams(location.search);
+            forceReset = p.get('reset') === '1';
+            urlHero = p.get('hero'); // may be null
+        } catch { /* noop */ }
 
         const saved = forceReset ? null : this._loadState();
+        const okSaved = !!saved && saved.signature === this._signature();
 
-        const savedSig = saved?.signature;
-        const currentSig = this._signature();
-        const useSaved = !!saved && savedSig === currentSig;
-
-        this.state = useSaved ? saved : {
-            signature: currentSig,
+        // fresh state if signature changed or reset requested
+        this.state = okSaved ? saved : {
+            signature: this._signature(),
             inventory: [],
             solved: {},
             flags: {},
@@ -161,26 +142,18 @@ export class Game {
             hero: null,
         };
 
-        if (!this.state.flags) this.state.flags = {};
-        if (!this.state.eventsFired) this.state.eventsFired = {};
-
+        // initialize hero (default → then URL override if present)
         if (!this.state.hero) {
-            // 1) načti default z rootu nebo z meta
-            const defId =
-                this.data?.defaultHero
-                || this.data?.meta?.defaultHero
-                || Object.keys(this.data?.heroes || this.data?.meta?.heroes || {})[0]
-                || 'adam';
-
-            // 2) override z URL (pokud je a takový profil existuje)
-            const chosen = (this.heroInitId && this._getHeroProfileById(this.heroInitId))
-                ? this.heroInitId
-                : defId;
-
-            this._setHeroInternal(chosen);
+            const defId = this.data?.defaultHero || Object.keys(this.data?.heroes || {})[0] || 'adam';
+            this._setHeroInternal(defId);
+        }
+        if (urlHero) {
+            // URL always wins (do not nuke progress)
+            this._setHeroInternal(urlHero);
+            this._dbg('[HERO] overridden from URL →', urlHero, this.state.hero);
         }
 
-        await this.goto(this.state.scene, {noSave: true});
+        await this.goto(this.state.scene, { noSave: true });
         this._renderInventory();
     }
 
@@ -191,7 +164,7 @@ export class Game {
 
     async goto(sceneId, opts = {}) {
         const scene = this.data.scenes.find(s => s.id === sceneId);
-        if (!scene) return this._msg(this._t('engine.sceneNotFound', 'Scéna nebyla nalezena: {id}', {id: sceneId}));
+        if (!scene) return this._msg(this._t('engine.sceneNotFound', 'Scéna nebyla nalezena: {id}', { id: sceneId }));
 
         this.currentScene = scene;
         this.state.scene = sceneId;
@@ -207,29 +180,23 @@ export class Game {
         this._renderHotspots();
         this._msg(this._text(scene.title) || '');
 
-        // Highlights queued for this scene
+        // queued highlights for this scene
         this._drainHighlightsForScene(sceneId);
-        // Fire enterScene events
-        await this._processEvents({on: 'enterScene', scene: sceneId});
+        // events: enterScene
+        await this._processEvents({ on: 'enterScene', scene: sceneId });
 
         if (scene.end) this._msg(this._t('engine.endCongrats', '🎉 Gratulujeme! Našel si cestu ven!'));
     }
 
-    // --- hero ----------------------------------------------------------------
+    // --- hero profile -----------------------------------------------------------
 
     _getHeroProfileById(id) {
-        const mapRoot = this.data?.heroes || {};
-        const mapMeta = this.data?.meta?.heroes || {};
-        return (mapRoot[id] || mapMeta[id] || null);
+        const map = this.data?.heroes || {};
+        return map[id] || null;
     }
 
     _setHeroInternal(id) {
-        const prof = this._getHeroProfileById(id) || {
-            id: 'adam',
-            gender: 'm',
-            name: 'Adam',
-            assetsBase: 'assets/npc/adam/'
-        };
+        const prof = this._getHeroProfileById(id) || { id: 'adam', gender: 'm', name: 'Adam', assetsBase: 'assets/npc/adam/' };
         this.state.hero = {
             id: prof.id,
             gender: prof.gender || 'm',
@@ -239,29 +206,12 @@ export class Game {
         this._saveState();
     }
 
-    // Veřejné API – můžeš volat odkudkoli (i z UI/eventů)
-    setHero(id) {
-        this._setHeroInternal(id);
-    }
+    setHero(id)       { this._setHeroInternal(id); }
+    getHero()         { return this.state?.hero || this._getHeroProfileById(this.data?.defaultHero) || { id:'adam', gender:'m', name:'Adam', assetsBase:'assets/npc/adam/' }; }
+    getHeroId()       { return this.getHero().id; }
+    getHeroGender()   { return this.getHero().gender; }
 
-    getHero() {
-        return this.state?.hero || this._getHeroProfileById(this.data?.defaultHero) || {
-            id: 'adam',
-            gender: 'm',
-            name: 'Adam',
-            assetsBase: 'assets/npc/adam/'
-        };
-    }
-
-    getHeroId() {
-        return this.getHero().id;
-    }
-
-    getHeroGender() {
-        return this.getHero().gender;
-    }
-
-    // --- use mode ------------------------------------------------------------
+    // --- use mode ---------------------------------------------------------------
 
     enterUseMode(itemId) {
         if (!itemId) return;
@@ -269,7 +219,7 @@ export class Game {
         document.body.classList.add('use-on');
         this._renderInventory();
         const name = this._itemLabel(itemId);
-        this.toast(this._t('engine.use.selected', 'Vybráno k použití: {name}. Klepni na cíl.', {name}), 4000);
+        this.toast(this._t('engine.use.selected', 'Vybráno k použití: {name}. Klepni na cíl.', { name }), 4000);
     }
 
     exitUseMode() {
@@ -288,7 +238,7 @@ export class Game {
         }
     }
 
-    // --- renderers ------------------------------------------------------------
+    // --- renderers --------------------------------------------------------------
 
     _renderHotspots() {
         this.hotspotLayer.innerHTML = '';
@@ -296,9 +246,9 @@ export class Game {
             const el = document.createElement('button');
             el.className = 'hotspot';
             el.setAttribute('data-index', String(idx));
-            el.style.left = h.rect.x + '%';
-            el.style.top = h.rect.y + '%';
-            el.style.width = h.rect.w + '%';
+            el.style.left   = h.rect.x + '%';
+            el.style.top    = h.rect.y + '%';
+            el.style.width  = h.rect.w + '%';
             el.style.height = h.rect.h + '%';
 
             const reqItemsFail = h.requireItems && !this._hasAll(h.requireItems);
@@ -320,7 +270,7 @@ export class Game {
     }
 
     async _activateHotspot(h) {
-        // If user is in use-mode but this hotspot doesn't accept items at all
+        // use-mode guard
         if (this.state.useItemId && !h.acceptItems) {
             this.toast(this._t('engine.use.notApplicable', 'Tento předmět tady nelze použít.'), 2500);
             this.exitUseMode();
@@ -335,44 +285,35 @@ export class Game {
             return;
         }
 
-        // Accept-Items gate: explicit usage of selected item to hotspot
+        // explicit item usage
         if (h.acceptItems && Array.isArray(h.acceptItems)) {
             const selected = this.state.useItemId;
-            const accepts = h.acceptItems.map(x => (typeof x === 'string' ? {id: x, consume: false} : x));
+            const accepts = h.acceptItems.map(x => (typeof x === 'string' ? { id: x, consume: false } : x));
             const match = selected ? accepts.find(a => a.id === selected) : null;
 
             if (!match) {
-                // If player actually selected an item, tell them it's not applicable here and exit use-mode.
                 if (selected) {
                     this.toast(this._t('engine.use.notApplicable', 'Tento předmět tady nelze použít.'), 2500);
                     this.exitUseMode();
                     return;
                 }
-                // No item selected → optional hint
-                const allowHint =
-                    (h.showNeedHint !== false) &&
-                    (this.data?.settings?.hints?.acceptNeed !== false);
-
+                const allowHint = (h.showNeedHint !== false) && (this.data?.settings?.hints?.acceptNeed !== false);
                 if (allowHint) {
                     const need = accepts.map(a => this._itemLabel(a.id)).filter(Boolean).join(', ');
-                    this.toast(this._t('engine.use.needItem', 'Potřebuješ použít: {need}.', {need}), 3500);
+                    this.toast(this._t('engine.use.needItem', 'Potřebuješ použít: {need}.', { need }), 3500);
                 }
                 return;
             }
 
-            // Apply selected item (match found)
             if (match.consume) this._removeItemFromInventory(match.id);
             this.exitUseMode();
 
-            // onApply action
-            if (h.onApply) {
-                await this._applyOnSuccess(h.onApply);
-            } else {
-                this.toast(this._t('engine.use.applied', 'Předmět byl použit.'), 2200);
-            }
+            if (h.onApply) await this._applyOnSuccess(h.onApply);
+            else this.toast(this._t('engine.use.applied', 'Předmět byl použit.'), 2200);
             return;
         }
 
+        // actions
         if (h.type === 'goTo') {
             await this.goto(h.target);
             return;
@@ -381,25 +322,25 @@ export class Game {
             if (!this.state.inventory.includes(h.itemId)) {
                 this.state.inventory.push(h.itemId);
                 this._renderInventory();
-                this._msg(this._t('engine.pickedUp', 'Sebráno: {name}', {name: this._itemLabel(h.itemId)}));
+                this._msg(this._t('engine.pickedUp', 'Sebráno: {name}', { name: this._itemLabel(h.itemId) }));
                 await this._stateChanged();
             } else {
-                this._msg(this._t('engine.alreadyHave', 'Už máš: {name}', {name: this._itemLabel(h.itemId)}));
+                this._msg(this._t('engine.alreadyHave', 'Už máš: {name}', { name: this._itemLabel(h.itemId) }));
             }
             return;
         }
         if (h.type === 'puzzle') {
-            const solvedKey = 'vyřešeno:' + (h.key || (this.currentScene.id + ':' + JSON.stringify(h.rect)));
+            const solvedKey = 'solved:' + (h.key || (this.currentScene.id + ':' + JSON.stringify(h.rect)));
             if (this.state.solved[solvedKey]) {
                 await this._applyOnSuccess(h.onSuccess);
                 return;
             }
             const kind = h.puzzle?.kind;
             let ok = false;
-            if (kind === 'phrase') ok = await openPhraseModal(this, h.puzzle);
-            else if (kind === 'code') ok = await openCodeModal(this, h.puzzle);
-            else if (kind === 'order') ok = await openOrderModal(this, h.puzzle);
-            else if (kind === 'match') ok = await openMatchModal(this, h.puzzle);
+            if      (kind === 'phrase') ok = await openPhraseModal(this, h.puzzle);
+            else if (kind === 'code')   ok = await openCodeModal(this, h.puzzle);
+            else if (kind === 'order')  ok = await openOrderModal(this, h.puzzle);
+            else if (kind === 'match')  ok = await openMatchModal(this, h.puzzle);
             else throw new Error('Unknown puzzle kind: ' + kind);
 
             if (!ok) throw new Error(this._t('engine.puzzleFailed', 'Puzzle nevyřešeno.'));
@@ -410,10 +351,7 @@ export class Game {
             return;
         }
         if (h.type === 'dialog') {
-            if (!h.dialogId) {
-                this._msg('Chybí dialogId u hotspotu.');
-                return;
-            }
+            if (!h.dialogId) { this._msg('Chybí dialogId u hotspotu.'); return; }
             this._dbg('hotspot.dialog click →', h.dialogId);
             await this.openDialog(h.dialogId);
             return;
@@ -444,27 +382,18 @@ export class Game {
         if (actions.setFlags) {
             if (Array.isArray(actions.setFlags)) {
                 for (const f of actions.setFlags) {
-                    if (!this.state.flags[f]) {
-                        this.state.flags[f] = true;
-                        changed = true;
-                    }
+                    if (!this.state.flags[f]) { this.state.flags[f] = true; changed = true; }
                 }
             } else {
                 for (const [k, v] of Object.entries(actions.setFlags)) {
-                    if (!!this.state.flags[k] !== !!v) {
-                        this.state.flags[k] = !!v;
-                        changed = true;
-                    }
+                    if (!!this.state.flags[k] !== !!v) { this.state.flags[k] = !!v; changed = true; }
                 }
             }
         }
 
         if (actions.clearFlags && Array.isArray(actions.clearFlags)) {
             for (const f of actions.clearFlags) {
-                if (this.state.flags[f]) {
-                    delete this.state.flags[f];
-                    changed = true;
-                }
+                if (this.state.flags[f]) { delete this.state.flags[f]; changed = true; }
             }
         }
 
@@ -478,7 +407,7 @@ export class Game {
 
     async _stateChanged() {
         this._saveState();
-        await this._processEvents({on: 'stateChange'});
+        await this._processEvents({ on: 'stateChange' });
     }
 
     _renderInventory() {
@@ -486,6 +415,7 @@ export class Game {
         (this.state.inventory || []).forEach(id => {
             const item = this._itemById(id);
             if (!item) return;
+
             const wrap = document.createElement('button');
             wrap.type = 'button';
             wrap.className = 'item';
@@ -503,13 +433,10 @@ export class Game {
             wrap.appendChild(span);
 
             wrap.addEventListener('click', () => {
-                // Toggle off use-mode if clicking the already selected item
-                if (this.state.useItemId === id) {
-                    this.exitUseMode();
-                    return;
-                }
+                if (this.state.useItemId === id) { this.exitUseMode(); return; }
                 this._inspectItem(item);
             });
+
             this.inventoryRoot.appendChild(wrap);
         });
     }
@@ -542,7 +469,6 @@ export class Game {
             body.appendChild(d);
         }
 
-        // Inline actions row (Use + Close)
         const row = document.createElement('div');
         row.style.display = 'flex';
         row.style.gap = '8px';
@@ -550,10 +476,7 @@ export class Game {
 
         const btnUse = document.createElement('button');
         btnUse.textContent = this._t('engine.use.button', 'Použít');
-        btnUse.addEventListener('click', () => {
-            this.enterUseMode(item.id);
-            this._closeModal(true);
-        });
+        btnUse.addEventListener('click', () => { this.enterUseMode(item.id); this._closeModal(true); });
 
         const btnClose = document.createElement('button');
         btnClose.textContent = this._t('engine.modal.cancel', 'Zavřít');
@@ -571,38 +494,22 @@ export class Game {
         });
     }
 
-    _itemLabel(id) {
-        return this._itemById(id)?.label ? this._text(this._itemById(id).label) : id;
-    }
+    _itemLabel(id) { return this._itemById(id)?.label ? this._text(this._itemById(id).label) : id; }
+    _itemById(id)  { return (this.data.items || []).find(i => i.id === id); }
+    _hasAll(list)  { return (list || []).every(x => this.state.inventory.includes(x)); }
+    _hasAllFlags(list) { return (list || []).every(f => !!this.state.flags[f]); }
+    _msg(t) { this.messageBox.textContent = t; }
 
-    _itemById(id) {
-        return (this.data.items || []).find(i => i.id === id);
-    }
+    // --- modal ------------------------------------------------------------------
 
-    _hasAll(list) {
-        return (list || []).every(x => this.state.inventory.includes(x));
-    }
-
-    _hasAllFlags(list) {
-        return (list || []).every(f => !!this.state.flags[f]);
-    }
-
-    _msg(t) {
-        this.messageBox.textContent = t;
-    }
-
-    // --- Modal ---------------------------------------------------------------
-
-    openModal({title, body, okLabel = 'OK', cancelLabel = 'Zrušit'}) {
+    openModal({ title, body, okLabel = 'OK', cancelLabel = 'Zrušit' }) {
         this.modalTitle.textContent = title || '';
         this.modalBody.innerHTML = '';
         this.modalBody.appendChild(body);
         this.modalRoot.classList.remove('hidden');
         this.modalOk.textContent = okLabel;
         this.modalCancel.textContent = cancelLabel;
-        return new Promise(res => {
-            this._modalResolve = res;
-        });
+        return new Promise(res => { this._modalResolve = res; });
     }
 
     _closeModal(ok) {
@@ -612,16 +519,16 @@ export class Game {
         if (r) r(ok);
     }
 
-    // --- Highlight helpers ---------------------------------------------------
+    // --- highlight helpers ------------------------------------------------------
 
     _rectPercentToPx(rect) {
         const w = this.hotspotLayer.clientWidth;
         const h = this.hotspotLayer.clientHeight;
         const px = (p, total) => (p / 100) * total;
-        return {left: px(rect.x, w), top: px(rect.y, h), width: px(rect.w, w), height: px(rect.h, h)};
+        return { left: px(rect.x, w), top: px(rect.y, h), width: px(rect.w, w), height: px(rect.h, h) };
     }
 
-    _showHighlightRect(rectPct, ms = 3500, {outline = false} = {}) {
+    _showHighlightRect(rectPct, ms = 3500, { outline = false } = {}) {
         const box = this._rectPercentToPx(rectPct);
         const el = document.createElement('div');
         el.className = 'hs-glow' + (outline ? ' outline' : '');
@@ -633,12 +540,12 @@ export class Game {
         setTimeout(() => el.remove(), Math.max(500, ms | 0));
     }
 
-    _enqueueOrShowHighlight({sceneId, rect, ms = 3500, outline = false}) {
+    _enqueueOrShowHighlight({ sceneId, rect, ms = 3500, outline = false }) {
         if (!sceneId || sceneId === this.currentScene?.id) {
-            this._showHighlightRect(rect, ms, {outline});
+            this._showHighlightRect(rect, ms, { outline });
         } else {
             this._pendingHighlights[sceneId] = this._pendingHighlights[sceneId] || [];
-            this._pendingHighlights[sceneId].push({rect, ms, outline});
+            this._pendingHighlights[sceneId].push({ rect, ms, outline });
         }
     }
 
@@ -646,14 +553,14 @@ export class Game {
         const list = this._pendingHighlights[sceneId];
         if (!list || !list.length) return;
         let delay = 0;
-        list.forEach(({rect, ms, outline}) => {
-            setTimeout(() => this._showHighlightRect(rect, ms, {outline}), delay);
+        list.forEach(({ rect, ms, outline }) => {
+            setTimeout(() => this._showHighlightRect(rect, ms, { outline }), delay);
             delay += 200;
         });
         this._pendingHighlights[sceneId] = [];
     }
 
-    // --- Toasts --------------------------------------------------------------
+    // --- toasts -----------------------------------------------------------------
 
     toast(text, ms = 5000) {
         const wrap = document.createElement('div');
@@ -668,7 +575,7 @@ export class Game {
         }, Math.max(500, ms | 0));
     }
 
-    // --- Events dispatcher ----------------------------------------------------
+    // --- events -----------------------------------------------------------------
 
     async _processEvents(trigger) {
         const events = this.data.events || [];
@@ -685,13 +592,11 @@ export class Game {
 
             const act = ev.then || {};
 
-            // Toast
-            if (act.toast && act.toast.text) {
-                this.toast(this._text(act.toast.text), act.toast.ms ?? 5000);
-            }
+            // toast
+            if (act.toast?.text) this.toast(this._text(act.toast.text), act.toast.ms ?? 5000);
 
-            // Scene image change (await if we are on that scene)
-            if (act.setSceneImage && act.setSceneImage.sceneId && act.setSceneImage.image) {
+            // scene image swap
+            if (act.setSceneImage?.sceneId && act.setSceneImage?.image) {
                 const sc = this.data.scenes.find(s => s.id === act.setSceneImage.sceneId);
                 if (sc) {
                     sc.image = this._resolveAsset(act.setSceneImage.image);
@@ -705,8 +610,8 @@ export class Game {
                 }
             }
 
-            // Glow highlight
-            if (act.highlightHotspot && act.highlightHotspot.rect) {
+            // glow hint
+            if (act.highlightHotspot?.rect) {
                 const h = act.highlightHotspot;
                 this._enqueueOrShowHighlight({
                     sceneId: h.sceneId || (w.scene || this.state.scene),
@@ -716,34 +621,28 @@ export class Game {
                 });
             }
 
-            // Open dialog by id (string or {id})
+            // dialogs
             if (act.openDialog) {
                 this._dbg('events.then.openDialog →', act.openDialog, 'trigger=', trigger, 'scene=', this.state.scene);
                 await this.openDialog(act.openDialog);
             }
 
-            // setFlags
+            // flags
             if (act.setFlags) {
                 let changed = false;
                 if (Array.isArray(act.setFlags)) {
                     for (const f of act.setFlags) {
-                        if (!this.state.flags[f]) {
-                            this.state.flags[f] = true;
-                            changed = true;
-                        }
+                        if (!this.state.flags[f]) { this.state.flags[f] = true; changed = true; }
                     }
                 } else {
                     for (const [k, v] of Object.entries(act.setFlags)) {
-                        if (!!this.state.flags[k] !== !!v) {
-                            this.state.flags[k] = !!v;
-                            changed = true;
-                        }
+                        if (!!this.state.flags[k] !== !!v) { this.state.flags[k] = !!v; changed = true; }
                     }
                 }
                 if (changed) this._saveState();
             }
 
-            // mark once-fired
+            // mark once
             if (ev.once) {
                 this.state.eventsFired = this.state.eventsFired || {};
                 this.state.eventsFired[ev.id] = true;
@@ -752,39 +651,32 @@ export class Game {
         }
     }
 
-    // --- Dialogs --------------------------------------------------------------
+    // --- dialogs ---------------------------------------------------------------
 
     async _ensureDialogsLoaded() {
         if (this.dialogsData || !this.dialogsUrl) return;
         try {
-            this._dbg && this._dbg('_ensureDialogsLoaded(): fetching', this.dialogsUrl);
-            const r = await fetch(this.dialogsUrl, {cache: 'no-cache'});
+            this._dbg('_ensureDialogsLoaded(): fetching', this.dialogsUrl);
+            const r = await fetch(this.dialogsUrl, { cache: 'no-cache' });
             const json = await r.json();
-            this.dialogsData = json || {dialogs: [], characters: []};
-            this._dbg && this._dbg('_ensureDialogsLoaded(): fetched OK', {dialogs: this.dialogsData.dialogs?.length ?? 0});
+            this.dialogsData = json || { dialogs: [], characters: [] };
+            this._dbg('_ensureDialogsLoaded(): fetched OK', { dialogs: this.dialogsData.dialogs?.length ?? 0 });
         } catch (err) {
             console.error('[GAME] _ensureDialogsLoaded() failed:', err);
-            this.dialogsData = {dialogs: [], characters: []};
+            this.dialogsData = { dialogs: [], characters: [] };
         }
     }
 
     async openDialog(arg) {
         const id = (typeof arg === 'string') ? arg : (arg && arg.id);
-        this._dbg && this._dbg('openDialog() begin →', {id});
-
-        if (!id) {
-            console.warn('[GAME] openDialog() called without id');
-            return;
-        }
+        this._dbg('openDialog() begin →', { id });
+        if (!id) { console.warn('[GAME] openDialog() called without id'); return; }
         await this._ensureDialogsLoaded();
-        if (!this.dialogsData) {
-            this._msg('Dialogy nejsou k dispozici.');
-            return;
-        }
+        if (!this.dialogsData) { this._msg('Dialogy nejsou k dispozici.'); return; }
         await this.dialogUI.open(id);
     }
 
-    // --- persistence ----------------------------------------------------------
+    // --- persistence ------------------------------------------------------------
 
     _saveState() {
         this.state.signature = this._signature();

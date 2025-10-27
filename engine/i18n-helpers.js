@@ -1,55 +1,45 @@
 // engine/i18n-helpers.js
-// Minimal helpers for per-game translations (scenes, dialogs, puzzles).
+// Tiny i18n helpers used across the codebase.
+// Keep these functions dumb and dependency-free.
 
-export async function loadI18nDict(url) {
-    if (!url) return {};
-    try {
-        const r = await fetch(url);
-        if (!r.ok) return {};
-        const json = await r.json();
-        return (json && typeof json === 'object') ? json : {};
-    } catch {
-        return {};
-    }
+function fmt(str, params) {
+    if (!params) return String(str ?? '');
+    return String(str ?? '').replace(/\{(\w+)\}/g, (_, k) => (params[k] ?? `{${k}}`));
 }
 
-/** tr(dict, key, fallback) -> translate key or fallback */
-export function tr(dict, key, fallback = '') {
-    if (!key) return String(fallback ?? '');
-    if (dict && Object.prototype.hasOwnProperty.call(dict, key)) {
-        const v = dict[key];
-        return (v == null ? '' : String(v));
-    }
-    return String(fallback ?? '');
-}
-
-/** tx(dict, value, fallback) resolves:
- *   - string               => returned as is
- *   - { key: "…" }         => tr(key, fallback)
- *   - "@key@fallback"      => tr(key, fallback)
+/**
+ * Translate a key against i18n maps:
+ * - prefer game-level map
+ * - then engine-level map
+ * - otherwise use fallback
  */
-export function tx(dict, value, fallback = '') {
-    if (value == null) return String(fallback ?? '');
+function t(i18n, key, fallback = '', params = null) {
+    const g = i18n?.game?.[key];
+    const e = i18n?.engine?.[key];
+    const raw = (g != null ? g : (e != null ? e : fallback));
+    return fmt(raw, params);
+}
 
-    if (typeof value === 'object' && value.key) {
-        return tr(dict, value.key, fallback);
+/**
+ * Resolve a possibly-localized value:
+ * - plain string → returned as is
+ * - object with { key } → use `t`
+ * - "@key@fallback" → split and use `t`
+ */
+function text(i18n, val, fallback = '') {
+    if (val && typeof val === 'object' && val.key) {
+        return t(i18n, String(val.key), fallback);
     }
-    if (typeof value === 'string') {
-        const m = value.match(/^@([^@]+)@(.*)$/s);
+    if (typeof val === 'string') {
+        const m = val.match(/^@([^@]+)@(.*)$/s);
         if (m) {
             const key = m[1].trim();
             const def = m[2];
-            return tr(dict, key, def);
+            return t(i18n, key, def);
         }
-        return value;
+        return val;
     }
-    return String(value);
+    return String(val ?? fallback);
 }
 
-/** interpolate("Picked up {name}", {name:"Key"}) => "Picked up Key" */
-export function interpolate(str, params = {}) {
-    if (str == null) return '';
-    return String(str).replace(/\{(\w+)\}/g, (_, k) =>
-        Object.prototype.hasOwnProperty.call(params, k) ? String(params[k]) : `{${k}}`
-    );
-}
+export { fmt, t, text };
