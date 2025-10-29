@@ -1,5 +1,5 @@
-import { applyAutoLayout } from './layout.js';
-import { t as i18nT, text as i18nText } from '../i18n-helpers.js';
+import {applyAutoLayout} from './layout.js';
+import {t as i18nT, text as i18nText} from '../i18n-helpers.js';
 
 const DBG = () => (typeof window !== 'undefined' && /\bdebug=1\b/.test(window.location.search));
 
@@ -24,7 +24,7 @@ export class BasePuzzle {
         this.config = ctx.config || {};
 
         // Sloučení instance options + config.options (zpětná kompatibilita)
-        this.instanceOptions = { ...(ctx.instanceOptions || {}), ...(this.config.options || {}) };
+        this.instanceOptions = {...(ctx.instanceOptions || {}), ...(this.config.options || {})};
 
         // I18n centralized through i18n-helpers.js
         this.engine = ctx.engine || {};
@@ -46,7 +46,7 @@ export class BasePuzzle {
         this.resolveOk = null;
         this.resolveFail = null;
 
-        if (DBG()) console.debug('[PZ] constructor', { id: this.id, kind: this.kind });
+        if (DBG()) console.debug('[PZ] constructor', {id: this.id, kind: this.kind});
     }
 
     /** Create root DOM, apply layout and theme. */
@@ -54,43 +54,34 @@ export class BasePuzzle {
         const root = document.createElement('div');
         root.className = `pz pz--kind-${this.kind} pz--id-${this.id}`;
 
-        // Apply workRect to root if provided (for custom positioning)
-        if (workRect) {
-            Object.assign(root.style, {
-                position: 'absolute',
-                left: workRect.x + '%',
-                top: workRect.y + '%',
-                width: workRect.w + '%',
-                height: workRect.h + '%'
-            });
-        } else {
-        // Root vyplní celý container
+        // Root vždy vyplní container (workRect se NEaplikuje na root)
         Object.assign(root.style, {
             position: 'absolute',
             inset: '0',
             width: '100%',
             height: '100%'
         });
-        }
         container.appendChild(root);
         this.root = root;
 
-        // Pracovní okno - pozicované dle workRect (z cfg.rect)
+        // Pracovní okno - POZOR: workRect aplikujeme SEM (z cfg.rect)
         const win = document.createElement('div');
         win.className = 'pz__window';
-            Object.assign(win.style, {
-                position: 'absolute',
-                inset: '0'
-            });
+        Object.assign(win.style, {
+            position: 'absolute',
+            left: (workRect?.x ?? 10) + '%',
+            top: (workRect?.y ?? 10) + '%',
+            width: (workRect?.w ?? 80) + '%',
+            height: (workRect?.h ?? 80) + '%'
+        });
         root.appendChild(win);
         this.windowEl = win;
 
-        if (DBG()) {
-            console.debug('[PZ] base.mount window rect:', workRect, {
-                computed: win.getBoundingClientRect(),
-                parent: container.getBoundingClientRect()
-            });
-        }
+        // Debug – ať je to vždy vidět i bez filtrování "verbose"
+        console.log('[PZ] base.mount window rect (cfg.rect):', workRect, {
+            computedWindowRectPx: win.getBoundingClientRect(),
+            parentRectPx: container.getBoundingClientRect()
+        });
 
         // Background overlay (CELÁ OBRAZOVKA, pod rootem)
         if (backgroundUrl) {
@@ -130,7 +121,7 @@ export class BasePuzzle {
                     this.applyStyle(title, titleStyle);
 
                     headerGroup.appendChild(title);
-                    if (DBG()) console.debug('[PZ] title:', { raw: this.config.title, translated: titleText });
+                    if (DBG()) console.debug('[PZ] title:', {raw: this.config.title, translated: titleText});
                 }
             }
 
@@ -147,7 +138,7 @@ export class BasePuzzle {
                     this.applyStyle(prompt, promptStyle);
 
                     headerGroup.appendChild(prompt);
-                    if (DBG()) console.debug('[PZ] prompt:', { raw: this.config.prompt, translated: promptText });
+                    if (DBG()) console.debug('[PZ] prompt:', {raw: this.config.prompt, translated: promptText});
                 }
             }
 
@@ -159,8 +150,14 @@ export class BasePuzzle {
 
         // Buttons (merge z config + instanceOptions)
         const mergedButtons = {
-            ok:     { visible: true,  label: '@btn.ok@OK',         ...(this.config.buttons?.ok||{}),     ...(this.instanceOptions.buttons?.ok||{}) },
-            cancel: { visible: true,  label: '@btn.cancel@Zavřít', ...(this.config.buttons?.cancel||{}), ...(this.instanceOptions.buttons?.cancel||{}) },
+            ok: {
+                visible: true,
+                label: '@btn.ok@OK', ...(this.config.buttons?.ok || {}), ...(this.instanceOptions.buttons?.ok || {})
+            },
+            cancel: {
+                visible: true,
+                label: '@btn.cancel@Zavřít', ...(this.config.buttons?.cancel || {}), ...(this.instanceOptions.buttons?.cancel || {})
+            },
         };
 
         const footer = document.createElement('div');
@@ -188,11 +185,14 @@ export class BasePuzzle {
         flow.appendChild(footer);
 
         // Layout (auto/manual/grid)
-        const layoutCfg = this.instanceOptions.layout || this.config.layout || this.config.options?.layout || { mode:'auto', direction:'vertical' };
+        const layoutCfg = this.instanceOptions.layout || this.config.layout || this.config.options?.layout || {
+            mode: 'auto',
+            direction: 'vertical'
+        };
         applyAutoLayout(root, layoutCfg);
 
         this.applyTheme();
-        if (DBG()) console.debug('[PZ] base.mount ok', { id:this.id, cls: this.root.className, layout: layoutCfg });
+        if (DBG()) console.debug('[PZ] base.mount ok', {id: this.id, cls: this.root.className, layout: layoutCfg});
     }
 
     applyTheme() {
@@ -234,7 +234,7 @@ export class BasePuzzle {
         if (style.margin) el.style.margin = style.margin;
 
         if (DBG() && Object.keys(style).length > 0) {
-            console.debug('[PZ] applyStyle:', { el: el.className, style });
+            console.debug('[PZ] applyStyle:', {el: el.className, style});
         }
     }
 
@@ -309,7 +309,7 @@ export class BasePuzzle {
         const mode = layoutCfg.mode || 'auto';
 
         if (mode === 'manual') {
-            Object.assign(area.style, { position: 'relative', flex: '1 1 auto' });
+            Object.assign(area.style, {position: 'relative', flex: '1 1 auto'});
         } else if (layoutCfg.grid) {
             // Grid layout
             Object.assign(area.style, {
@@ -347,7 +347,7 @@ export class BasePuzzle {
     }
 
     evaluate() {
-        return {ok:false};
+        return {ok: false};
     }
 
     unmount() {

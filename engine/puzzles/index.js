@@ -63,7 +63,7 @@ export function createPuzzleRunner(args) {
 
     // OPRAVA: Container je celá obrazovka (nebo args.rect), ale pracovní okno uvnitř je cfg.rect
     // Pokud args.rect není definován, container bude celá obrazovka
-    const containerRect = args.rect || {x:0, y:0, w:100, h:100};
+    const containerRect = (args.instanceOptions && args.instanceOptions.overrideContainerRect === true && args.rect) ? args.rect : {x:0, y:0, w:100, h:100};
 
     const container = document.createElement('div');
     container.className = 'pz-container';
@@ -85,6 +85,14 @@ export function createPuzzleRunner(args) {
         // OPRAVA: Použijeme cfg.rect (z puzzles.json) jako workRect
         // Pokud cfg.rect není, použijeme rozumné defaulty (ne celou obrazovku)
         const workRect = cfg.rect || {x: 10, y: 10, w: 80, h: 80};
+        console.log('[PZ] runner mountInto:', {
+            id: puzzle.id,
+            kind: puzzle.kind,
+            argsRect: args.rect,
+            cfgRect: cfg.rect,
+            containerRect,
+            workRect
+        });
 
         if (/\bdebug=1\b/.test(window.location.search)) {
             console.debug('[PZ] runner mountInto:', {

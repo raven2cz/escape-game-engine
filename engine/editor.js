@@ -1,975 +1,635 @@
 // engine/editor.js
-// Universal editor for both scenes and puzzles:
-// - Scene mode: draw hotspots by drag (mouse/touch/pen) over the scene
-// - Puzzle mode: visualize and edit puzzle components (work window, tokens, buttons)
-// - Static coordinate labels for all interactive elements
-// - Toolbar + JSON panel live outside the layer to avoid event conflicts
+// Unified editor for Scenes and Puzzles 2.0
+// - No hint popups
+// - Auto switch Scene <-> Puzzle when .pz appears/disappears
+// - Scene: draw/drag/resize a rectangle, copy JSON
+// - Puzzle: drag/resize .pz__window and component visualizations (manual layout only), copy JSON
+// - Delete visualization via middle-click or Delete key
+
+const DBG = () => (typeof window !== 'undefined' && /\bdebug=1\b/.test(window.location.search));
 
 export class Editor {
     constructor({ game, overlay, hotspotLayer }) {
         this.game = game;
-        this.overlay = overlay;                   // visual layer (labels + temp box), sibling of hotspotLayer
-        this.hotspotLayer = hotspotLayer;         // pointer events source for drawing
-        this.sceneContainer = hotspotLayer.parentElement; // parent for both layers
+        this.overlay = overlay;
+        this.hotspotLayer = hotspotLayer;
+        this.sceneContainer = hotspotLayer?.parentElement || document.body;
 
         this.enabled = false;
-        this.dragging = null; // { start:{x,y}, end:{x,y} } in %
-        this.rect = null;     // last finalized rectangle
-        this.toolbar = null;
-        this.jsonPanel = null;
-        this._observer = null;
-
-        // Puzzle editor support
+        this.currentMode = null;   // 'scene' | 'puzzle'
+        this.sceneEditor = null;
         this.puzzleEditor = null;
-        this.mode = 'scene'; // 'scene' or 'puzzle'
-
-        // bind handlers
-        this._onPointerDown = this._onPointerDown.bind(this);
-        this._onPointerMove = this._onPointerMove.bind(this);
-        this._onPointerUp   = this._onPointerUp.bind(this);
-        this._onDomMutate   = this._onDomMutate.bind(this);
+        this._rootObserver = null;
     }
-
-    // ---------------------------------------------------------------------------
-    // Public API
-    // ---------------------------------------------------------------------------
 
     enable() {
         if (this.enabled) return;
         this.enabled = true;
 
-        // Detect puzzle mode
-        const puzzleRoot = document.querySelector('.pz');
-        if (puzzleRoot) {
-            this.mode = 'puzzle';
-            this.puzzleEditor = new PuzzleEditor(this, puzzleRoot);
-            this.puzzleEditor.enable();
-        } else {
-            this.mode = 'scene';
-        }
-
+        this._cleanup();
         document.body.classList.add('editor-on');
         this.overlay.classList.remove('hidden');
-        this.overlay.style.pointerEvents = 'none'; // overlay never captures input
 
-        this._buildToolbar();
+        Object.assign(this.overlay.style, { position: 'absolute', inset: '0', zIndex: '10000' });
+        this.overlay.innerHTML = '';
 
-        if (this.mode === 'scene') {
-            this._bindPointer();
-            this._observeHotspots();
-            this._renderStaticLabels();
-            this._hint('Editor ON: drag on the scene to create a hotspot.');
-        }
+        const puzzleRoot = document.querySelector('.pz');
+        if (puzzleRoot) this._activatePuzzleMode(puzzleRoot);
+        else this._activateSceneMode();
+
+        this._startRootObserver();
     }
 
     disable() {
         if (!this.enabled) return;
         this.enabled = false;
 
-        document.body.classList.remove('editor-on');
+        this._stopRootObserver();
+        this._cleanup();
+
         this.overlay.classList.add('hidden');
-
-        if (this.puzzleEditor) {
-            this.puzzleEditor.disable();
-            this.puzzleEditor = null;
-        }
-
-        this._unbindPointer();
-        this._unobserveHotspots();
-        this._removeToolbar();
-        this._hideJsonPanel();
-        this._clearTemp();
-        this._clearLabels();
-
-        this.dragging = null;
-        this.mode = 'scene';
+        this.overlay.innerHTML = '';
+        document.body.classList.remove('editor-on');
     }
 
     toggle() { this.enabled ? this.disable() : this.enable(); }
 
-    // ---------------------------------------------------------------------------
-    // Event wiring
-    // ---------------------------------------------------------------------------
+    _cleanup() {
+        if (this.sceneEditor) { try { this.sceneEditor.destroy(); } catch {} this.sceneEditor = null; }
+        if (this.puzzleEditor) { try { this.puzzleEditor.destroy(); } catch {} this.puzzleEditor = null; }
+        this.overlay.innerHTML = '';
 
-    _bindPointer() {
-        this.hotspotLayer.addEventListener('pointerdown', this._onPointerDown, { passive: false });
-        window.addEventListener('pointermove', this._onPointerMove, { passive: false });
-        window.addEventListener('pointerup',   this._onPointerUp,   { passive: false });
+        // tvrdý úklid případných zbytků i mimo overlay
+        document.querySelectorAll('.scene-final-rect,.scene-handle,.scene-final-label,.pz-viz,.editor-toolbar,.editor-jsonpanel')
+            .forEach(el => { try { el.remove(); } catch {} });
     }
 
-    _unbindPointer() {
-        this.hotspotLayer.removeEventListener('pointerdown', this._onPointerDown);
-        window.removeEventListener('pointermove', this._onPointerMove);
-        window.removeEventListener('pointerup',   this._onPointerUp);
+    _activateSceneMode() {
+        this.currentMode = 'scene';
+        this.overlay.style.pointerEvents = 'auto';
+        this.sceneEditor = new SceneEditor(this.game, this.overlay, this.hotspotLayer, this.sceneContainer);
+        this.sceneEditor.enable();
     }
 
-    _observeHotspots() {
-        if (this._observer) return;
-        this._observer = new MutationObserver(this._onDomMutate);
-        this._observer.observe(this.hotspotLayer, { childList: true, attributes: true, subtree: false });
+    _activatePuzzleMode(puzzleRoot) {
+        this.currentMode = 'puzzle';
+        this.overlay.innerHTML = '';
+        this.overlay.style.pointerEvents = 'auto';
+        this.puzzleEditor = new PuzzleEditor(puzzleRoot, this.overlay, this.sceneContainer);
+        this.puzzleEditor.enable();
     }
 
-    _unobserveHotspots() {
-        if (this._observer) {
-            this._observer.disconnect();
-            this._observer = null;
-        }
+    _startRootObserver() {
+        if (this._rootObserver) return;
+        const detect = () => {
+            const hasPuzzle = !!document.querySelector('.pz');
+            const newMode = hasPuzzle ? 'puzzle' : 'scene';
+            if (!this.enabled) return;
+            if (newMode !== this.currentMode) {
+                this._cleanup();
+                this.overlay.innerHTML = '';
+                if (hasPuzzle) this._activatePuzzleMode(document.querySelector('.pz'));
+                else this._activateSceneMode();
+            }
+        };
+        this._rootObserver = new MutationObserver(detect);
+        this._rootObserver.observe(document.body, { childList: true, subtree: true });
+        detect();
     }
 
-    _onDomMutate() {
-        if (!this.enabled) return;
-        this._renderStaticLabels();
+    _stopRootObserver() { try { this._rootObserver?.disconnect(); } catch {} this._rootObserver = null; }
+}
+
+// ---------------- Scene editor ----------------
+
+class SceneEditor {
+    constructor(game, overlay, hotspotLayer, container) {
+        this.game = game;
+        this.overlay = overlay;
+        this.hotspotLayer = hotspotLayer;
+        this.container = container;
+
+        this.rect = null;              // {x,y,w,h} in %
+        this.dragMode = null;          // 'create'|'move'|'resize'
+        this.activeHandle = null;
+        this.startPt = null;
+        this.startRect = null;
+        this.finalBox = null;
+        this.label = null;
+        this.toolbar = null;
+        this.jsonPanel = null;
+
+        this._onPointerDown = this._onPointerDown.bind(this);
+        this._onPointerMove = this._onPointerMove.bind(this);
+        this._onPointerUp   = this._onPointerUp.bind(this);
+        this._onKeyDown     = this._onKeyDown.bind(this);
     }
 
-    // ---------------------------------------------------------------------------
-    // Toolbar + JSON panel
-    // ---------------------------------------------------------------------------
+    enable() {
+        this._buildToolbar();
+        this._bind();
+        this._renderPersistent();
+    }
+
+    destroy() {
+        this._unbind();
+        this.overlay.innerHTML = '';
+        if (this.toolbar?.parentNode) this.toolbar.parentNode.removeChild(this.toolbar);
+        this.toolbar = null; this.jsonPanel = null; this.finalBox = null; this.label = null;
+    }
 
     _buildToolbar() {
         const tb = document.createElement('div');
-        tb.className = 'editor-toolbar';
-        tb.style.position = 'absolute';
-        tb.style.right = '10px';
-        tb.style.top = '10px';
-        tb.style.zIndex = '1000';
-        tb.style.pointerEvents = 'auto'; // MUST be clickable
-
-        const btnCopy = document.createElement('button');
-        btnCopy.textContent = 'Zkopírovat JSON';
-        btnCopy.title = this.mode === 'puzzle' ?
-            'Zkopírovat konfiguraci puzzle do schránky' :
-            'Zkopírovat poslední obdélník do schránky';
-        btnCopy.addEventListener('click', () => this._copyJson());
-
-        const btnRect = document.createElement('button');
-        btnRect.textContent = 'Zobrazit JSON';
-        btnRect.title = this.mode === 'puzzle' ?
-            'Zobraz JSON konfigurace puzzle' :
-            'Zobraz JSON posledního obdélníku';
-        btnRect.addEventListener('click', () => this._toggleJsonPanel());
-
-        const btnInfo = document.createElement('button');
-        btnInfo.textContent = this.mode === 'puzzle' ? 'Info o puzzle' : 'Info o scéně';
-        btnInfo.title = this.mode === 'puzzle' ?
-            'Zobrazí základní údaje o aktuálním puzzle' :
-            'Zobrazí základní údaje o aktuální scéně';
-        btnInfo.addEventListener('click', () => {
-            if (this.mode === 'puzzle' && this.puzzleEditor) {
-                const puzzleRoot = this.puzzleEditor.puzzleRoot;
-                const kind = Array.from(puzzleRoot.classList)
-                    .find(c => c.startsWith('pz--kind-'))
-                    ?.replace('pz--kind-', '');
-                const id = Array.from(puzzleRoot.classList)
-                    .find(c => c.startsWith('pz--id-'))
-                    ?.replace('pz--id-', '');
-                const isManual = puzzleRoot.classList.contains('pz--manual');
-
-                alert(JSON.stringify({
-                    mode: 'puzzle',
-                    id: id || 'unknown',
-                    kind: kind || 'unknown',
-                    layout: isManual ? 'manual' : 'auto',
-                    components: this.puzzleEditor.components.size
-                }, null, 2));
-            } else {
-                const s = this.game.currentScene;
-                alert(JSON.stringify({
-                    mode: 'scene',
-                    id: s.id,
-                    title: s.title,
-                    image: s.image,
-                    hotspotCount: (s.hotspots || []).length,
-                }, null, 2));
-            }
+        tb.className = 'editor-toolbar scene-toolbar';
+        Object.assign(tb.style, {
+            position: 'absolute', right: '10px', top: '10px', zIndex: '10001', pointerEvents: 'auto',
+            background: 'rgba(0,0,0,0.8)', padding: '6px', borderRadius: '6px', color: '#fff', font: '12px/1.2 sans-serif'
         });
-
-        tb.appendChild(btnCopy);
-        tb.appendChild(btnRect);
-        tb.appendChild(btnInfo);
-
+        const btnCopy = this._btn('Copy JSON', () => this._copyJson());
+        const btnShow = this._btn('Show JSON', () => this._toggleJsonPanel());
+        tb.appendChild(btnCopy); tb.appendChild(btnShow);
         this.toolbar = tb;
-        // IMPORTANT: place inside sceneContainer (sibling of hotspotLayer), not inside hotspotLayer
-        this.sceneContainer.appendChild(tb);
+        this.container.appendChild(tb);
     }
 
-    _removeToolbar() {
-        if (this.toolbar?.parentNode) this.toolbar.parentNode.removeChild(this.toolbar);
-        this.toolbar = null;
+    _btn(label, onClick) {
+        const b = document.createElement('button');
+        b.type='button'; b.textContent = label;
+        Object.assign(b.style, { margin: '0 4px', padding: '4px 6px', cursor: 'pointer' });
+        b.addEventListener('click', onClick);
+        return b;
     }
 
-    _toggleJsonPanel() {
-        if (this.jsonPanel) { this._hideJsonPanel(); return; }
-        this._showJsonPanel();
+    _bind() {
+        this.overlay.addEventListener('pointerdown', this._onPointerDown);
+        window.addEventListener('pointermove', this._onPointerMove);
+        window.addEventListener('pointerup', this._onPointerUp);
+        window.addEventListener('keydown', this._onKeyDown);
+    }
+    _unbind() {
+        this.overlay.removeEventListener('pointerdown', this._onPointerDown);
+        window.removeEventListener('pointermove', this._onPointerMove);
+        window.removeEventListener('pointerup', this._onPointerUp);
+        window.removeEventListener('keydown', this._onKeyDown);
     }
 
-    _showJsonPanel() {
-        const panel = document.createElement('div');
-        panel.className = 'editor-jsonpanel';
-        panel.style.position = 'absolute';
-        panel.style.left = '10px';
-        panel.style.top  = '10px';
-        panel.style.zIndex = '1001';
-        panel.style.pointerEvents = 'auto';
+    _boxRect() { return this.hotspotLayer.getBoundingClientRect(); }
+    _clientToPct(ev) {
+        const box = this._boxRect();
+        const clamp = (v,min,max) => Math.max(min, Math.min(max, v));
+        const x = clamp((ev.clientX - box.left) / box.width, 0, 1);
+        const y = clamp((ev.clientY - box.top) / box.height, 0, 1);
+        return { x:+(x*100).toFixed(2), y:+(y*100).toFixed(2) };
+    }
 
-        const title = document.createElement('div');
-        title.className = 'editor-jsonpanel-title';
-        title.textContent = this.mode === 'puzzle' ? 'JSON konfigurace puzzle' : 'JSON obdélníku';
+    _renderPersistent() {
+        this.overlay.querySelectorAll('.scene-final-rect,.scene-final-label,.scene-handle').forEach(el => el.remove());
+        if (!this.rect) return;
 
-        const ta = document.createElement('textarea');
-        ta.className = 'editor-jsonpanel-text';
-        ta.rows = 6;
-        ta.readOnly = true;
-        ta.value = this._snippet() || '// Není co zobrazit...';
-
-        const row = document.createElement('div');
-        row.className = 'editor-jsonpanel-actions';
-
-        const btnCopy = document.createElement('button');
-        btnCopy.textContent = 'Zkopírovat';
-        btnCopy.addEventListener('click', async () => {
-            const ok = await this._copyText(ta.value);
-            if (!ok) alert('Nepodařilo se zkopírovat – zkopíruj prosím ručně.');
+        const r = this.rect;
+        const box = document.createElement('div');
+        box.className = 'scene-final-rect';
+        Object.assign(box.style, {
+            position:'absolute', left: r.x+'%', top: r.y+'%', width: r.w+'%', height: r.h+'%',
+            border:'2px solid rgba(0,255,100,.8)', background:'rgba(0,255,100,.10)', zIndex:'9998', cursor:'move'
         });
 
-        const btnClose = document.createElement('button');
-        btnClose.textContent = 'Zavřít';
-        btnClose.addEventListener('click', () => this._hideJsonPanel());
+        const handles = ['nw','n','ne','e','se','s','sw','w'];
+        handles.forEach(h => {
+            const dot = document.createElement('div');
+            dot.className = 'scene-handle scene-handle-'+h;
+            const size = 10;
+            Object.assign(dot.style, { position:'absolute', width:size+'px', height:size+'px', background:'#0f6', border:'1px solid #090', zIndex:'9999' });
+            const pos = (x,y)=>{ dot.style.left=x; dot.style.top=y; };
+            switch(h){
+                case 'nw': pos('-5px','-5px'); dot.style.cursor='nwse-resize'; break;
+                case 'n':  pos('calc(50% - 5px)','-5px'); dot.style.cursor='ns-resize'; break;
+                case 'ne': pos('calc(100% - 5px)','-5px'); dot.style.cursor='nesw-resize'; break;
+                case 'e':  pos('calc(100% - 5px)','calc(50% - 5px)'); dot.style.cursor='ew-resize'; break;
+                case 'se': pos('calc(100% - 5px)','calc(100% - 5px)'); dot.style.cursor='nwse-resize'; break;
+                case 's':  pos('calc(50% - 5px)','calc(100% - 5px)'); dot.style.cursor='ns-resize'; break;
+                case 'sw': pos('-5px','calc(100% - 5px)'); dot.style.cursor='nesw-resize'; break;
+                case 'w':  pos('-5px','calc(50% - 5px)'); dot.style.cursor='ew-resize'; break;
+            }
+            dot.dataset.handle = h;
+            box.appendChild(dot);
+        });
 
-        row.appendChild(btnCopy);
-        row.appendChild(btnClose);
+        const label = document.createElement('div');
+        label.className = 'scene-final-label';
+        label.textContent = `x:${r.x} y:${r.y} w:${r.w} h:${r.h}`;
+        Object.assign(label.style, { position:'absolute', left:'0', top:'-18px', padding:'2px 4px', background:'rgba(0,0,0,.8)', color:'#fff', font:'11px sans-serif' });
+        box.appendChild(label);
 
-        panel.appendChild(title);
-        panel.appendChild(ta);
-        panel.appendChild(row);
+        box.addEventListener('pointerdown', (ev) => {
+            ev.stopPropagation();
+            if (ev.button === 1) { this.rect = null; this._renderPersistent(); this._updateJsonPanel(); return; }
+            const handle = ev.target?.dataset?.handle || null;
+            this.dragMode = handle ? 'resize' : 'move';
+            this.activeHandle = handle;
+            this.startPt = { x: ev.clientX, y: ev.clientY };
+            this.startRect = { ...this.rect };
+            box.setPointerCapture?.(ev.pointerId);
+        });
 
-        this.jsonPanel = panel;
-
-        // IMPORTANT: attach to sceneContainer (not inside hotspotLayer)
-        this.sceneContainer.appendChild(panel);
+        this.overlay.appendChild(box);
+        this.finalBox = box;
+        this.label = label;
+        this._updateJsonPanel();
     }
 
-    _hideJsonPanel() {
-        if (this.jsonPanel?.parentNode) this.jsonPanel.parentNode.removeChild(this.jsonPanel);
-        this.jsonPanel = null;
+    _updateLabel() {
+        if (!this.label || !this.rect) return;
+        const r = this.rect;
+        this.label.textContent = `x:${r.x} y:${r.y} w:${r.w} h:${r.h}`;
     }
 
     _updateJsonPanel() {
         if (!this.jsonPanel) return;
-        const ta = this.jsonPanel.querySelector('.editor-jsonpanel-text');
-        if (ta) ta.value = this._snippet() || '// Není co zobrazit...';
+        const r = this.rect || {x:0,y:0,w:0,h:0};
+        this.jsonPanel.querySelector('textarea').value = JSON.stringify({ x:r.x, y:r.y, w:r.w, h:r.h }, null, 2);
     }
 
-    // ---------------------------------------------------------------------------
-    // Hints
-    // ---------------------------------------------------------------------------
-
-    _hint(text) {
-        let hint = this.overlay.querySelector('.editor-hint');
-        if (!hint) {
-            hint = document.createElement('div');
-            hint.className = 'editor-hint';
-            this.overlay.appendChild(hint);
-        }
-        hint.textContent = text;
-    }
-
-    // ---------------------------------------------------------------------------
-    // Pointer handling and geometry (for scene mode)
-    // ---------------------------------------------------------------------------
-
-    _clientToPercent(ev) {
-        const box = this.hotspotLayer.getBoundingClientRect();
-        const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
-        const x = clamp((ev.clientX - box.left) / box.width, 0, 1);
-        const y = clamp((ev.clientY - box.top)  / box.height, 0, 1);
-        return { x: +(x * 100).toFixed(2), y: +(y * 100).toFixed(2) };
-    }
-
-    _onPointerDown(ev) {
-        if (!this.enabled || this.mode !== 'scene') return;
-
-        // ignore clicks on toolbar/JSON panel → do not start drawing
-        if (ev.target.closest('.editor-toolbar') || ev.target.closest('.editor-jsonpanel')) return;
-
-        // for mouse accept only left button
-        if (ev.pointerType === 'mouse' && ev.button !== 0) return;
-
-        ev.preventDefault();
-        try { ev.currentTarget.setPointerCapture?.(ev.pointerId); } catch {}
-
-        const p = this._clientToPercent(ev);
-        this.dragging = { start: p, end: p };
-        this._renderTemp();
-    }
-
-    _onPointerMove(ev) {
-        if (!this.dragging) return;
-        ev.preventDefault();
-        this.dragging.end = this._clientToPercent(ev);
-        this._renderTemp();
-    }
-
-    _onPointerUp(ev) {
-        if (!this.dragging) return;
-        ev.preventDefault();
-        this.dragging.end = this._clientToPercent(ev);
-        this._renderTemp();
-
-        this.rect = this._currentRect();
-        this.dragging = null;
-        this._hint('Hotspot ready. Click "Zkopírovat JSON" or "Zobrazit JSON".');
+    _toggleJsonPanel() {
+        if (this.jsonPanel) { this.jsonPanel.remove(); this.jsonPanel=null; return; }
+        const panel = document.createElement('div');
+        panel.className = 'editor-jsonpanel';
+        Object.assign(panel.style, { position:'absolute', right:'10px', top:'50px', zIndex:'10002', background:'rgba(0,0,0,.85)', padding:'6px', borderRadius:'6px' });
+        const ta = document.createElement('textarea');
+        Object.assign(ta.style, { width:'260px', height:'160px', color:'#0f6', background:'#111', font:'12px monospace' });
+        panel.appendChild(ta);
+        const btn = this._btn('Copy', () => { ta.select(); document.execCommand?.('copy'); });
+        panel.appendChild(btn);
+        this.overlay.appendChild(panel);
+        this.jsonPanel = panel;
         this._updateJsonPanel();
     }
 
-    _currentRect() {
-        const a = this.dragging?.start || { x: 0, y: 0 };
-        const b = this.dragging?.end   || { x: 0, y: 0 };
-        const x = Math.min(a.x, b.x), y = Math.min(a.y, b.y);
-        const w = Math.abs(a.x - b.x), h = Math.abs(a.y - b.y);
-        return { x: +x.toFixed(2), y: +y.toFixed(2), w: +w.toFixed(2), h: +h.toFixed(2) };
-    }
-
-    // ---------------------------------------------------------------------------
-    // Temp box + labels
-    // ---------------------------------------------------------------------------
-
-    _clearTemp() {
-        this.overlay.querySelector('.temp')?.remove();
-        this.overlay.querySelector('.temp-label')?.remove();
-    }
-
-    _renderTemp() {
-        // temp rectangle
-        let box = this.overlay.querySelector('.temp');
-        if (!box) {
-            box = document.createElement('div');
-            box.className = 'temp';
-            box.style.position = 'absolute';
-            box.style.border = '2px dashed rgba(0,200,255,.9)';
-            box.style.background = 'rgba(0,200,255,.12)';
-            this.overlay.appendChild(box);
+    _copyJson() {
+        const r = this.rect || {x:0,y:0,w:0,h:0};
+        const text = JSON.stringify({ x:r.x, y:r.y, w:r.w, h:r.h });
+        try { navigator.clipboard?.writeText(text); }
+        catch {
+            const ta = document.createElement('textarea'); ta.value=text; document.body.appendChild(ta);
+            ta.select(); document.execCommand?.('copy'); document.body.removeChild(ta);
         }
-        const r = this._currentRect();
-        box.style.left = r.x + '%';
-        box.style.top = r.y + '%';
-        box.style.width = r.w + '%';
-        box.style.height = r.h + '%';
-
-        // temp coordinates label
-        let lab = this.overlay.querySelector('.temp-label');
-        if (!lab) {
-            lab = document.createElement('div');
-            lab.className = 'hs-label temp-label';
-            this.overlay.appendChild(lab);
-        }
-        lab.textContent = this._rectText(r);
-        this._positionLabel(lab, r);
     }
 
-    _clearLabels() {
-        this.overlay.querySelectorAll('.hs-label').forEach(n => n.remove());
-    }
-
-    _renderStaticLabels() {
-        // remove old (avoid duplicates)
-        this.overlay.querySelectorAll('.hs-label:not(.temp-label)').forEach(n => n.remove());
-
-        const scene = this.game.currentScene;
-        if (!scene || !Array.isArray(scene.hotspots)) return;
-
-        scene.hotspots.forEach(h => {
-            const r = h.rect;
-            if (!r) return;
-            const lab = document.createElement('div');
-            lab.className = 'hs-label';
-            lab.textContent = this._rectText(r);
-            this.overlay.appendChild(lab);
-            this._positionLabel(lab, r);
-        });
-    }
-
-    _positionLabel(el, rect) {
-        const pad = 0.6; // ~0.6%
-        el.style.position = 'absolute';
-        el.style.left = (rect.x + rect.w - pad) + '%';
-        el.style.top  = (rect.y + rect.h - pad) + '%';
-        el.style.transform = 'translate(-100%, -100%)';
-    }
-
-    _rectText(r) {
-        return `x:${r.x} y:${r.y} w:${r.w} h:${r.h}`;
-    }
-
-    // ---------------------------------------------------------------------------
-    // JSON helpers
-    // ---------------------------------------------------------------------------
-
-    _snippet() {
-        if (this.mode === 'puzzle' && this.puzzleEditor) {
-            return this.puzzleEditor._generateJson();
-        }
-
-        const r = this.rect || this._currentRect();
-        if (!r) return '';
-        return JSON.stringify({
-            type: 'goTo',
-            target: 'scene_id',
-            rect: { x: r.x, y: r.y, w: r.w, h: r.h },
-        }, null, 2);
-    }
-
-    async _copyJson() {
-        const str = this._snippet();
-        if (!str) {
-            alert(this.mode === 'puzzle' ?
-                'Nejsou k dispozici žádné komponenty.' :
-                'Nakresli nejdříve hotspot.');
+    _onPointerDown(ev) {
+        if (ev.target.closest('.editor-toolbar') || ev.target.closest('.editor-jsonpanel')) return;
+        const pct = this._clientToPct(ev);
+        const inside = this.rect && pct.x >= this.rect.x && pct.x <= this.rect.x+this.rect.w
+            && pct.y >= this.rect.y && pct.y <= this.rect.y+this.rect.h;
+        if (inside) {
+            this.dragMode = 'move'; this.activeHandle = null;
+            this.startPt = { x:ev.clientX, y:ev.clientY };
+            this.startRect = { ...this.rect };
             return;
         }
-        const ok = await this._copyText(str);
-        if (ok) alert('JSON zkopírován do schránky.');
-        else    alert('Kopírování selhalo. Otevři "Zobrazit JSON" a zkopíruj ručně.');
+        this.dragMode = 'create'; this.activeHandle = null;
+        this.startPt = { x:ev.clientX, y:ev.clientY };
+        this.rect = { x: pct.x, y: pct.y, w: 0, h: 0 };
+        this._renderPersistent();
     }
 
-    async _copyText(text) {
-        try {
-            if (navigator.clipboard && window.isSecureContext !== false) {
-                await navigator.clipboard.writeText(text);
-                return true;
+    _onPointerMove(ev) {
+        if (!this.dragMode || !this.rect) return;
+        const box = this._boxRect();
+        const dx = (ev.clientX - this.startPt.x) / box.width * 100;
+        const dy = (ev.clientY - this.startPt.y) / box.height * 100;
+
+        if (this.dragMode === 'move') {
+            const nx = +(Math.max(0, Math.min(100 - this.rect.w, this.startRect.x + dx))).toFixed(2);
+            const ny = +(Math.max(0, Math.min(100 - this.rect.h, this.startRect.y + dy))).toFixed(2);
+            this.rect.x = nx; this.rect.y = ny;
+            Object.assign(this.finalBox.style, { left:this.rect.x+'%', top:this.rect.y+'%' });
+            this._updateLabel(); this._updateJsonPanel();
+            return;
+        }
+
+        if (this.dragMode === 'resize' && this.activeHandle) {
+            const sr = this.startRect;
+            const apply = (nx, ny, nw, nh) => {
+                this.rect.x = +(Math.max(0, Math.min(100, nx))).toFixed(2);
+                this.rect.y = +(Math.max(0, Math.min(100, ny))).toFixed(2);
+                this.rect.w = +(Math.max(0, Math.min(100 - this.rect.x, nw))).toFixed(2);
+                this.rect.h = +(Math.max(0, Math.min(100 - this.rect.y, nh))).toFixed(2);
+                Object.assign(this.finalBox.style, { left:this.rect.x+'%', top:this.rect.y+'%', width:this.rect.w+'%', height:this.rect.h+'%' });
+                this._updateLabel(); this._updateJsonPanel();
+            };
+            switch(this.activeHandle) {
+                case 'nw': apply(sr.x + dx, sr.y + dy, sr.w - dx, sr.h - dy); break;
+                case 'n':  apply(sr.x, sr.y + dy, sr.w, sr.h - dy); break;
+                case 'ne': apply(sr.x, sr.y + dy, sr.w + dx, sr.h - dy); break;
+                case 'e':  apply(sr.x, sr.y, sr.w + dx, sr.h); break;
+                case 'se': apply(sr.x, sr.y, sr.w + dx, sr.h + dy); break;
+                case 's':  apply(sr.x, sr.y, sr.w, sr.h + dy); break;
+                case 'sw': apply(sr.x + dx, sr.y, sr.w - dx, sr.h + dy); break;
+                case 'w':  apply(sr.x + dx, sr.y, sr.w - dx, sr.h); break;
             }
-        } catch {}
-        try {
-            const ta = document.createElement('textarea');
-            ta.value = text;
-            ta.style.position = 'fixed';
-            ta.style.left = '-9999px';
-            document.body.appendChild(ta);
-            ta.focus(); ta.select();
-            const ok = document.execCommand('copy');
-            document.body.removeChild(ta);
-            return ok;
-        } catch {
-            return false;
+            return;
+        }
+
+        if (this.dragMode === 'create') {
+            const p0 = this._clientToPct({ clientX: this.startPt.x, clientY: this.startPt.y });
+            const p1 = this._clientToPct(ev);
+            const x = Math.min(p0.x, p1.x), y = Math.min(p0.y, p1.y);
+            const w = Math.max(0, Math.max(p0.x, p1.x) - x);
+            const h = Math.max(0, Math.max(p0.y, p1.y) - y);
+            this.rect = { x:+x.toFixed(2), y:+y.toFixed(2), w:+w.toFixed(2), h:+h.toFixed(2) };
+            Object.assign(this.finalBox.style, { left:x+'%', top:y+'%', width:w+'%', height:h+'%' });
+            this._updateLabel(); this._updateJsonPanel();
         }
     }
+
+    _onPointerUp() { this.dragMode = null; this.activeHandle = null; this.startPt = null; this.startRect = null; }
+
+    _onKeyDown(e) { if (e.key === 'Delete' || e.key === 'Backspace') { if (this.rect) { this.rect = null; this._renderPersistent(); } } }
 }
 
-/**
- * PuzzleEditor - specialized editor for Puzzles 2.0
- * Handles visualization and editing of puzzle components:
- * - Work window (pz__window) positioning and resizing
- * - Individual components (tokens, buttons, inputs) in manual layout mode
- * - JSON generation for puzzle configuration
- */
-export class PuzzleEditor {
-    constructor(mainEditor, puzzleRoot) {
-        this.mainEditor = mainEditor;
+// ---------------- Puzzle editor ----------------
+
+class PuzzleEditor {
+    constructor(puzzleRoot, overlay, container) {
         this.puzzleRoot = puzzleRoot;
-        this.overlay = mainEditor.overlay;
+        this.overlay = overlay;
+        this.container = container;
 
         this.windowEl = puzzleRoot.querySelector('.pz__window');
-        this.components = new Map(); // component element -> metadata
-        this.selectedElement = null;
-        this.resizing = null; // { element, handle, startRect, startMouse }
-        this.draggingElement = null; // { element, startPos, startMouse }
+        this.toolbar = null;
+        this.jsonPanel = null;
 
-        // Bind handlers
-        this._onComponentMouseDown = this._onComponentMouseDown.bind(this);
-        this._onWindowMouseDown = this._onWindowMouseDown.bind(this);
+        this.isManualLayout = true;
+        this.components = new Map();  // Map<Element, {id,type,element}>
+        this.visualizations = [];
+        this.active = null;  // { type:'move'|'resize', viz, handle, startMouse, startElRect, targetEl, relRoot }
+
+        this._onMouseDown = this._onMouseDown.bind(this);
         this._onMouseMove = this._onMouseMove.bind(this);
-        this._onMouseUp = this._onMouseUp.bind(this);
+        this._onMouseUp   = this._onMouseUp.bind(this);
+        this._onKeyDown   = this._onKeyDown.bind(this);
     }
 
     enable() {
+        this._detectLayout();
         this._detectComponents();
-        this._visualizeWorkWindow();
-        this._visualizeComponents();
-        this._bindEvents();
-
-        // Update hint
-        const isManual = this._isManualLayout();
-        const hint = isManual ?
-            'Puzzle Editor: Drag components to reposition, drag corners to resize' :
-            'Puzzle Editor: Work window visible (auto layout mode)';
-        this.mainEditor._hint(hint);
+        this._buildToolbar();
+        this._createVisualizations();
+        this._bind();
     }
 
-    disable() {
-        this._unbindEvents();
-        this._clearVisualizations();
-        this.components.clear();
+    destroy() {
+        this._unbind();
+        this.overlay.querySelectorAll('.pz-viz,.editor-jsonpanel').forEach(el => el.remove());
+        if (this.toolbar?.parentNode) this.toolbar.parentNode.removeChild(this.toolbar);
+        this.toolbar = null; this.jsonPanel = null;
+        this.visualizations = []; this.components.clear();
     }
 
-    _isManualLayout() {
-        return this.puzzleRoot.classList.contains('pz--manual');
+    _detectLayout() {
+        const cs = window.getComputedStyle(this.windowEl);
+        this.isManualLayout = (cs.position === 'absolute');
     }
 
     _detectComponents() {
         this.components.clear();
-
-        // Find all positioned components
-        const selectors = [
-            '.pz-token',
-            '.pz-btn',
-            '.pz-input-wrap',
-            '.pz-group-area',
-            '.pz-choice-item',
-            '.pz-title',
-            '.pz-prompt'
-        ];
-
-        selectors.forEach(selector => {
-            this.puzzleRoot.querySelectorAll(selector).forEach(el => {
-                // Only track components with absolute positioning (manual layout)
-                const style = window.getComputedStyle(el);
-                if (style.position === 'absolute' || this._isManualLayout()) {
-                    // Skip invisible components
-                    if (style.display === 'none' || style.visibility === 'hidden') {
-                        return;
-                    }
-
-                    const rect = this._getElementRect(el);
-                    const id = el.getAttribute('data-id') || el.className.split(' ')[0];
-
-                    this.components.set(el, {
-                        type: this._getComponentType(el),
-                        id: id,
-                        rect: rect,
-                        visible: true
-                    });
-                }
-            });
+        if (!this.isManualLayout) return;
+        // vizualizuj jen to, co má author explicitně označeno jako komponentu
+        const absElems = this.windowEl.querySelectorAll('[data-id]');
+        absElems.forEach(el => {
+            const cs = window.getComputedStyle(el);
+            if (cs.position !== 'absolute') return;
+            if (cs.display === 'none' || el.hidden || el.getAttribute('aria-hidden') === 'true') return;
+            const id = el.getAttribute('data-id');
+            const type = this._guessType(el);
+            this.components.set(el, { id, type, element: el });
         });
     }
 
-    _getComponentType(el) {
-        if (el.classList.contains('pz-token')) return 'token';
-        if (el.classList.contains('pz-btn')) return 'button';
+    _guessType(el) {
         if (el.classList.contains('pz-input-wrap')) return 'input';
-        if (el.classList.contains('pz-group-area')) return 'group';
+        if (el.classList.contains('pz-btn')) return 'button';
+        if (el.classList.contains('pz-token')) return 'token';
         if (el.classList.contains('pz-choice-item')) return 'choice';
-        if (el.classList.contains('pz-title')) return 'title';
-        if (el.classList.contains('pz-prompt')) return 'prompt';
+        if (el.classList.contains('pz-group-area')) return 'group';
         return 'component';
     }
 
-    _getElementRect(el) {
-        // Get rect relative to work window in percentages
-        const parent = this.windowEl || this.puzzleRoot;
-        const parentRect = parent.getBoundingClientRect();
-        const elRect = el.getBoundingClientRect();
-
-        return {
-            x: ((elRect.left - parentRect.left) / parentRect.width * 100),
-            y: ((elRect.top - parentRect.top) / parentRect.height * 100),
-            w: (elRect.width / parentRect.width * 100),
-            h: (elRect.height / parentRect.height * 100)
-        };
-    }
-
-    _visualizeWorkWindow() {
-        if (!this.windowEl) return;
-
-        // Create window outline
-        const outline = document.createElement('div');
-        outline.className = 'pz-editor-window';
-        outline.style.cssText = `
-            position: absolute;
-            border: 2px dashed rgba(255, 200, 0, 0.8);
-            background: rgba(255, 200, 0, 0.05);
-            pointer-events: auto;
-            cursor: move;
-            z-index: 9998;
-        `;
-
-        // Copy window position
-        const rect = this._getWindowRect();
-        outline.style.left = rect.x + '%';
-        outline.style.top = rect.y + '%';
-        outline.style.width = rect.w + '%';
-        outline.style.height = rect.h + '%';
-
-        // Add resize handles
-        const handles = ['nw', 'ne', 'sw', 'se'];
-        handles.forEach(pos => {
-            const handle = document.createElement('div');
-            handle.className = 'pz-editor-resize-handle';
-            handle.setAttribute('data-handle', pos);
-            handle.style.cssText = `
-                position: absolute;
-                width: 12px;
-                height: 12px;
-                background: rgba(255, 200, 0, 0.9);
-                border: 1px solid rgba(255, 255, 255, 0.5);
-                cursor: ${pos}-resize;
-                z-index: 9999;
-            `;
-
-            // Position handles
-            if (pos.includes('n')) handle.style.top = '-6px';
-            if (pos.includes('s')) handle.style.bottom = '-6px';
-            if (pos.includes('w')) handle.style.left = '-6px';
-            if (pos.includes('e')) handle.style.right = '-6px';
-
-            outline.appendChild(handle);
+    _buildToolbar() {
+        const tb = document.createElement('div');
+        tb.className = 'editor-toolbar puzzle-toolbar';
+        Object.assign(tb.style, {
+            position: 'absolute', right:'10px', top:'10px', zIndex:'10001',
+            background:'rgba(0,0,0,.8)', color:'#fff', padding:'6px', borderRadius:'6px', pointerEvents:'auto',
+            font:'12px/1.2 sans-serif'
         });
-
-        // Add label
-        const label = document.createElement('div');
-        label.className = 'pz-editor-label';
-        label.style.cssText = `
-            position: absolute;
-            top: -25px;
-            left: 0;
-            background: rgba(0, 0, 0, 0.8);
-            color: rgba(255, 200, 0, 1);
-            padding: 2px 8px;
-            font-size: 12px;
-            border-radius: 4px;
-            white-space: nowrap;
-            pointer-events: none;
-        `;
-        label.textContent = `Pracovní okno: ${this._formatRect(rect)}`;
-        outline.appendChild(label);
-
-        this.overlay.appendChild(outline);
-        this.windowOutline = outline;
+        const btnCopy = this._btn('Copy JSON', () => this._copyJson());
+        const btnShow = this._btn('Show JSON', () => this._toggleJsonPanel());
+        const btnInfo = this._btn('Info', () => this._showInfo());
+        tb.appendChild(btnCopy); tb.appendChild(btnShow); tb.appendChild(btnInfo);
+        this.toolbar = tb;
+        this.container.appendChild(tb);
     }
 
-    _getWindowRect() {
-        if (!this.windowEl) return { x: 0, y: 0, w: 100, h: 100 };
-
-        const parent = this.puzzleRoot;
-        const parentRect = parent.getBoundingClientRect();
-        const winRect = this.windowEl.getBoundingClientRect();
-
-        return {
-            x: ((winRect.left - parentRect.left) / parentRect.width * 100),
-            y: ((winRect.top - parentRect.top) / parentRect.height * 100),
-            w: (winRect.width / parentRect.width * 100),
-            h: (winRect.height / parentRect.height * 100)
-        };
+    _btn(label, onClick) {
+        const b = document.createElement('button');
+        b.type='button'; b.textContent = label;
+        Object.assign(b.style, { margin:'0 4px', padding:'4px 6px', cursor:'pointer' });
+        b.addEventListener('click', onClick);
+        return b;
     }
 
-    _visualizeComponents() {
-        if (!this._isManualLayout()) return;
-
-        this.components.forEach((meta, el) => {
-            const outline = document.createElement('div');
-            outline.className = 'pz-editor-component';
-            outline.style.cssText = `
-                position: absolute;
-                border: 1px dashed rgba(100, 200, 255, 0.7);
-                background: rgba(100, 200, 255, 0.05);
-                pointer-events: auto;
-                cursor: move;
-                z-index: 9997;
-            `;
-
-            // Position based on component rect
-            const rect = meta.rect;
-            outline.style.left = rect.x + '%';
-            outline.style.top = rect.y + '%';
-            outline.style.width = rect.w + '%';
-            outline.style.height = rect.h + '%';
-
-            // Add label
-            const label = document.createElement('div');
-            label.className = 'pz-editor-comp-label';
-            label.style.cssText = `
-                position: absolute;
-                bottom: 100%;
-                left: 0;
-                background: rgba(0, 0, 0, 0.8);
-                color: rgba(100, 200, 255, 1);
-                padding: 2px 6px;
-                font-size: 11px;
-                border-radius: 3px;
-                white-space: nowrap;
-                margin-bottom: 2px;
-                pointer-events: none;
-            `;
-            label.textContent = `${meta.type}#${meta.id}`;
-            outline.appendChild(label);
-
-            // Add resize handles for components
-            if (meta.type !== 'title' && meta.type !== 'prompt') {
-                ['se'].forEach(pos => {
-                    const handle = document.createElement('div');
-                    handle.className = 'pz-editor-comp-resize';
-                    handle.setAttribute('data-handle', pos);
-                    handle.style.cssText = `
-                        position: absolute;
-                        width: 8px;
-                        height: 8px;
-                        background: rgba(100, 200, 255, 0.8);
-                        border: 1px solid white;
-                        cursor: se-resize;
-                        right: -4px;
-                        bottom: -4px;
-                        z-index: 9998;
-                    `;
-                    outline.appendChild(handle);
-                });
-            }
-
-            // Store reference
-            outline._component = el;
-            outline._meta = meta;
-
-            // Add to overlay relative to window
-            this.overlay.appendChild(outline);
-        });
+    _toggleJsonPanel() {
+        if (this.jsonPanel) { this.jsonPanel.remove(); this.jsonPanel=null; return; }
+        const panel = document.createElement('div');
+        panel.className = 'editor-jsonpanel';
+        Object.assign(panel.style, { position:'absolute', right:'10px', top:'50px', zIndex:'10002', background:'rgba(0,0,0,.85)', padding:'6px', borderRadius:'6px' });
+        const ta = document.createElement('textarea');
+        Object.assign(ta.style, { width:'280px', height:'200px', color:'#0cf', background:'#111', font:'12px monospace' });
+        panel.appendChild(ta);
+        const btn = this._btn('Copy', () => { ta.select(); document.execCommand?.('copy'); });
+        panel.appendChild(btn);
+        this.overlay.appendChild(panel);
+        this.jsonPanel = panel;
+        this._updateJson();
     }
 
-    _bindEvents() {
-        // Window dragging/resizing
-        if (this.windowOutline) {
-            this.windowOutline.addEventListener('mousedown', this._onWindowMouseDown);
+    _copyJson() {
+        const text = this._currentJson();
+        try { navigator.clipboard?.writeText(text); }
+        catch {
+            const ta = document.createElement('textarea'); ta.value=text; document.body.appendChild(ta);
+            ta.select(); document.execCommand?.('copy'); document.body.removeChild(ta);
         }
+    }
 
-        // Component dragging (if manual layout)
-        if (this._isManualLayout()) {
-            this.overlay.querySelectorAll('.pz-editor-component').forEach(outline => {
-                outline.addEventListener('mousedown', this._onComponentMouseDown);
+    _showInfo() {
+        const info = {
+            layout: this.isManualLayout ? 'manual' : 'auto',
+            components: this.components.size,
+            windowRect: this._rectOf(this.windowEl, this.puzzleRoot)
+        };
+        alert(JSON.stringify(info, null, 2));
+    }
+
+    _currentJson() {
+        const win = this._rectOf(this.windowEl, this.puzzleRoot);
+        const comps = [];
+        this.visualizations.forEach(v => {
+            if (v.__deleted) return;
+            comps.push({
+                id: v.__meta?.id || 'component',
+                type: v.__meta?.type || 'component',
+                rect: this._rectOf(v.__meta.element, this.windowEl)
             });
-        }
-
-        // Global mouse events
-        document.addEventListener('mousemove', this._onMouseMove);
-        document.addEventListener('mouseup', this._onMouseUp);
+        });
+        return JSON.stringify({ windowRect: win, components: comps }, null, 2);
     }
 
-    _unbindEvents() {
-        document.removeEventListener('mousemove', this._onMouseMove);
-        document.removeEventListener('mouseup', this._onMouseUp);
+    _updateJson() { if (!this.jsonPanel) return; this.jsonPanel.querySelector('textarea').value = this._currentJson(); }
+
+    _createVisualizations() {
+        // okno (žluté)
+        const wRect = this._rectOf(this.windowEl, this.puzzleRoot);
+        const winViz = this._makeVizBox(wRect, 'pz-viz-window', 'Work Window', '#ff0');
+        winViz.__target = this.windowEl;
+        this.overlay.appendChild(winViz);
+        this.visualizations.push(winViz);
+
+        // komponenty (jen data-id)
+        if (this.isManualLayout) {
+            for (const [el, meta] of this.components.entries()) {
+                const r = this._rectOf(el, this.windowEl);
+                const viz = this._makeVizBox(r, 'pz-viz-component', meta.id, '#0ff');
+                viz.__target = el;
+                viz.__meta = meta;
+                this.overlay.appendChild(viz);
+                this.visualizations.push(viz);
+            }
+        }
+        this._updateJson();
     }
 
-    _onWindowMouseDown(e) {
-        e.preventDefault();
-        e.stopPropagation();
+    _makeVizBox(rect, cls, label, color) {
+        const box = document.createElement('div');
+        box.className = 'pz-viz ' + cls;
+        Object.assign(box.style, {
+            position:'absolute', left: rect.x+'%', top: rect.y+'%', width: rect.w+'%', height: rect.h+'%',
+            border: `2px solid ${color}`, background: 'transparent', zIndex:'9998', cursor:'move', userSelect:'none'
+        });
 
-        const handle = e.target.getAttribute('data-handle');
-        if (handle) {
-            // Start resizing
-            this.resizing = {
-                element: this.windowOutline,
-                handle: handle,
-                startRect: this._getWindowRect(),
-                startMouse: { x: e.clientX, y: e.clientY },
-                isWindow: true
-            };
-        } else if (!e.target.classList.contains('pz-editor-component')) {
-            // Start dragging window
-            this.draggingElement = {
-                element: this.windowOutline,
-                isWindow: true,
-                startPos: this._getWindowRect(),
-                startMouse: { x: e.clientX, y: e.clientY }
-            };
-        }
+        const lab = document.createElement('div');
+        lab.textContent = `${label}  x:${rect.x} y:${rect.y} w:${rect.w} h:${rect.h}`;
+        Object.assign(lab.style, { position:'absolute', left:'0', top:'-18px', background:'rgba(0,0,0,.8)', color:'#fff', font:'11px sans-serif', padding:'2px 4px' });
+        box.appendChild(lab);
+
+        const handles = ['nw','n','ne','e','se','s','sw','w'];
+        handles.forEach(h => {
+            const dot = document.createElement('div');
+            dot.dataset.handle = h;
+            Object.assign(dot.style, { position:'absolute', width:'10px', height:'10px', background:color, border:'1px solid #333', zIndex:'9999' });
+            const pos = (x,y)=>{ dot.style.left=x; dot.style.top=y; };
+            switch(h){
+                case 'nw': pos('-5px','-5px'); dot.style.cursor='nwse-resize'; break;
+                case 'n':  pos('calc(50% - 5px)','-5px'); dot.style.cursor='ns-resize'; break;
+                case 'ne': pos('calc(100% - 5px)','-5px'); dot.style.cursor='nesw-resize'; break;
+                case 'e':  pos('calc(100% - 5px)','calc(50% - 5px)'); dot.style.cursor='ew-resize'; break;
+                case 'se': pos('calc(100% - 5px)','calc(100% - 5px)'); dot.style.cursor='nwse-resize'; break;
+                case 's':  pos('calc(50% - 5px)','calc(100% - 5px)'); dot.style.cursor='ns-resize'; break;
+                case 'sw': pos('-5px','calc(100% - 5px)'); dot.style.cursor='nesw-resize'; break;
+                case 'w':  pos('-5px','calc(50% - 5px)'); dot.style.cursor='ew-resize'; break;
+            }
+            box.appendChild(dot);
+        });
+        return box;
     }
 
-    _onComponentMouseDown(e) {
-        e.preventDefault();
-        e.stopPropagation();
+    _rectOf(el, relTo) {
+        const pr = relTo.getBoundingClientRect();
+        const er = el.getBoundingClientRect();
+        const pct = (v, total) => +(v/total*100).toFixed(2);
+        return { x: pct(er.left - pr.left, pr.width), y: pct(er.top - pr.top, pr.height), w: pct(er.width, pr.width), h: pct(er.height, pr.height) };
+    }
 
-        const handle = e.target.getAttribute('data-handle');
-        const outline = e.currentTarget;
+    _applyRectToEl(el, rect) {
+        Object.assign(el.style, { position:'absolute', left: rect.x+'%', top: rect.y+'%', width: rect.w+'%', height: rect.h+'%' });
+    }
 
-        if (handle) {
-            // Start resizing component
-            this.resizing = {
-                element: outline,
-                handle: handle,
-                startRect: outline._meta.rect,
-                startMouse: { x: e.clientX, y: e.clientY },
-                meta: outline._meta
-            };
-        } else {
-            // Start dragging component
-            this.draggingElement = {
-                element: outline,
-                component: outline._component,
-                meta: outline._meta,
-                startPos: outline._meta.rect,
-                startMouse: { x: e.clientX, y: e.clientY }
-            };
+    _bind() {
+        this.visualizations.forEach(v => v.addEventListener('mousedown', this._onMouseDown));
+        window.addEventListener('mousemove', this._onMouseMove);
+        window.addEventListener('mouseup', this._onMouseUp);
+        window.addEventListener('keydown', this._onKeyDown);
+    }
+    _unbind() {
+        this.visualizations.forEach(v => v.removeEventListener('mousedown', this._onMouseDown));
+        window.removeEventListener('mousemove', this._onMouseMove);
+        window.removeEventListener('mouseup', this._onMouseUp);
+        window.removeEventListener('keydown', this._onKeyDown);
+    }
+
+    _onMouseDown(e) {
+        e.preventDefault(); e.stopPropagation();
+        const viz = e.currentTarget;
+        const handle = e.target?.dataset?.handle;
+
+        if (e.button === 1) { // middle-click delete viz
+            viz.__deleted = true;
+            viz.remove();
+            this.visualizations = this.visualizations.filter(v => v !== viz);
+            this._updateJson();
+            return;
         }
+
+        const startMouse = { x: e.clientX, y: e.clientY };
+        const relRoot = viz.classList.contains('pz-viz-window') ? this.puzzleRoot : this.windowEl;
+        const startElRect = this._rectOf(viz.__target, relRoot);
+
+        this.active = { type: handle ? 'resize' : 'move', viz, handle, startMouse, startElRect, targetEl: viz.__target, relRoot };
     }
 
     _onMouseMove(e) {
-        if (this.resizing) {
-            this._handleResize(e);
-        } else if (this.draggingElement) {
-            this._handleDrag(e);
-        }
-    }
+        if (!this.active) return;
+        const A = this.active;
+        const box = A.relRoot.getBoundingClientRect();
+        const dx = (e.clientX - A.startMouse.x) / box.width * 100;
+        const dy = (e.clientY - A.startMouse.y) / box.height * 100;
 
-    _onMouseUp(e) {
-        if (this.resizing || this.draggingElement) {
-            this._updateJsonPanel();
-        }
-        this.resizing = null;
-        this.draggingElement = null;
-    }
+        const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+        const apply = (nx, ny, nw, nh) => {
+            nx = +(clamp(nx, 0, 100)).toFixed(2);
+            ny = +(clamp(ny, 0, 100)).toFixed(2);
+            nw = +(clamp(nw, 0, 100 - nx)).toFixed(2);
+            nh = +(clamp(nh, 0, 100 - ny)).toFixed(2);
 
-    _handleResize(e) {
-        const { element, handle, startRect, startMouse, isWindow, meta } = this.resizing;
-        const parent = isWindow ? this.puzzleRoot : this.windowEl;
-        const dx = (e.clientX - startMouse.x) / parent.clientWidth * 100;
-        const dy = (e.clientY - startMouse.y) / parent.clientHeight * 100;
+            Object.assign(A.viz.style, { left:nx+'%', top:ny+'%', width:nw+'%', height:nh+'%' });
+            this._applyRectToEl(A.targetEl, {x:nx,y:ny,w:nw,h:nh});
 
-        let newRect = { ...startRect };
-
-        if (handle.includes('w')) {
-            newRect.x = startRect.x + dx;
-            newRect.w = startRect.w - dx;
-        }
-        if (handle.includes('e')) {
-            newRect.w = startRect.w + dx;
-        }
-        if (handle.includes('n')) {
-            newRect.y = startRect.y + dy;
-            newRect.h = startRect.h - dy;
-        }
-        if (handle.includes('s')) {
-            newRect.h = startRect.h + dy;
-        }
-
-        // Constrain to minimum size
-        newRect.w = Math.max(5, newRect.w);
-        newRect.h = Math.max(5, newRect.h);
-
-        // Apply new position
-        element.style.left = newRect.x + '%';
-        element.style.top = newRect.y + '%';
-        element.style.width = newRect.w + '%';
-        element.style.height = newRect.h + '%';
-
-        // Update label
-        const label = element.querySelector('.pz-editor-label, .pz-editor-comp-label');
-        if (label && isWindow) {
-            label.textContent = `Pracovní okno: ${this._formatRect(newRect)}`;
-        }
-
-        // Update stored rect for components
-        if (meta) {
-            Object.assign(meta.rect, newRect);
-        }
-    }
-
-    _handleDrag(e) {
-        const { element, startPos, startMouse, isWindow, meta } = this.draggingElement;
-        const parent = isWindow ? this.puzzleRoot : (this.windowEl || this.puzzleRoot);
-        const dx = (e.clientX - startMouse.x) / parent.clientWidth * 100;
-        const dy = (e.clientY - startMouse.y) / parent.clientHeight * 100;
-
-        const newX = Math.max(0, Math.min(100 - (startPos.w || 10), startPos.x + dx));
-        const newY = Math.max(0, Math.min(100 - (startPos.h || 10), startPos.y + dy));
-
-        element.style.left = newX + '%';
-        element.style.top = newY + '%';
-
-        // Update stored rect if component
-        if (meta) {
-            meta.rect.x = newX;
-            meta.rect.y = newY;
-        }
-
-        // Update label for window
-        if (isWindow) {
-            const label = element.querySelector('.pz-editor-label');
-            if (label) {
-                const rect = { ...startPos, x: newX, y: newY };
-                label.textContent = `Pracovní okno: ${this._formatRect(rect)}`;
+            const lab = A.viz.querySelector('div');
+            if (lab) {
+                const prefix = lab.__prefix || lab.textContent.split('x:')[0].trim();
+                lab.__prefix = prefix;
+                lab.textContent = `${prefix}  x:${nx} y:${ny} w:${nw} h:${nh}`;
             }
-        }
-    }
-
-    _clearVisualizations() {
-        this.overlay.querySelectorAll('.pz-editor-window, .pz-editor-component').forEach(el => {
-            el.remove();
-        });
-    }
-
-    _formatRect(rect) {
-        return `x:${rect.x.toFixed(1)} y:${rect.y.toFixed(1)} w:${rect.w.toFixed(1)} h:${rect.h.toFixed(1)}`;
-    }
-
-    _updateJsonPanel() {
-        // Trigger main editor's JSON panel update
-        if (this.mainEditor.jsonPanel) {
-            const ta = this.mainEditor.jsonPanel.querySelector('.editor-jsonpanel-text');
-            if (ta) {
-                ta.value = this._generateJson();
-            }
-        }
-    }
-
-    _generateJson() {
-        const puzzleId = Array.from(this.puzzleRoot.classList)
-            .find(c => c.startsWith('pz--id-'))
-            ?.replace('pz--id-', '') || 'puzzle-id';
-
-        const kind = Array.from(this.puzzleRoot.classList)
-            .find(c => c.startsWith('pz--kind-'))
-            ?.replace('pz--kind-', '') || 'unknown';
-
-        const config = {
-            id: puzzleId,
-            kind: kind,
-            rect: this._getWindowRect(),
-            layout: { mode: 'manual' }
+            this._updateJson();
         };
 
-        // Format rect values
-        config.rect = {
-            x: +config.rect.x.toFixed(1),
-            y: +config.rect.y.toFixed(1),
-            w: +config.rect.w.toFixed(1),
-            h: +config.rect.h.toFixed(1)
-        };
+        const sr = A.startElRect;
 
-        if (this._isManualLayout() && this.components.size > 0) {
-            // Group components by type
-            const tokens = [];
-            const buttons = [];
-            const other = {};
+        if (A.type === 'move') { apply(sr.x + dx, sr.y + dy, sr.w, sr.h); return; }
 
-            this.components.forEach((meta, el) => {
-                const rectData = {
-                    x: +meta.rect.x.toFixed(1),
-                    y: +meta.rect.y.toFixed(1),
-                    w: +meta.rect.w.toFixed(1),
-                    h: +meta.rect.h.toFixed(1)
-                };
-
-                if (meta.type === 'token') {
-                    tokens.push({
-                        id: meta.id,
-                        rect: rectData
-                    });
-                } else if (meta.type === 'button') {
-                    const btnType = meta.id.includes('ok') ? 'okButton' :
-                        meta.id.includes('cancel') ? 'cancelButton' : meta.id;
-                    other[btnType] = { rect: rectData };
-                } else {
-                    other[meta.type] = other[meta.type] || {};
-                    other[meta.type].rect = rectData;
-                }
-            });
-
-            if (tokens.length > 0) {
-                config.tokens = tokens;
-            }
-
-            // Add other components to config
-            Object.assign(config, other);
+        switch (A.handle) {
+            case 'nw': apply(sr.x + dx, sr.y + dy, sr.w - dx, sr.h - dy); break;
+            case 'n':  apply(sr.x, sr.y + dy, sr.w, sr.h - dy); break;
+            case 'ne': apply(sr.x, sr.y + dy, sr.w + dx, sr.h - dy); break;
+            case 'e':  apply(sr.x, sr.y, sr.w + dx, sr.h); break;
+            case 'se': apply(sr.x, sr.y, sr.w + dx, sr.h + dy); break;
+            case 's':  apply(sr.x, sr.y, sr.w, sr.h + dy); break;
+            case 'sw': apply(sr.x + dx, sr.y, sr.w - dx, sr.h + dy); break;
+            case 'w':  apply(sr.x + dx, sr.y, sr.w - dx, sr.h); break;
         }
-
-        return '// Puzzle configuration (manual layout)\n' +
-            '// Zkopíruj do puzzles.json a doplň další vlastnosti\n' +
-            JSON.stringify(config, null, 2);
     }
+
+    _onMouseUp() { this.active = null; }
+    _onKeyDown(e) { /* volitelné mazání vybrané vizualizace přes Delete */ }
 }

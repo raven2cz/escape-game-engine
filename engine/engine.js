@@ -377,9 +377,10 @@ export class Game {
                 return;
             }
 
+            this._dbg('open puzzle via hotspot', {ref, rect: h.rect || {x:0,y:0,w:100,h:100}, options, background});
             const res = await this._openPuzzleByRef({
                 ref,
-                rect: {x:0, y:0, w:100, h:100},
+                rect: h.rect || {x:0, y:0, w:100, h:100},
                 options,
                 background
             });
@@ -817,6 +818,7 @@ export class Game {
             // puzzles (Puzzles 2.0) – otevření přes ref
             if (act.openPuzzle) {
                 const ap = act.openPuzzle;
+                this._dbg('open puzzle via action', {ref: ap.ref, rect: ap.rect || {x:0,y:0,w:100,h:100}});
                 const res = await this._openPuzzleByRef({
                     ref: ap.ref,
                     rect: ap.rect || {x: 0, y: 0, w: 100, h: 100},
