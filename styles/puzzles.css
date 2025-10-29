@@ -1,0 +1,561 @@
+/* ============================================================================
+   PUZZLES 2.0 - Universal CSS Framework
+   - Semi-transparent colors (NEVER fully opaque - background must show)
+   - Hierarchical theming: engine → game → puzzle → token
+   - Smooth animations for all state changes
+   - Responsive layout (auto vertical/horizontal/grid + manual)
+   ============================================================================ */
+
+.pz {
+    /* === TYPOGRAPHY === */
+    --pz-font-family: inherit;
+    --pz-font-size-base: 1rem;
+    --pz-font-size-title: 1.3em;
+    --pz-font-size-prompt: 1.05em;
+
+    /* === COLORS (semi-transparent) === */
+    --pz-text-color: rgba(255, 255, 255, 0.92);
+    --pz-token-text-color: rgba(255, 255, 255, 0.92); /* NEW: token-specific text color */
+
+    /* Tokens */
+    --pz-token-bg: rgba(255, 255, 255, 0.12);
+    --pz-token-border: rgba(255, 255, 255, 0.35);
+    --pz-token-radius: 14px;
+    --pz-token-pad-v: 0.9vh;
+    --pz-token-pad-h: 1.2vw;
+    --pz-token-gap: 1.2vh;
+
+    /* Buttons */
+    --pz-btn-bg: rgba(255, 255, 255, 0.10);
+    --pz-btn-border: rgba(255, 255, 255, 0.35);
+    --pz-btn-radius: 12px;
+    --pz-btn-text: rgba(255, 255, 255, 0.95);
+
+    /* States */
+    --pz-selected-bg: rgba(90, 160, 255, 0.22);
+    --pz-selected-border: rgba(90, 160, 255, 0.5);
+
+    --pz-correct-bg: rgba(20, 220, 90, 0.22);
+    --pz-correct-border: rgba(20, 220, 90, 0.65);
+
+    --pz-wrong-bg: rgba(220, 40, 40, 0.22);
+    --pz-wrong-border: rgba(220, 40, 40, 0.65);
+
+    --pz-hint-border: rgba(255, 200, 80, 0.5);
+
+    /* Effects */
+    --pz-outline-glow: 0 0 0 3px rgba(255, 255, 255, 0.18);
+    --pz-hover-boost: 0 0 0 3px rgba(255, 255, 255, 0.10);
+    --pz-transition-fast: 160ms ease;
+    --pz-transition-normal: 250ms ease;
+    --pz-transition-slow: 350ms ease;
+
+    /* === BASE STYLES === */
+    font-family: var(--pz-font-family);
+    font-size: var(--pz-font-size-base);
+    color: var(--pz-text-color);
+    position: absolute;
+    box-sizing: border-box;
+    pointer-events: auto;
+    user-select: none;
+}
+
+.pz * {
+    box-sizing: border-box;
+}
+
+/* ============================================================================
+   STRUCTURE: Root → Window → Flow
+   ============================================================================ */
+
+/* Pracovní okno - pozicované v procentech uvnitř rootu */
+.pz__window {
+    position: absolute;
+    /* pozice se nastaví inline přes workRect */
+    overflow: hidden;
+    /* DEBUG - odkomentuj pro vizualizaci */
+    /* border: 2px dashed rgba(255, 0, 0, 0.5); */
+    /* background: rgba(255, 255, 0, 0.1); */
+}
+
+/* ============================================================================
+   LAYOUT: Auto (vertical/horizontal/grid) + Manual
+   ============================================================================ */
+
+/* AUTO flow */
+.pz--auto .pz__flow {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-wrap: nowrap;
+    gap: var(--pz-token-gap);
+    padding: 2vh 2vw;
+    align-items: stretch;
+    box-sizing: border-box;
+}
+
+.pz--auto.pz--vertical .pz__flow {
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.pz--auto.pz--horizontal .pz__flow {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center; /* CRITICAL: center content horizontally */
+    align-items: center;
+    align-content: center; /* CRITICAL: center wrapped rows vertically */
+}
+
+/* ============================================================================
+   HORIZONTAL MODE - General rules (for all kinds except phrase/code)
+   ============================================================================ */
+
+/* Header (title + prompt) stays at top, centered */
+.pz--horizontal .pz-header-group {
+    width: 100%;
+    text-align: center;
+    flex: 0 0 auto;
+}
+
+/* Token area wraps horizontally, centered */
+.pz--horizontal .pz-token-area {
+    width: 100%;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center; /* CRITICAL: center tokens */
+    gap: var(--pz-token-gap);
+}
+
+/* Footer (buttons) centered at bottom */
+.pz--horizontal .pz-footer {
+    width: 100%;
+    display: flex;
+    justify-content: center; /* CRITICAL: center buttons, not right */
+    gap: var(--pz-token-gap);
+    flex: 0 0 auto;
+}
+
+/* ============================================================================
+   HORIZONTAL MODE - phrase/code exceptions (input + buttons on same row)
+   ============================================================================ */
+
+/* phrase/code: special layout override */
+.pz--horizontal.pz--kind-phrase .pz__flow,
+.pz--horizontal.pz--kind-code .pz__flow {
+    justify-content: center;
+    align-items: center;
+    align-content: center;
+}
+
+.pz--horizontal.pz--kind-phrase .pz-header-group,
+.pz--horizontal.pz--kind-code .pz-header-group {
+    width: 100%;
+    text-align: center;
+}
+
+/* Input + buttons row */
+.pz--horizontal.pz--kind-phrase .pz-input-wrap,
+.pz--horizontal.pz--kind-code .pz-input-wrap {
+    flex: 0 1 auto; /* don't grow excessively */
+    max-width: 600px;
+    min-width: 300px;
+}
+
+.pz--horizontal.pz--kind-phrase .pz-footer,
+.pz--horizontal.pz--kind-code .pz-footer {
+    flex: 0 0 auto;
+    width: auto; /* CRITICAL: don't take full width */
+    justify-content: flex-start; /* align with input */
+    margin-left: 0; /* no auto margin */
+}
+
+/* ============================================================================
+   HORIZONTAL MODE - order kind (two rows: shuffled + ordered)
+   ============================================================================ */
+
+.pz--horizontal.pz--kind-order .pz-order-container {
+    grid-template-columns: 1fr !important;
+    grid-template-rows: 1fr 1fr !important;
+}
+
+.pz--horizontal.pz--kind-order .pz-area {
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    justify-content: center !important; /* center tokens in area */
+}
+
+/* ============================================================================
+   HORIZONTAL MODE - match kind (two rows: left + right)
+   ============================================================================ */
+
+.pz--horizontal.pz--kind-match .pz-match-columns {
+    grid-template-columns: 1fr !important;
+    grid-template-rows: 1fr 1fr !important;
+}
+
+.pz--horizontal.pz--kind-match .pz-match-column {
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    justify-content: center !important; /* center tokens in column */
+}
+
+/* ============================================================================
+   HORIZONTAL MODE - group kind (grid: rows first, then columns)
+   ============================================================================ */
+
+.pz--horizontal.pz--kind-group .pz-group-board {
+    justify-items: center; /* center groups in grid cells */
+}
+
+/* GRID layout */
+.pz--grid .pz__flow {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    grid-auto-rows: min-content;
+    gap: var(--pz-token-gap);
+    padding: 2vh 2vw;
+}
+.pz--grid .pz__flow[data-cols="2"] { grid-template-columns: repeat(2, 1fr); }
+.pz--grid .pz__flow[data-cols="3"] { grid-template-columns: repeat(3, 1fr); }
+.pz--grid .pz__flow[data-cols="4"] { grid-template-columns: repeat(4, 1fr); }
+
+/* MANUAL layout - žádné auto positioning */
+.pz--manual .pz__flow {
+    position: absolute;
+    inset: 0;
+    padding: 2vh 2vw;
+}
+
+/* ============================================================================
+   HEADER GROUP (Title + Prompt)
+   ============================================================================ */
+
+.pz-header-group {
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.8vh;
+}
+
+.pz-title  {
+    font-weight: 700;
+    font-size: var(--pz-font-size-title);
+    margin-bottom: 0;
+    flex: 0 0 auto;
+    text-align: center;
+}
+
+.pz-prompt {
+    opacity: 0.9;
+    font-size: var(--pz-font-size-prompt);
+    margin-bottom: 0;
+    flex: 0 0 auto;
+    text-align: center;
+}
+
+/* ============================================================================
+   TOKEN AREA - kontejner pro tokens (auto/grid/manual)
+   ============================================================================ */
+
+.pz-token-area {
+    flex: 1 1 auto; /* roste a zabírá volné místo */
+    min-height: 0; /* umožňuje scroll pokud je potřeba */
+    display: flex;
+    flex-direction: column;
+    gap: var(--pz-token-gap);
+}
+
+/* ============================================================================
+   TOKENS - jednotné stylování pro všechny puzzle kinds
+   ============================================================================ */
+
+.pz-token {
+    background: var(--pz-token-bg);
+    border: 1px solid var(--pz-token-border);
+    border-radius: var(--pz-token-radius);
+    padding: var(--pz-token-pad-v) var(--pz-token-pad-h);
+    color: var(--pz-token-text-color); /* Use CSS variable for easy override */
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6em;
+    text-align: center;
+    transition:
+            background var(--pz-transition-normal),
+            border-color var(--pz-transition-normal),
+            box-shadow var(--pz-transition-fast),
+            transform 80ms ease;
+    backdrop-filter: saturate(110%) blur(1px);
+}
+
+.pz-token:hover {
+    box-shadow: var(--pz-hover-boost);
+}
+
+.pz-token:active {
+    transform: translateY(1px);
+}
+
+/* Token states - animované */
+.pz-token.is-selected,
+.pz-token.selected {
+    background: var(--pz-selected-bg);
+    border-color: var(--pz-selected-border);
+    box-shadow: var(--pz-outline-glow);
+}
+
+.pz-token.is-correct,
+.pz-token.correct {
+    background: var(--pz-correct-bg);
+    border-color: var(--pz-correct-border);
+    animation: token-pulse-correct 0.4s ease;
+}
+
+.pz-token.is-wrong,
+.pz-token.wrong {
+    background: var(--pz-wrong-bg);
+    border-color: var(--pz-wrong-border);
+    animation: token-shake 0.4s ease;
+}
+
+.pz-token.is-hint,
+.pz-token.hint {
+    border-color: var(--pz-hint-border);
+    box-shadow: 0 0 0 2px rgba(255, 200, 80, 0.15);
+}
+
+/* Token content */
+.pz-token-text {
+    flex: 1 1 auto;
+}
+
+.pz-token-image {
+    max-width: 100%;
+    max-height: 8vh;
+    object-fit: contain;
+}
+
+/* ============================================================================
+   INPUT - pro phrase/code kinds
+   ============================================================================ */
+
+.pz-input-wrap {
+    width: 100%;
+    flex: 1 1 auto; /* roste a centruje input vertikálně */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.pz-input {
+    width: 100%;
+    max-width: 600px;
+    color: inherit;
+    font: inherit;
+    font-size: 1.1em;
+    outline: none;
+    background: var(--pz-token-bg);
+    border: 1px solid var(--pz-token-border);
+    border-radius: var(--pz-token-radius);
+    padding: var(--pz-token-pad-v) var(--pz-token-pad-h);
+    caret-color: currentColor;
+    transition:
+            background var(--pz-transition-normal),
+            border-color var(--pz-transition-normal),
+            box-shadow var(--pz-transition-normal);
+}
+
+.pz-input:focus {
+    box-shadow: var(--pz-outline-glow);
+    border-color: rgba(255, 255, 255, 0.5);
+}
+
+.pz-input::placeholder {
+    opacity: .6;
+}
+
+.pz-input.is-error,
+.pz-input.invalid {
+    background: var(--pz-wrong-bg);
+    border-color: var(--pz-wrong-border);
+    animation: shake 0.4s ease;
+}
+
+/* ============================================================================
+   BUTTONS - OK/Cancel s barevnými hover stavy
+   ============================================================================ */
+
+.pz-footer {
+    margin-top: 0;
+    display: flex;
+    gap: var(--pz-token-gap);
+    justify-content: flex-end;
+    flex: 0 0 auto;
+}
+
+.pz-btn {
+    background: var(--pz-btn-bg);
+    border: 1px solid var(--pz-btn-border);
+    border-radius: var(--pz-btn-radius);
+    color: var(--pz-btn-text);
+    font-weight: 500;
+    cursor: pointer;
+    text-align: center;
+    min-width: 8ch;
+    padding: 0.8vh 1.5vw;
+    flex: 0 0 auto;
+    transition:
+            background var(--pz-transition-slow),
+            border-color var(--pz-transition-slow),
+            box-shadow var(--pz-transition-normal),
+            transform 80ms ease;
+}
+
+.pz-btn:hover {
+    box-shadow: var(--pz-hover-boost);
+}
+
+/* OK button - ZELENÁ na hover */
+.pz-btn--ok:hover {
+    background: rgba(20, 220, 90, 0.35);
+    border-color: rgba(20, 220, 90, 0.7);
+}
+
+.pz-btn--ok:active {
+    background: rgba(20, 220, 90, 0.45);
+    transform: translateY(1px);
+}
+
+/* Cancel button - ČERVENÁ na hover */
+.pz-btn--cancel:hover {
+    background: rgba(220, 40, 40, 0.35);
+    border-color: rgba(220, 40, 40, 0.7);
+}
+
+.pz-btn--cancel:active {
+    background: rgba(220, 40, 40, 0.45);
+    transform: translateY(1px);
+}
+
+/* ============================================================================
+   OVERLAY (full screen background)
+   ============================================================================ */
+
+.pz-overlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+/* ============================================================================
+   ANIMATIONS
+   ============================================================================ */
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-8px); }
+    75% { transform: translateX(8px); }
+}
+
+@keyframes token-shake {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-4px); }
+    40% { transform: translateX(4px); }
+    60% { transform: translateX(-4px); }
+    80% { transform: translateX(4px); }
+}
+
+@keyframes token-pulse-correct {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+/* ============================================================================
+   RESPONSIVE - mobile adaptace
+   ============================================================================ */
+
+@media (max-width: 720px) {
+    .pz {
+        --pz-token-pad-v: 1.2vh;
+        --pz-token-pad-h: 2vw;
+        --pz-font-size-title: 1.2em;
+    }
+}
+
+/* ============================================================================
+   UTILITY CLASSES
+   ============================================================================ */
+
+.pz__flow > * {
+    min-width: 0;
+    flex-shrink: 0;
+}
+
+/* Horizontal layout tweaks removed - handled above */
+
+/* ============================================================================
+   DEBUG MODE (aktivní s ?debug=1)
+   ============================================================================ */
+
+.pz.debug-mode .pz__window {
+    border: 2px dashed rgba(255, 0, 0, 0.7) !important;
+    background: rgba(255, 0, 0, 0.05) !important;
+}
+
+.pz.debug-mode .pz__flow {
+    border: 2px dashed rgba(0, 0, 255, 0.7) !important;
+    background: rgba(0, 0, 255, 0.05) !important;
+}
+
+/* ============================================================================
+   LIST SUMMARY SCREEN
+   ============================================================================ */
+
+.pz-list-summary {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 1.5vh;
+    z-index: 8001;
+    pointer-events: auto;
+    background: rgba(17, 17, 20, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 16px;
+    backdrop-filter: blur(4px);
+    padding: 3vh 2vw;
+}
+
+/* Button in summary - explicit styles with !important for reliability */
+.pz-list-summary .pz-btn {
+    margin-top: 2vh;
+    background: rgba(255, 255, 255, 0.10) !important;
+    border: 1px solid rgba(255, 255, 255, 0.35) !important;
+    border-radius: 12px !important;
+    color: rgba(255, 255, 255, 0.95) !important;
+    font-weight: 500 !important;
+    padding: 0.8vh 1.5vw !important;
+    min-width: 120px !important;
+    cursor: pointer !important;
+    transition: background 350ms ease, border-color 350ms ease, box-shadow 250ms ease, transform 80ms ease !important;
+}
+
+.pz-list-summary .pz-btn:hover {
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.10) !important;
+}
+
+.pz-list-summary .pz-btn--ok:hover {
+    background: rgba(20, 220, 90, 0.35) !important;
+    border-color: rgba(20, 220, 90, 0.7) !important;
+}
+
+.pz-list-summary .pz-btn--ok:active {
+    background: rgba(20, 220, 90, 0.45) !important;
+    transform: translateY(1px) !important;
+}

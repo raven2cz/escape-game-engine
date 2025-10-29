@@ -1,0 +1,33 @@
+/* games/leeuwenhoek/game.css
+   Per-game CSS overrides for Leeuwenhoek escape room
+   Cascades: puzzles.css → game.css → puzzle.theme → token.style
+*/
+
+/* CRITICAL: Override token text color for dark backgrounds */
+.pz {
+    --pz-token-text-color: rgba(255, 255, 255, 0.95) !important;
+}
+
+/* Ensure all text elements are light colored */
+.pz-token,
+.pz-token-text {
+    color: rgba(255, 255, 255, 0.95) !important;
+}
+
+.pz-choice-text {
+    color: rgba(255, 255, 255, 0.9) !important;
+}
+
+.pz-input {
+    color: rgba(255, 255, 255, 0.95) !important;
+}
+
+/* Optional: specific kind overrides */
+.pz--kind-quiz .pz-token {
+    /* Quiz tokens specific styling */
+}
+
+/* Optional: specific puzzle ID overrides */
+.pz--id-ph-lens {
+    /* Specific styling for phrase puzzle */
+}

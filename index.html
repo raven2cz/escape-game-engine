@@ -4,7 +4,8 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>Úniková hra</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="styles/puzzles.css">
+    <link rel="stylesheet" href="styles/style.css">
     <link rel="manifest" href="manifest.webmanifest">
     <meta name="theme-color" content="#17171c">
 </head>
@@ -55,6 +56,15 @@
     const gameId  = params.get('game') || 'leeuwenhoek';
     const lang    = (params.get('lang') || 'cs').toLowerCase();
     const baseUrl = `./games/${gameId}/`;
+
+    // Per-game CSS (overrides fonty, barvy, tvary…). Stačí soubor přidat do /games/<gameId>/game.css
+    (function attachPerGameCss() {
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = `${baseUrl}game.css`;
+        // Když soubor neexistuje, prohlížeč to jen zapíše do konzole; funkčně nevadí.
+        document.head.appendChild(link);
+    })();
 
     // --- Helpers -------------------------------------------------------------
     async function fetchJsonSafe(url) {

@@ -1,0 +1,203 @@
+{
+  "ph-lens": {
+    "id": "ph-lens",
+    "kind": "phrase",
+    "title": "@lh.pz.lensTitle@Sestav větu",
+    "prompt": "@lh.pz.lensPrompt@Zadej větu, kterou jsi odvodil z indicií.",
+    "rect": {
+      "x": 8.84,
+      "y": 11.84,
+      "w": 79.86,
+      "h": 76.19
+    },
+    "placeholder": "@puzzles.phrase.placeholder@Napiš odpověď…",
+    "solution": "@lh.pz.lensSolution@pojďme se vrhnout na mikroskopování",
+    "options": {
+      "aggregateOnly": false,
+      "blockUntilSolved": true,
+      "layout": { "mode": "auto", "direction": "vertical" }
+    }
+  },
+
+  "quiz-photosynthesis": {
+    "id": "quiz-photosynthesis",
+    "kind": "quiz",
+    "title": "@quiz.photo.title@Fotosyntéza",
+    "prompt": "@quiz.photo.prompt@Které podmínky jsou nutné?",
+    "rect": { "x": 8.0, "y": 12.0, "w": 84.0, "h": 60.0 },
+    "tokens": [
+      { "id": "light",       "label": "@quiz.light@Světlo" },
+      { "id": "co2",         "label": "@quiz.co2@Oxid uhličitý" },
+      { "id": "o2",          "label": "@quiz.o2@Kyslík" },
+      { "id": "chlorophyll", "label": "@quiz.chloro@Chlorofyl" }
+    ],
+    "solutionIds": ["light", "co2", "chlorophyll"],
+    "options": {
+      "multiSelect": true,
+      "aggregateOnly": false,
+      "blockUntilSolved": false,
+      "layout": { "mode": "auto", "direction": "vertical" }
+    }
+  },
+
+  "code-lab-door": {
+    "id": "code-lab-door",
+    "kind": "code",
+    "title": "@code.title@Zadej kód",
+    "prompt": "@code.prompt@Dveře do laboratoře jsou uzamčené kódem.",
+    "placeholder": "@code.placeholder@******",
+    "solution": "A7C-42",
+    "options": {
+      "aggregateOnly": false,
+      "blockUntilSolved": true,
+      "layout": { "mode": "auto", "direction": "vertical" },
+      "theme": {
+        "input": { "border": "rgba(255,255,255,0.35)", "bg": "rgba(255,255,255,0.08)" }
+      }
+    },
+    "background": "assets/puzzles/bg-paper.jpg"
+  },
+
+  "order-micro-assembly": {
+    "id": "order-micro-assembly",
+    "kind": "order",
+    "title": "@order.title@Seřaď kroky práce s mikroskopem",
+    "prompt": "@order.prompt@Seřaď kroky ve správném pořadí.",
+    "tokens": [
+      { "id": "o1", "text": "@order.step1@Ulož preparát na stolík." },
+      { "id": "o2", "text": "@order.step2@Zaostři hrubým a jemným šroubem." },
+      { "id": "o3", "text": "@order.step3@Zvol vhodný objektiv." },
+      { "id": "o4", "text": "@order.step4@Uprav osvětlení." }
+    ],
+    "solution": ["o1", "o3", "o4", "o2"],
+    "options": {
+      "aggregateOnly": false,
+      "blockUntilSolved": false,
+      "layout": { "mode": "auto", "direction": "vertical", "dualColumn": true }
+    }
+  },
+
+  "match-bio-click": {
+    "id": "match-bio-click",
+    "kind": "match",
+    "title": "@match.title@Spáruj pojmy",
+    "prompt": "@match.prompt@Klikáním spáruj dvojice (pojem → popis).",
+    "mode": "columns",
+    "tokens": [
+      { "id": "a1", "label": "@match.cilium@Brvy (cilia)", "side": "left" },
+      { "id": "a2", "label": "@match.chloroplast@Chloroplast", "side": "left" },
+      { "id": "a3", "label": "@match.vacuole@Vakuola", "side": "left" },
+      { "id": "b1", "label": "@match.motion@Pohybový organel", "side": "right" },
+      { "id": "b2", "label": "@match.photosyn@Místo fotosyntézy", "side": "right" },
+      { "id": "b3", "label": "@match.storage@Zásobní a osmotická funkce", "side": "right" }
+    ],
+    "pairs": [["a1","b1"],["a2","b2"],["a3","b3"]],
+    "options": { "aggregateOnly": false, "blockUntilSolved": false }
+  },
+
+  "match-bio-drag": {
+    "id": "match-bio-drag",
+    "kind": "match",
+    "title": "@match.drag.title@Spoj dvojice přetažením",
+    "prompt": "@match.drag.prompt@Přetáhni k sobě patřící dvojice.",
+    "mode": "dragdrop",
+    "tokens": [
+      { "id": "m1",  "label": "@match.protozoa@Prvok – trepka" },
+      { "id": "m2",  "label": "@match.bacteria@Bakterie" },
+      { "id": "m3",  "label": "@match.plant@Rostlinná buňka" },
+      { "id": "m1p", "label": "@match.protozoa.desc@Eukaryotní jednobuněčný" },
+      { "id": "m2p", "label": "@match.bacteria.desc@Prokaryotní jednobuněčný" },
+      { "id": "m3p", "label": "@match.plant.desc@Eukaryot – chloroplasty" }
+    ],
+    "solutionPairs": [["m1","m1p"],["m2","m2p"],["m3","m3p"]],
+    "options": {
+      "aggregateOnly": false,
+      "blockUntilSolved": false,
+      "layout": { "mode": "manual" }
+    },
+    "background": "assets/puzzles/bg-board.jpg"
+  },
+
+  "group-lab-sorting": {
+    "id": "group-lab-sorting",
+    "kind": "group",
+    "title": "@group.title@Roztřiď do skupin",
+    "prompt": "@group.prompt@Přetáhni položky do správných skupin.",
+    "groups": [
+      { "id": "g1", "label": "@group.live@Živé" },
+      { "id": "g2", "label": "@group.nonlive@Neživé" }
+    ],
+    "tokens": [
+      { "id": "t1", "label": "@group.paramecium@Trepka" },
+      { "id": "t2", "label": "@group.salt@Sůl" },
+      { "id": "t3", "label": "@group.fly@Křídlo mouchy" }
+    ],
+    "solutions": { "t1": "g1", "t2": "g2", "t3": "g2" },
+    "options": { "aggregateOnly": false, "blockUntilSolved": false }
+  },
+
+  "choice-statements": {
+    "id": "choice-statements",
+    "kind": "choice",
+    "title": "@choice.title@Vyber správné tvrzení",
+    "prompt": "@choice.prompt@Vyber (nebo doplň) správné možnosti.",
+    "tokens": [
+      {
+        "id": "c1",
+        "text": "@choice.c1@Chlorofyl je přítomen v chloroplastech.",
+        "choices": [
+          { "value": "true", "label": "@choice.true@Pravda" },
+          { "value": "false", "label": "@choice.false@Nepravda" }
+        ]
+      },
+      {
+        "id": "c2",
+        "text": "@choice.c2@Množství CO2 při fotosyntéze… (doplň)",
+        "choices": [],
+        "editable": true,
+        "placeholder": "@choice.c2.ph@např. klesá"
+      },
+      {
+        "id": "c3",
+        "text": "@choice.c3@Rostlinná buňka má mitochondrie.",
+        "choices": [
+          { "value": "yes", "label": "@choice.yes@Ano" },
+          { "value": "no",  "label": "@choice.no@Ne" }
+        ]
+      }
+    ],
+    "solutions": {
+      "c1": "true",
+      "c2": "@choice.c2.sol@klesá",
+      "c3": "yes"
+    },
+    "options": {
+      "aggregateOnly": false,
+      "blockUntilSolved": false,
+      "layout": { "mode": "auto", "direction": "vertical" }
+    }
+  },
+
+  "list-lab-demo": {
+    "id": "list-lab-demo",
+    "kind": "list",
+    "title": "@list.title@Mini série úkolů",
+    "prompt": "@list.prompt@Projdi krátkou sérii a na konci uvidíš souhrn.",
+    "steps": [
+      { "ref": "quiz-photosynthesis",   "options": { "aggregateOnly": true } },
+      { "ref": "order-micro-assembly",  "options": { "aggregateOnly": true } },
+      { "ref": "match-bio-click",       "options": { "aggregateOnly": true } },
+      { "ref": "choice-statements",     "options": { "aggregateOnly": true } },
+      { "ref": "code-lab-door",         "options": { "aggregateOnly": true } }
+    ],
+    "summary": {
+      "showScore": true,
+      "messageOk": "@list.ok@Skvělé! Série splněna.",
+      "messageFail": "@list.fail@Něco se nepovedlo — zkus vylepšit výsledek.",
+      "awardItem": null
+    },
+    "options": {
+      "blockUntilSolved": false
+    }
+  }
+}

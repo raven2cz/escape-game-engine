@@ -17,7 +17,8 @@
       "poses": {
         "idle":     "assets/npc/hero/idle.png",
         "thinking": "assets/npc/hero/thinking.png",
-        "happy":    "assets/npc/hero/happy.png"
+        "happy":    "assets/npc/hero/happy.png",
+        "fear":     "assets/npc/hero/fear.png"
       }
     }
   ],
@@ -117,7 +118,7 @@
         {
           "id": "m2",
           "speaker": "right",
-          "pose": "happy",
+          "pose": "fear",
           "text": "@dialog.intro.mainRoom.m2@Počkejte… krev?!"
         },
         {

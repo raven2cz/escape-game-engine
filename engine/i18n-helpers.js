@@ -2,6 +2,8 @@
 // Tiny i18n helpers used across the codebase.
 // Keep these functions dumb and dependency-free.
 
+const DBG = () => (typeof window !== 'undefined' && /\bdebug=1\b/.test(window.location.search));
+
 function fmt(str, params) {
     if (!params) return String(str ?? '');
     return String(str ?? '').replace(/\{(\w+)\}/g, (_, k) => (params[k] ?? `{${k}}`));
@@ -17,7 +19,13 @@ function t(i18n, key, fallback = '', params = null) {
     const g = i18n?.game?.[key];
     const e = i18n?.engine?.[key];
     const raw = (g != null ? g : (e != null ? e : fallback));
-    return fmt(raw, params);
+    const result = fmt(raw, params);
+
+    if (DBG() && key && result === fallback) {
+        console.debug('[i18n] key not found:', { key, fallback, result });
+    }
+
+    return result;
 }
 
 /**
@@ -35,7 +43,18 @@ function text(i18n, val, fallback = '') {
         if (m) {
             const key = m[1].trim();
             const def = m[2];
-            return t(i18n, key, def);
+            const result = t(i18n, key, def);
+
+            if (DBG()) {
+                console.debug('[i18n] text resolved:', {
+                    original: val,
+                    key,
+                    fallback: def,
+                    result
+                });
+            }
+
+            return result;
         }
         return val;
     }

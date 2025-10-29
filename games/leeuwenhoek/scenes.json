@@ -5,8 +5,15 @@
     "description": "@game.description@Mikro-mise v dílně Antonie van Leeuwenhoeka.",
     "author": "raven2cz",
     "version": "1.0.0",
-    "tags": ["biology", "microscope", "history"],
-    "languages": ["cs", "en"]
+    "tags": [
+      "biology",
+      "microscope",
+      "history"
+    ],
+    "languages": [
+      "cs",
+      "en"
+    ]
   },
   "settings": {
     "hints": {
@@ -71,7 +78,12 @@
         {
           "type": "goTo",
           "target": "title",
-          "rect": { "x": 65.39, "y": 78.41, "w": 23.34, "h": 16.66 }
+          "rect": {
+            "x": 65.39,
+            "y": 78.41,
+            "w": 23.34,
+            "h": 16.66
+          }
         }
       ]
     },
@@ -83,7 +95,12 @@
         {
           "type": "goTo",
           "target": "intro-1",
-          "rect": { "x": 59.75, "y": 78.64, "w": 26.01, "h": 17.9 }
+          "rect": {
+            "x": 59.75,
+            "y": 78.64,
+            "w": 26.01,
+            "h": 17.9
+          }
         }
       ]
     },
@@ -95,7 +112,12 @@
         {
           "type": "goTo",
           "target": "intro-2",
-          "rect": { "x": 70.94, "y": 79.34, "w": 25.62, "h": 16.97 }
+          "rect": {
+            "x": 70.94,
+            "y": 79.34,
+            "w": 25.62,
+            "h": 16.97
+          }
         }
       ]
     },
@@ -107,7 +129,12 @@
         {
           "type": "goTo",
           "target": "main-room",
-          "rect": { "x": 70.77, "y": 81.84, "w": 25.7, "h": 16.57 }
+          "rect": {
+            "x": 70.77,
+            "y": 81.84,
+            "w": 25.7,
+            "h": 16.57
+          }
         }
       ]
     },
@@ -118,24 +145,58 @@
       "hotspots": [
         {
           "type": "goTo",
+          "target": "puzzle-lab",
+          "rect": {
+            "x": 52.74,
+            "y": 23.33,
+            "w": 5.78,
+            "h": 24.42
+          }
+        },
+        {
+          "type": "goTo",
           "target": "casti-mikroskopu",
-          "rect": { "x": 24.03, "y": 23.78, "w": 11.28, "h": 43.89 }
+          "rect": {
+            "x": 24.03,
+            "y": 23.78,
+            "w": 11.28,
+            "h": 43.89
+          }
         },
         {
           "type": "goTo",
           "target": "trepka-velka",
-          "rect": { "x": 36.75, "y": 62.07, "w": 17.84, "h": 18.05 }
+          "rect": {
+            "x": 36.75,
+            "y": 62.07,
+            "w": 17.84,
+            "h": 18.05
+          }
         },
         {
           "type": "goTo",
           "target": "question-1",
-          "rect": { "x": 11.27, "y": 77.32, "w": 13.37, "h": 11.91 }
+          "rect": {
+            "x": 11.27,
+            "y": 77.32,
+            "w": 13.37,
+            "h": 11.91
+          }
         },
         {
           "type": "goTo",
           "target": "treasure-room",
-          "requireItems": ["indicie-1","indicie-2","indicie-3"],
-          "rect": { "x": 64.43, "y": 7.44, "w": 30.82, "h": 73.31 }
+          "requireItems": [
+            "indicie-1",
+            "indicie-2",
+            "indicie-3"
+          ],
+          "rect": {
+            "x": 64.43,
+            "y": 7.44,
+            "w": 30.82,
+            "h": 73.31
+          }
         }
       ]
     },
@@ -147,7 +208,12 @@
         {
           "type": "goTo",
           "target": "found-indicie-1",
-          "rect": { "x": 70.12, "y": 82.93, "w": 25.37, "h": 15.31 }
+          "rect": {
+            "x": 70.12,
+            "y": 82.93,
+            "w": 25.37,
+            "h": 15.31
+          }
         }
       ]
     },
@@ -159,13 +225,25 @@
         {
           "type": "pickup",
           "itemId": "indicie-1",
-          "rect": { "x": 70.43, "y": 28.85, "w": 20.56, "h": 27.66 }
+          "rect": {
+            "x": 70.43,
+            "y": 28.85,
+            "w": 20.56,
+            "h": 27.66
+          }
         },
         {
           "type": "goTo",
           "target": "main-room",
-          "requireItems": ["indicie-1"],
-          "rect": { "x": 89.78, "y": 83.07, "w": 7.17, "h": 13.43 }
+          "requireItems": [
+            "indicie-1"
+          ],
+          "rect": {
+            "x": 89.78,
+            "y": 83.07,
+            "w": 7.17,
+            "h": 13.43
+          }
         }
       ]
     },
@@ -177,7 +255,12 @@
         {
           "type": "goTo",
           "target": "lidska-krev",
-          "rect": { "x": 8.01, "y": 54.9, "w": 25.33, "h": 45.1 }
+          "rect": {
+            "x": 8.01,
+            "y": 54.9,
+            "w": 25.33,
+            "h": 45.1
+          }
         }
       ]
     },
@@ -189,7 +272,12 @@
         {
           "type": "goTo",
           "target": "bakterie",
-          "rect": { "x": 42.9, "y": 7.51, "w": 26.71, "h": 47.69 }
+          "rect": {
+            "x": 42.9,
+            "y": 7.51,
+            "w": 26.71,
+            "h": 47.69
+          }
         }
       ]
     },
@@ -201,7 +289,12 @@
         {
           "type": "goTo",
           "target": "sul",
-          "rect": { "x": 74.37, "y": 57.13, "w": 25.58, "h": 42.87 }
+          "rect": {
+            "x": 74.37,
+            "y": 57.13,
+            "w": 25.58,
+            "h": 42.87
+          }
         }
       ]
     },
@@ -213,7 +306,12 @@
         {
           "type": "goTo",
           "target": "chloroplasty",
-          "rect": { "x": 2.69, "y": 9.05, "w": 24.33, "h": 46.31 }
+          "rect": {
+            "x": 2.69,
+            "y": 9.05,
+            "w": 24.33,
+            "h": 46.31
+          }
         }
       ]
     },
@@ -225,7 +323,12 @@
         {
           "type": "goTo",
           "target": "kridlo-mouchy",
-          "rect": { "x": 40.87, "y": 55.67, "w": 25.58, "h": 44.33 }
+          "rect": {
+            "x": 40.87,
+            "y": 55.67,
+            "w": 25.58,
+            "h": 44.33
+          }
         }
       ]
     },
@@ -237,7 +340,12 @@
         {
           "type": "goTo",
           "target": "found-indicie-2",
-          "rect": { "x": 71.34, "y": 6.74, "w": 24.63, "h": 46.77 }
+          "rect": {
+            "x": 71.34,
+            "y": 6.74,
+            "w": 24.63,
+            "h": 46.77
+          }
         }
       ]
     },
@@ -249,13 +357,25 @@
         {
           "type": "pickup",
           "itemId": "indicie-2",
-          "rect": { "x": 3.12, "y": 35.94, "w": 32.38, "h": 44 }
+          "rect": {
+            "x": 3.12,
+            "y": 35.94,
+            "w": 32.38,
+            "h": 44
+          }
         },
         {
           "type": "goTo",
           "target": "main-room",
-          "requireItems": ["indicie-2"],
-          "rect": { "x": 89.82, "y": 82.94, "w": 6.97, "h": 14.1 }
+          "requireItems": [
+            "indicie-2"
+          ],
+          "rect": {
+            "x": 89.82,
+            "y": 82.94,
+            "w": 6.97,
+            "h": 14.1
+          }
         }
       ]
     },
@@ -264,10 +384,46 @@
       "title": "@scene.q1.title@Kdo napsal tento dopis?",
       "image": "assets/question-1.jpg",
       "hotspots": [
-        { "type": "goTo", "target": "wrong-answer", "rect": { "x": 78.39, "y": 47.27, "w": 4.07, "h": 7.32 } },
-        { "type": "goTo", "target": "wrong-answer", "rect": { "x": 73.37, "y": 58.59, "w": 3.81, "h": 7.09 } },
-        { "type": "goTo", "target": "question-2", "rect": { "x": 79.82, "y": 68.53, "w": 4.07, "h": 6.86 } },
-        { "type": "goTo", "target": "wrong-answer", "rect": { "x": 73.37, "y": 79.78, "w": 3.81, "h": 6.94 } }
+        {
+          "type": "goTo",
+          "target": "wrong-answer",
+          "rect": {
+            "x": 78.39,
+            "y": 47.27,
+            "w": 4.07,
+            "h": 7.32
+          }
+        },
+        {
+          "type": "goTo",
+          "target": "wrong-answer",
+          "rect": {
+            "x": 73.37,
+            "y": 58.59,
+            "w": 3.81,
+            "h": 7.09
+          }
+        },
+        {
+          "type": "goTo",
+          "target": "question-2",
+          "rect": {
+            "x": 79.82,
+            "y": 68.53,
+            "w": 4.07,
+            "h": 6.86
+          }
+        },
+        {
+          "type": "goTo",
+          "target": "wrong-answer",
+          "rect": {
+            "x": 73.37,
+            "y": 79.78,
+            "w": 3.81,
+            "h": 6.94
+          }
+        }
       ]
     },
     {
@@ -278,7 +434,12 @@
         {
           "type": "goTo",
           "target": "main-room",
-          "rect": { "x": 21.3, "y": 39.25, "w": 11.69, "h": 21.42 }
+          "rect": {
+            "x": 21.3,
+            "y": 39.25,
+            "w": 11.69,
+            "h": 21.42
+          }
         }
       ]
     },
@@ -287,10 +448,46 @@
       "title": "@scene.q2.title@Přiblížení objektivu.",
       "image": "assets/question-2.jpg",
       "hotspots": [
-        { "type": "goTo", "target": "wrong-answer", "rect": { "x": 70.73, "y": 29.78, "w": 3.77, "h": 6.47 } },
-        { "type": "goTo", "target": "question-3", "rect": { "x": 70.73, "y": 42.8, "w": 3.73, "h": 7.09 } },
-        { "type": "goTo", "target": "wrong-answer", "rect": { "x": 70.73, "y": 61.06, "w": 3.86, "h": 7.17 } },
-        { "type": "goTo", "target": "wrong-answer", "rect": { "x": 70.73, "y": 73.16, "w": 3.73, "h": 7.24 } }
+        {
+          "type": "goTo",
+          "target": "wrong-answer",
+          "rect": {
+            "x": 70.73,
+            "y": 29.78,
+            "w": 3.77,
+            "h": 6.47
+          }
+        },
+        {
+          "type": "goTo",
+          "target": "question-3",
+          "rect": {
+            "x": 70.73,
+            "y": 42.8,
+            "w": 3.73,
+            "h": 7.09
+          }
+        },
+        {
+          "type": "goTo",
+          "target": "wrong-answer",
+          "rect": {
+            "x": 70.73,
+            "y": 61.06,
+            "w": 3.86,
+            "h": 7.17
+          }
+        },
+        {
+          "type": "goTo",
+          "target": "wrong-answer",
+          "rect": {
+            "x": 70.73,
+            "y": 73.16,
+            "w": 3.73,
+            "h": 7.24
+          }
+        }
       ]
     },
     {
@@ -298,10 +495,46 @@
       "title": "@scene.q3.title@Kolikrát se předmět zvětší?",
       "image": "assets/question-3.jpg",
       "hotspots": [
-        { "type": "goTo", "target": "wrong-answer", "rect": { "x": 38.66, "y": 29.01, "w": 3.64, "h": 6.7 } },
-        { "type": "goTo", "target": "wrong-answer", "rect": { "x": 46.23, "y": 39.56, "w": 3.64, "h": 6.71 } },
-        { "type": "goTo", "target": "found-indicie-3", "rect": { "x": 40.56, "y": 50.73, "w": 3.81, "h": 6.71 } },
-        { "type": "goTo", "target": "wrong-answer", "rect": { "x": 47.01, "y": 59.75, "w": 3.68, "h": 6.78 } }
+        {
+          "type": "goTo",
+          "target": "wrong-answer",
+          "rect": {
+            "x": 38.66,
+            "y": 29.01,
+            "w": 3.64,
+            "h": 6.7
+          }
+        },
+        {
+          "type": "goTo",
+          "target": "wrong-answer",
+          "rect": {
+            "x": 46.23,
+            "y": 39.56,
+            "w": 3.64,
+            "h": 6.71
+          }
+        },
+        {
+          "type": "goTo",
+          "target": "found-indicie-3",
+          "rect": {
+            "x": 40.56,
+            "y": 50.73,
+            "w": 3.81,
+            "h": 6.71
+          }
+        },
+        {
+          "type": "goTo",
+          "target": "wrong-answer",
+          "rect": {
+            "x": 47.01,
+            "y": 59.75,
+            "w": 3.68,
+            "h": 6.78
+          }
+        }
       ]
     },
     {
@@ -312,13 +545,25 @@
         {
           "type": "pickup",
           "itemId": "indicie-3",
-          "rect": { "x": 71.64, "y": 26, "w": 17.32, "h": 23.66 }
+          "rect": {
+            "x": 71.64,
+            "y": 26,
+            "w": 17.32,
+            "h": 23.66
+          }
         },
         {
           "type": "goTo",
           "target": "main-room",
-          "requireItems": ["indicie-3"],
-          "rect": { "x": 89.74, "y": 82.94, "w": 7.22, "h": 12.87 }
+          "requireItems": [
+            "indicie-3"
+          ],
+          "rect": {
+            "x": 89.74,
+            "y": 82.94,
+            "w": 7.22,
+            "h": 12.87
+          }
         }
       ]
     },
@@ -329,26 +574,46 @@
       "hotspots": [
         {
           "type": "puzzle",
-          "rect": { "x": 11.69, "y": 46.8, "w": 43.07, "h": 50.17 },
-          "requireItems": ["indicie-1","indicie-2","indicie-3"],
-          "puzzle": {
-            "kind": "phrase",
-            "prompt": "@puzzle.chest.prompt@Slož z indicií větu a napiš ji:",
-            "solution": "pojďme se vrhnout na mikroskopování",
-            "title": "@puzzle.chest.title@Truhla"
+          "rect": {
+            "x": 11.69,
+            "y": 46.8,
+            "w": 43.07,
+            "h": 50.17
+          },
+          "requireItems": [
+            "indicie-1",
+            "indicie-2",
+            "indicie-3"
+          ],
+          "puzzleRef": "ph-lens",
+          "options": {
+            "blockUntilSolved": true
           },
           "onSuccess": {
-            "message": "@puzzle.chest.opened@Víko truhly povolilo, získáš předmět zlatý klíč.",
+            "message": "@puzzle.chest.opened@Víko truhly povolilo, získáš zlatý klíč.",
             "giveItem": "golden_key",
-            "setFlags": ["chest_opened"]
+            "setFlags": [
+              "chest_opened"
+            ]
+          },
+          "onFail": {
+            "message": "@puzzle.phrase.fail@To nesedí. Zkus jinak seřadit slova."
           }
         },
         {
           "type": "goTo",
           "target": "exit",
-          "rect": { "x": 69.35, "y": 0.73, "w": 23.63, "h": 80.36 },
+          "rect": {
+            "x": 69.35,
+            "y": 0.73,
+            "w": 23.63,
+            "h": 80.36
+          },
           "acceptItems": [
-            { "id": "golden_key", "consume": false }
+            {
+              "id": "golden_key",
+              "consume": false
+            }
           ],
           "showNeedHint": true,
           "onApply": {
@@ -364,23 +629,116 @@
       "image": "assets/exit.jpg",
       "end": true,
       "hotspots": []
+    },
+    {
+      "id": "puzzle-lab",
+      "title": "@scene.pzlab.title@Testovací laboratoř puzzlů",
+      "image": "assets/puzzle-lab.jpg",
+      "hotspots": [
+        {
+          "type": "puzzle",
+          "rect": { "x": 6, "y": 18, "w": 28, "h": 16 },
+          "puzzleRef": "quiz-photosynthesis",
+          "options": { "blockUntilSolved": false }
+        },
+        {
+          "type": "puzzle",
+          "rect": { "x": 6, "y": 40, "w": 28, "h": 16 },
+          "puzzleRef": "code-lab-door",
+          "options": { "blockUntilSolved": true },
+          "onFail": { "message": "@pzlab.code.fail@Kód nesedí." }
+        },
+        {
+          "type": "puzzle",
+          "rect": { "x": 36, "y": 18, "w": 28, "h": 16 },
+          "puzzleRef": "order-micro-assembly",
+          "options": { "blockUntilSolved": false }
+        },
+        {
+          "type": "puzzle",
+          "rect": { "x": 36, "y": 40, "w": 28, "h": 16 },
+          "puzzleRef": "match-bio-click",
+          "options": { "blockUntilSolved": false }
+        },
+        {
+          "type": "puzzle",
+          "rect": { "x": 66, "y": 18, "w": 28, "h": 16 },
+          "puzzleRef": "match-bio-drag",
+          "options": { "blockUntilSolved": false }
+        },
+        {
+          "type": "puzzle",
+          "rect": { "x": 66, "y": 40, "w": 28, "h": 16 },
+          "puzzleRef": "group-lab-sorting",
+          "options": { "blockUntilSolved": false }
+        },
+        {
+          "type": "puzzle",
+          "rect": { "x": 20, "y": 64, "w": 28, "h": 16 },
+          "puzzleRef": "choice-statements",
+          "options": { "blockUntilSolved": false }
+        },
+        {
+          "type": "puzzle",
+          "rect": { "x": 52, "y": 64, "w": 28, "h": 16 },
+          "puzzleRef": "list-lab-demo",
+          "options": { "blockUntilSolved": false },
+          "onSuccess": {
+            "message": "@pzlab.list.ok@Hotovo! Máš za sebou mini sérii."
+          },
+          "onFail": {
+            "message": "@pzlab.list.fail@Sérii můžeš zkusit znovu."
+          }
+        },
+        {
+          "type": "puzzle",
+          "rect": {
+            "x": 6.16,
+            "y": 63.61,
+            "w": 12.06,
+            "h": 15.87
+          },
+          "puzzleRef": "ph-lens",
+          "onSuccess": {
+            "message": "@pzlab.list.ok@Hotovo! Rozluštil si správnou větu."
+          },
+          "onFail": {
+            "message": "@pzlab.list.fail@Bohužel věta je špatně..."
+          }
+        },
+        {
+          "type": "goTo",
+          "target": "main-room",
+          "rect": { "x": 90, "y": 84, "w": 8, "h": 12 }
+        }
+      ]
     }
   ],
   "events": [
     {
       "id": "dlg-intro-welcome",
       "once": true,
-      "when": { "on": "enterScene", "scene": "welcome" },
+      "when": {
+        "on": "enterScene",
+        "scene": "welcome"
+      },
       "then": {
-        "openDialog": { "id": "intro.welcome" }
+        "openDialog": {
+          "id": "intro.welcome"
+        }
       }
     },
     {
       "id": "dlg-intro-mainRoom",
       "once": true,
-      "when": { "on": "enterScene", "scene": "main-room" },
+      "when": {
+        "on": "enterScene",
+        "scene": "main-room"
+      },
       "then": {
-        "openDialog": { "id": "intro.mainRoom" }
+        "openDialog": {
+          "id": "intro.mainRoom"
+        }
       }
     },
     {
@@ -389,7 +747,11 @@
       "when": {
         "on": "enterScene",
         "scene": "main-room",
-        "requireItems": ["indicie-1","indicie-2","indicie-3"]
+        "requireItems": [
+          "indicie-1",
+          "indicie-2",
+          "indicie-3"
+        ]
       },
       "then": {
         "toast": {
@@ -398,7 +760,12 @@
         },
         "highlightHotspot": {
           "sceneId": "main-room",
-          "rect": { "x": 59.95, "y": 4.55, "w": 37.61, "h": 74.59 },
+          "rect": {
+            "x": 59.95,
+            "y": 4.55,
+            "w": 37.61,
+            "h": 74.59
+          },
           "ms": 5000
         }
       }
@@ -406,16 +773,29 @@
     {
       "id": "treasure-opened-visual",
       "once": true,
-      "when": { "on": "stateChange", "requireFlags": ["chest_opened"] },
+      "when": {
+        "on": "stateChange",
+        "requireFlags": [
+          "chest_opened"
+        ]
+      },
       "then": {
-        "setSceneImage": { "sceneId": "treasure-room", "image": "assets/treasure-room-opened.jpg" },
+        "setSceneImage": {
+          "sceneId": "treasure-room",
+          "image": "assets/treasure-room-opened.jpg"
+        },
         "toast": {
           "text": "@event.chest.opened@🗝️ Truhla je otevřená! Získal jsi zlatý klíč.",
           "ms": 5000
         },
         "highlightHotspot": {
           "sceneId": "treasure-room",
-          "rect": { "x": 69.35, "y": 0.73, "w": 23.63, "h": 80.36 },
+          "rect": {
+            "x": 69.35,
+            "y": 0.73,
+            "w": 23.63,
+            "h": 80.36
+          },
           "ms": 5000
         }
       }
@@ -423,12 +803,26 @@
     {
       "id": "hint-pick-indicie-1",
       "once": false,
-      "when": { "on": "enterScene", "scene": "found-indicie-1", "missingItems": ["indicie-1"] },
+      "when": {
+        "on": "enterScene",
+        "scene": "found-indicie-1",
+        "missingItems": [
+          "indicie-1"
+        ]
+      },
       "then": {
-        "toast": { "text": "@event.pick.ind1@👉 Klepni na indicii a seber ji.", "ms": 4000 },
+        "toast": {
+          "text": "@event.pick.ind1@👉 Klepni na indicii a seber ji.",
+          "ms": 4000
+        },
         "highlightHotspot": {
           "sceneId": "found-indicie-1",
-          "rect": { "x": 68.87, "y": 26.06, "w": 23.25, "h": 32.71 },
+          "rect": {
+            "x": 68.87,
+            "y": 26.06,
+            "w": 23.25,
+            "h": 32.71
+          },
           "ms": 6000
         }
       }
@@ -436,12 +830,26 @@
     {
       "id": "hint-pick-indicie-2",
       "once": false,
-      "when": { "on": "enterScene", "scene": "found-indicie-2", "missingItems": ["indicie-2"] },
+      "when": {
+        "on": "enterScene",
+        "scene": "found-indicie-2",
+        "missingItems": [
+          "indicie-2"
+        ]
+      },
       "then": {
-        "toast": { "text": "@event.pick.ind2@👉 Klepni na indicii a seber ji.", "ms": 4000 },
+        "toast": {
+          "text": "@event.pick.ind2@👉 Klepni na indicii a seber ji.",
+          "ms": 4000
+        },
         "highlightHotspot": {
           "sceneId": "found-indicie-2",
-          "rect": { "x": 1.48, "y": 32.33, "w": 35.87, "h": 51.3 },
+          "rect": {
+            "x": 1.48,
+            "y": 32.33,
+            "w": 35.87,
+            "h": 51.3
+          },
           "ms": 4000
         }
       }
@@ -449,12 +857,26 @@
     {
       "id": "hint-pick-indicie-3",
       "once": false,
-      "when": { "on": "enterScene", "scene": "found-indicie-3", "missingItems": ["indicie-3"] },
+      "when": {
+        "on": "enterScene",
+        "scene": "found-indicie-3",
+        "missingItems": [
+          "indicie-3"
+        ]
+      },
       "then": {
-        "toast": { "text": "@event.pick.ind3@👉 Klepni na indicii a seber ji.", "ms": 4000 },
+        "toast": {
+          "text": "@event.pick.ind3@👉 Klepni na indicii a seber ji.",
+          "ms": 4000
+        },
         "highlightHotspot": {
           "sceneId": "found-indicie-3",
-          "rect": { "x": 70.08, "y": 22.77, "w": 20.69, "h": 30.68 },
+          "rect": {
+            "x": 70.08,
+            "y": 22.77,
+            "w": 20.69,
+            "h": 30.68
+          },
           "ms": 6000
         }
       }
