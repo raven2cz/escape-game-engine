@@ -60,7 +60,7 @@ export class Editor {
         this.overlay.innerHTML = '';
 
         // tvrdý úklid případných zbytků i mimo overlay
-        document.querySelectorAll('.scene-final-rect,.scene-handle,.scene-final-label,.pz-viz,.editor-toolbar,.editor-jsonpanel')
+        document.querySelectorAll('.scene-final-rect,.scene-handle,.scene-final-label,.pz-viz,.editor-toolbar,.editor-jsonpanel,.editor-hint')
             .forEach(el => { try { el.remove(); } catch {} });
     }
 
@@ -118,6 +118,7 @@ class SceneEditor {
         this.label = null;
         this.toolbar = null;
         this.jsonPanel = null;
+        this.hint = null;
 
         this._onPointerDown = this._onPointerDown.bind(this);
         this._onPointerMove = this._onPointerMove.bind(this);
@@ -127,6 +128,7 @@ class SceneEditor {
 
     enable() {
         this._buildToolbar();
+        this._buildHint();
         this._bind();
         this._renderPersistent();
     }
@@ -135,7 +137,20 @@ class SceneEditor {
         this._unbind();
         this.overlay.innerHTML = '';
         if (this.toolbar?.parentNode) this.toolbar.parentNode.removeChild(this.toolbar);
-        this.toolbar = null; this.jsonPanel = null; this.finalBox = null; this.label = null;
+        if (this.hint?.parentNode) this.hint.parentNode.removeChild(this.hint);
+        this.toolbar = null; this.jsonPanel = null; this.finalBox = null; this.label = null; this.hint = null;
+    }
+
+    _buildHint() {
+        const hint = document.createElement('div');
+        hint.className = 'editor-hint';
+        hint.textContent = 'SCENE MODE: Click & drag to draw rectangle • Middle-click to delete';
+        Object.assign(hint.style, {
+            position: 'absolute', left: '10px', top: '10px', zIndex: '10001', pointerEvents: 'none',
+            background: 'rgba(0,0,0,0.8)', padding: '6px 10px', borderRadius: '6px', color: '#0f6', font: '12px/1.4 sans-serif'
+        });
+        this.hint = hint;
+        this.container.appendChild(hint);
     }
 
     _buildToolbar() {
@@ -145,8 +160,8 @@ class SceneEditor {
             position: 'absolute', right: '10px', top: '10px', zIndex: '10001', pointerEvents: 'auto',
             background: 'rgba(0,0,0,0.8)', padding: '6px', borderRadius: '6px', color: '#fff', font: '12px/1.2 sans-serif'
         });
-        const btnCopy = this._btn('Copy JSON', () => this._copyJson());
-        const btnShow = this._btn('Show JSON', () => this._toggleJsonPanel());
+        const btnCopy = this._btn('📎 Copy JSON', () => this._copyJson());
+        const btnShow = this._btn('📋 Show JSON', () => this._toggleJsonPanel());
         tb.appendChild(btnCopy); tb.appendChild(btnShow);
         this.toolbar = tb;
         this.container.appendChild(tb);
@@ -356,23 +371,24 @@ class PuzzleEditor {
         this.container = container;
 
         this.windowEl = puzzleRoot.querySelector('.pz__window');
+        this.isManualLayout = puzzleRoot.classList.contains('pz--manual');
+
+        this.components = new Map();
+        this.visualizations = [];
         this.toolbar = null;
         this.jsonPanel = null;
-
-        this.isManualLayout = true;
-        this.components = new Map();  // Map<Element, {id,type,element}>
-        this.visualizations = [];
-        this.active = null;  // { type:'move'|'resize', viz, handle, startMouse, startElRect, targetEl, relRoot }
+        this.hint = null;
+        this.active = null;
 
         this._onMouseDown = this._onMouseDown.bind(this);
         this._onMouseMove = this._onMouseMove.bind(this);
-        this._onMouseUp   = this._onMouseUp.bind(this);
-        this._onKeyDown   = this._onKeyDown.bind(this);
+        this._onMouseUp = this._onMouseUp.bind(this);
+        this._onKeyDown = this._onKeyDown.bind(this);
     }
 
     enable() {
-        this._detectLayout();
         this._detectComponents();
+        this._buildHint();
         this._buildToolbar();
         this._createVisualizations();
         this._bind();
@@ -380,53 +396,53 @@ class PuzzleEditor {
 
     destroy() {
         this._unbind();
-        this.overlay.querySelectorAll('.pz-viz,.editor-jsonpanel').forEach(el => el.remove());
+        this.overlay.innerHTML = '';
         if (this.toolbar?.parentNode) this.toolbar.parentNode.removeChild(this.toolbar);
-        this.toolbar = null; this.jsonPanel = null;
-        this.visualizations = []; this.components.clear();
-    }
-
-    _detectLayout() {
-        const cs = window.getComputedStyle(this.windowEl);
-        this.isManualLayout = (cs.position === 'absolute');
+        if (this.hint?.parentNode) this.hint.parentNode.removeChild(this.hint);
+        this.toolbar = null; this.jsonPanel = null; this.hint = null;
+        this.visualizations = [];
     }
 
     _detectComponents() {
-        this.components.clear();
         if (!this.isManualLayout) return;
-        // vizualizuj jen to, co má author explicitně označeno jako komponentu
-        const absElems = this.windowEl.querySelectorAll('[data-id]');
-        absElems.forEach(el => {
-            const cs = window.getComputedStyle(el);
-            if (cs.position !== 'absolute') return;
-            if (cs.display === 'none' || el.hidden || el.getAttribute('aria-hidden') === 'true') return;
-            const id = el.getAttribute('data-id');
-            const type = this._guessType(el);
+        const els = this.windowEl?.querySelectorAll('[data-id]') || [];
+        els.forEach(el => {
+            const id = el.dataset.id;
+            const type = el.classList.contains('pz-token') ? 'token' : 'component';
             this.components.set(el, { id, type, element: el });
         });
     }
 
-    _guessType(el) {
-        if (el.classList.contains('pz-input-wrap')) return 'input';
-        if (el.classList.contains('pz-btn')) return 'button';
-        if (el.classList.contains('pz-token')) return 'token';
-        if (el.classList.contains('pz-choice-item')) return 'choice';
-        if (el.classList.contains('pz-group-area')) return 'group';
-        return 'component';
+    _buildHint() {
+        const hint = document.createElement('div');
+        hint.className = 'editor-hint';
+        hint.textContent = this.isManualLayout
+            ? 'PUZZLE MODE (Manual): Drag/resize window & components • Middle-click to delete'
+            : 'PUZZLE MODE (Auto): Drag/resize window only';
+        Object.assign(hint.style, {
+            position: 'absolute', left: '10px', top: '10px', zIndex: '10001', pointerEvents: 'none',
+            background: 'rgba(0,0,0,0.8)', padding: '6px 10px', borderRadius: '6px', color: '#ff0', font: '12px/1.4 sans-serif'
+        });
+        this.hint = hint;
+        this.container.appendChild(hint);
     }
 
     _buildToolbar() {
         const tb = document.createElement('div');
         tb.className = 'editor-toolbar puzzle-toolbar';
         Object.assign(tb.style, {
-            position: 'absolute', right:'10px', top:'10px', zIndex:'10001',
-            background:'rgba(0,0,0,.8)', color:'#fff', padding:'6px', borderRadius:'6px', pointerEvents:'auto',
-            font:'12px/1.2 sans-serif'
+            position: 'absolute', right: '10px', top: '10px', zIndex: '10001', pointerEvents: 'auto',
+            background: 'rgba(0,0,0,0.8)', padding: '6px', borderRadius: '6px', color: '#fff', font: '12px/1.2 sans-serif'
         });
-        const btnCopy = this._btn('Copy JSON', () => this._copyJson());
-        const btnShow = this._btn('Show JSON', () => this._toggleJsonPanel());
-        const btnInfo = this._btn('Info', () => this._showInfo());
-        tb.appendChild(btnCopy); tb.appendChild(btnShow); tb.appendChild(btnInfo);
+
+        const btnCopy = this._btn('📎 Copy JSON', () => this._copyJson());
+        const btnShow = this._btn('📋 Show JSON', () => this._toggleJsonPanel());
+        const btnInfo = this._btn('ℹ️ Info', () => this._showInfo());
+
+        tb.appendChild(btnCopy);
+        tb.appendChild(btnShow);
+        tb.appendChild(btnInfo);
+
         this.toolbar = tb;
         this.container.appendChild(tb);
     }
@@ -434,7 +450,7 @@ class PuzzleEditor {
     _btn(label, onClick) {
         const b = document.createElement('button');
         b.type='button'; b.textContent = label;
-        Object.assign(b.style, { margin:'0 4px', padding:'4px 6px', cursor:'pointer' });
+        Object.assign(b.style, { margin: '0 4px', padding: '4px 6px', cursor: 'pointer' });
         b.addEventListener('click', onClick);
         return b;
     }
@@ -477,9 +493,10 @@ class PuzzleEditor {
         const comps = [];
         this.visualizations.forEach(v => {
             if (v.__deleted) return;
+            if (!v.__meta) return;
             comps.push({
-                id: v.__meta?.id || 'component',
-                type: v.__meta?.type || 'component',
+                id: v.__meta.id || 'component',
+                type: v.__meta.type || 'component',
                 rect: this._rectOf(v.__meta.element, this.windowEl)
             });
         });
