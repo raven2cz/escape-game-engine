@@ -49,6 +49,8 @@ export class Editor {
 
         this.overlay.classList.add('hidden');
         this.overlay.innerHTML = '';
+        this._setSceneHotspotsVisible(true);   // vždy vrať původní stav
+        this._setModeClasses(null);
         document.body.classList.remove('editor-on');
     }
 
@@ -62,21 +64,45 @@ export class Editor {
         // tvrdý úklid případných zbytků i mimo overlay
         document.querySelectorAll('.scene-final-rect,.scene-handle,.scene-final-label,.pz-viz,.editor-toolbar,.editor-jsonpanel,.editor-hint')
             .forEach(el => { try { el.remove(); } catch {} });
+
+        document.body.classList.remove('editor-puzzle-mode', 'editor-scene-mode');
+
+        // obnova jen pro jistotu; žádné visibility:hidden na celé vrstvě
+        if (this.hotspotLayer) {
+            this.hotspotLayer.style.visibility    = '';
+            this.hotspotLayer.style.pointerEvents = '';
+            this.hotspotLayer.style.display       = '';
+        }
     }
 
     _activateSceneMode() {
         this.currentMode = 'scene';
+
+        // opět jen hotspoty
+        this._setSceneHotspotsVisible(true);
+
         this.overlay.style.pointerEvents = 'auto';
         this.sceneEditor = new SceneEditor(this.game, this.overlay, this.hotspotLayer, this.sceneContainer);
         this.sceneEditor.enable();
+
+        document.body.classList.add('editor-scene-mode');
+        document.body.classList.remove('editor-puzzle-mode');
     }
 
     _activatePuzzleMode(puzzleRoot) {
         this.currentMode = 'puzzle';
+
+        // NIKDY neschovávej celý #hotspotLayer, jen samotné .hotspot
+        this._setSceneHotspotsVisible(false);
+
         this.overlay.innerHTML = '';
         this.overlay.style.pointerEvents = 'auto';
+
         this.puzzleEditor = new PuzzleEditor(puzzleRoot, this.overlay, this.sceneContainer);
         this.puzzleEditor.enable();
+
+        document.body.classList.add('editor-puzzle-mode');
+        document.body.classList.remove('editor-scene-mode');
     }
 
     _startRootObserver() {
@@ -88,8 +114,15 @@ export class Editor {
             if (newMode !== this.currentMode) {
                 this._cleanup();
                 this.overlay.innerHTML = '';
-                if (hasPuzzle) this._activatePuzzleMode(document.querySelector('.pz'));
-                else this._activateSceneMode();
+                if (hasPuzzle) {
+                    this._activatePuzzleMode(document.querySelector('.pz'));
+                    this._setSceneHotspotsVisible(false);
+                    this._setModeClasses('puzzle');
+                } else {
+                    this._activateSceneMode();
+                    this._setSceneHotspotsVisible(true);
+                    this._setModeClasses('scene');
+                }
             }
         };
         this._rootObserver = new MutationObserver(detect);
@@ -98,6 +131,24 @@ export class Editor {
     }
 
     _stopRootObserver() { try { this._rootObserver?.disconnect(); } catch {} this._rootObserver = null; }
+
+    // ULOŽÍ/OBNOVÍ původní inline-styly hotspotLayer a přepne jeho viditelnost.
+    _setSceneHotspotsVisible(show) {
+        if (!this.hotspotLayer) return;
+        // :scope zajistí, že saháme jen na přímé potomky v hotspotLayer,
+        // tj. na <button class="hotspot"> – NIC dalšího.
+        const nodes = this.hotspotLayer.querySelectorAll(':scope > .hotspot');
+        nodes.forEach(btn => {
+            btn.style.visibility    = show ? '' : 'hidden';
+            btn.style.pointerEvents = show ? '' : 'none';
+        });
+    }
+
+    // Pohodlný přepínač podle módu
+    _setModeClasses(mode) {
+        document.body.classList.toggle('editor-puzzle-mode', mode === 'puzzle');
+        document.body.classList.toggle('editor-scene-mode',  mode === 'scene');
+    }
 }
 
 // ---------------- Scene editor ----------------

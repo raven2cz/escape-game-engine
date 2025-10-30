@@ -517,3 +517,15 @@ body.use-on #hotspotLayer {
 /* compact mode */
 .dlg-compact .dlg-char { width: min(36vw, 300px); }
 @media (max-width: 720px) { .dlg-char { width: min(46vw, 300px); } }
+
+/* Editor režim může měnit vzhled hotspotů,
+   ale jen uvnitř #hotspotLayer a jen .hotspot */
+.editor-on #hotspotLayer .hotspot {
+    /* tvé zvýraznění v editoru */
+}
+
+/* Při puzzle módu skryj pouze scene hotspoty – NE vrstvu, NE puzzle */
+.editor-puzzle-mode #hotspotLayer > .hotspot {
+    visibility: hidden !important;
+    pointer-events: none !important;
+}
