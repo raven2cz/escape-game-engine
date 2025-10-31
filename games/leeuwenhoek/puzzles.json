@@ -4,12 +4,6 @@
     "kind": "phrase",
     "title": "@lh.pz.lensTitle@Sestav větu",
     "prompt": "@lh.pz.lensPrompt@Zadej větu, kterou jsi odvodil z indicií.",
-    "rect": {
-      "x": 8.84,
-      "y": 11.84,
-      "w": 79.86,
-      "h": 76.19
-    },
     "placeholder": "@puzzles.phrase.placeholder@Napiš odpověď…",
     "solution": "@lh.pz.lensSolution@pojďme se vrhnout na mikroskopování",
     "options": {

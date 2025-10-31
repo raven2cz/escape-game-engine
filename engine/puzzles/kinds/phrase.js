@@ -19,6 +19,7 @@ export default class PhrasePuzzle extends BasePuzzle {
         inputWrap.className = 'pz-input-wrap';
 
         const input = document.createElement('input');
+        input.setAttribute('data-id','input');
         input.className = 'pz-input';
         input.type = 'text';
         const placeholderText = this.t(this.config.placeholder, '…');

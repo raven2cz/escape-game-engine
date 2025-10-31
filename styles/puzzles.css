@@ -559,3 +559,8 @@
     background: rgba(20, 220, 90, 0.45) !important;
     transform: translateY(1px) !important;
 }
+
+/* --- Manual layout refinements (auto-generated) --- */
+.pz--manual .pz__flow { padding: 0 !important; }
+.pz--manual [data-id] { position: absolute; }
+

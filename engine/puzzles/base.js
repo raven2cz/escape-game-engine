@@ -67,6 +67,7 @@ export class BasePuzzle {
         // Pracovní okno - POZOR: workRect aplikujeme SEM (z cfg.rect)
         const win = document.createElement('div');
         win.className = 'pz__window';
+        this.windowEl = win;
         Object.assign(win.style, {
             position: 'absolute',
             left: (workRect?.x ?? 10) + '%',
@@ -113,6 +114,7 @@ export class BasePuzzle {
                 if (titleVisible) {
                     const title = document.createElement('div');
                     title.className = 'pz-title';
+                    title.setAttribute('data-id','title');
                     const titleText = this.t(this.config.title, '');
                     title.textContent = titleText;
 
@@ -130,6 +132,7 @@ export class BasePuzzle {
                 if (promptVisible) {
                     const prompt = document.createElement('div');
                     prompt.className = 'pz-prompt';
+                    prompt.setAttribute('data-id','prompt');
                     const promptText = this.t(this.config.prompt, '');
                     prompt.textContent = promptText;
 
@@ -162,11 +165,13 @@ export class BasePuzzle {
 
         const footer = document.createElement('div');
         footer.className = 'pz-footer';
+        footer.setAttribute('data-id','footer');
 
         if (mergedButtons.ok.visible !== false) {
             const ok = document.createElement('button');
             ok.type = 'button';
             ok.className = 'pz-btn pz-btn--ok';
+            ok.setAttribute('data-id','ok');
             ok.textContent = this.t(mergedButtons.ok.label, 'OK');
             ok.addEventListener('click', () => this.onOk());
             footer.appendChild(ok);
@@ -176,6 +181,7 @@ export class BasePuzzle {
             const c = document.createElement('button');
             c.type = 'button';
             c.className = 'pz-btn pz-btn--cancel';
+            c.setAttribute('data-id','cancel');
             c.textContent = this.t(mergedButtons.cancel.label, 'Zavřít');
             c.addEventListener('click', () => this.onCancel());
             footer.appendChild(c);
@@ -190,10 +196,48 @@ export class BasePuzzle {
             direction: 'vertical'
         };
         applyAutoLayout(root, layoutCfg);
+        // Manual per-element positioning based on config.elements (percent rects) + visibility
+        const elementsCfg = this.instanceOptions?.elements || this.config?.elements || this.config?.options?.elements;
+        if ((layoutCfg?.mode === 'manual') && elementsCfg) {
+            this.applyManualElements(elementsCfg);
+        }
+
 
         this.applyTheme();
         if (DBG()) console.debug('[PZ] base.mount ok', {id: this.id, cls: this.root.className, layout: layoutCfg});
     }
+
+    /**
+     * Apply manual per-element layout using elements map:
+     * elements: { "<id>": { rect: {x,y,w,h}, visible?: boolean } }
+     * Coordinates are percent of .pz__window.
+     */
+    applyManualElements(elementsMap = {}) {
+        const win = this.windowEl || this.root;
+        if (!win) return;
+        if (this.flowEl) {
+            this.flowEl.style.padding = '0';
+        }
+        for (const [id, cfg] of Object.entries(elementsMap)) {
+            const el = win.querySelector(`[data-id="${id}"]`) || this.root.querySelector(`[data-id="${id}"]`);
+            if (!el) continue;
+            if (cfg && cfg.visible === false) {
+                el.style.display = 'none';
+                el.classList.add('pz-hidden');
+            } else {
+                el.classList.remove('pz-hidden');
+                if (el.style.display === 'none') el.style.removeProperty('display');
+            }
+            if (cfg && cfg.rect) {
+                el.style.position = 'absolute';
+                el.style.left = (cfg.rect.x ?? 0) + '%';
+                el.style.top = (cfg.rect.y ?? 0) + '%';
+                el.style.width = (cfg.rect.w ?? 100) + '%';
+                el.style.height = (cfg.rect.h ?? 100) + '%';
+            }
+        }
+    }
+
 
     applyTheme() {
         const t1 = this.config.theme || {};

@@ -63,6 +63,7 @@ export default class ChoicePuzzle extends BasePuzzle {
         // Text label (left side) - can be hidden via style.visible
         const textEl = document.createElement('div');
         textEl.className = 'pz-choice-text';
+        textEl.setAttribute('data-id', `label:${id}`);
         textEl.textContent = this.t(token.label || token.text || '', '');
 
         const textStyle = {
@@ -76,6 +77,7 @@ export default class ChoicePuzzle extends BasePuzzle {
         // Choice control (right side) - dropdown or editable input
         const controlWrap = document.createElement('div');
         controlWrap.className = 'pz-choice-control';
+        controlWrap.setAttribute('data-id', `control:${id}`);
         controlWrap.style.position = 'relative';
 
         const choices = token.choices || [];
@@ -84,6 +86,7 @@ export default class ChoicePuzzle extends BasePuzzle {
         if (editable) {
             // Editable input
             const input = document.createElement('input');
+            input.setAttribute('data-id', `input:${id}`);
             input.type = 'text';
             input.className = 'pz-input pz-choice-input';
             input.placeholder = this.t(token.placeholder || '', '');
@@ -102,6 +105,7 @@ export default class ChoicePuzzle extends BasePuzzle {
         } else {
             // Dropdown (token-styled button + menu)
             const btn = document.createElement('button');
+            btn.setAttribute('data-id', `button:${id}`);
             btn.type = 'button';
             btn.className = 'pz-token pz-choice-button';
             btn.textContent = this.t(token.placeholder || '@engine.select@Vyberte…', 'Vyberte…');
@@ -117,6 +121,7 @@ export default class ChoicePuzzle extends BasePuzzle {
             // Dropdown menu
             const menu = document.createElement('div');
             menu.className = 'pz-dropdown';
+            menu.setAttribute('data-id', `menu:${id}`);
             Object.assign(menu.style, {
                 position: 'absolute',
                 top: 'calc(100% + 4px)',
