@@ -5,16 +5,55 @@ export class DialogUI {
     constructor(game) {
         this.game = game;
         this.overlay = null; // root .dlg-overlay
-        this.active  = null; // { id, dlg, idx, leftChar, rightChar, leftPose, rightPose }
+        this.active = null; // { id, dlg, idx, leftChar, rightChar, leftPose, rightPose }
+    }
+
+    // --- helpers ------------------------------------------------------------
+
+    /**
+     * Non-blocking sleep helper.
+     * @param {number} ms - Milliseconds to wait.
+     * @returns {Promise<void>}
+     */
+    _sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    /**
+     * Briefly highlights a chosen dialog option using the same "OK" green look.
+     * - Adds .dlg-choice--selected (CSS drives color + pulse)
+     * - Disables the button to prevent double-clicks
+     * - Keeps timing short so UX stays snappy
+     * @param {HTMLButtonElement} btn
+     */
+    async _flashChoice(btn) {
+        if (!btn || btn.__flashing) return;
+        btn.__flashing = true;
+        btn.classList.add('dlg-choice--selected');
+        btn.setAttribute('disabled', 'disabled');
+        try {
+            await this._sleep(220); // long enough to see the pulse animation
+        } finally {
+            // Usually the choice list re-renders on next step; keep tidy anyway.
+            btn.classList.remove('dlg-choice--selected');
+            btn.removeAttribute('disabled');
+            btn.__flashing = false;
+        }
     }
 
     // --- debug --------------------------------------------------------------
 
     _dbgOn() {
-        try { return new URLSearchParams(location.search).get('debug') === '1'; }
-        catch { return false; }
+        try {
+            return new URLSearchParams(location.search).get('debug') === '1';
+        } catch {
+            return false;
+        }
     }
-    _dbg(...a) { if (this._dbgOn()) console.debug('[DLG]', ...a); }
+
+    _dbg(...a) {
+        if (this._dbgOn()) console.debug('[DLG]', ...a);
+    }
 
     // --- mount --------------------------------------------------------------
 
@@ -62,11 +101,17 @@ export class DialogUI {
         window.addEventListener('resize', onResize);
         onResize();
 
-        this._dbg('mount overlay', { zIndex: getComputedStyle(root).zIndex });
+        this._dbg('mount overlay', {zIndex: getComputedStyle(root).zIndex});
     }
 
-    _show() { if (!this.overlay) this._ensureMounted(); this.overlay.classList.remove('hidden'); }
-    _hide() { if (this.overlay) this.overlay.classList.add('hidden'); }
+    _show() {
+        if (!this.overlay) this._ensureMounted();
+        this.overlay.classList.remove('hidden');
+    }
+
+    _hide() {
+        if (this.overlay) this.overlay.classList.add('hidden');
+    }
 
     // --- open / close --------------------------------------------------------
 
@@ -82,7 +127,10 @@ export class DialogUI {
             dlg = list.find(d => d?.id === tail);
             this._dbg('open() fallback tail', tail, '→', !!dlg);
         }
-        if (!dlg) { this._dbg('open() abort: not found', dialogId); return; }
+        if (!dlg) {
+            this._dbg('open() abort: not found', dialogId);
+            return;
+        }
 
         this._ensureMounted();
         this._show();
@@ -91,16 +139,19 @@ export class DialogUI {
             id: dialogId,
             dlg,
             idx: 0,
-            leftChar:  dlg.left  ? this._findCharacter(dlg.left.characterId)  : null,
+            leftChar: dlg.left ? this._findCharacter(dlg.left.characterId) : null,
             rightChar: dlg.right ? this._findCharacter(dlg.right.characterId) : null,
-            leftPose:  dlg.left?.defaultPose  || null,
+            leftPose: dlg.left?.defaultPose || null,
             rightPose: dlg.right?.defaultPose || null
         };
 
         this._renderStep();
     }
 
-    async close() { this.active = null; this._hide(); }
+    async close() {
+        this.active = null;
+        this._hide();
+    }
 
     /**
      * Re-render current step (useful after game.setHero(...)).
@@ -159,7 +210,7 @@ export class DialogUI {
 
     _els(side) {
         const wrap = this.overlay?.querySelector(side === 'left' ? '.dlg-char.left' : '.dlg-char.right');
-        return { wrap, img: wrap?.querySelector('.dlg-char-img') };
+        return {wrap, img: wrap?.querySelector('.dlg-char-img')};
     }
 
     _setSpeaking(side) {
@@ -169,20 +220,29 @@ export class DialogUI {
         R?.classList.remove('speaking');
         this.overlay?.classList.remove('speaker-left', 'speaker-right');
 
-        if (side === 'left')  { L?.classList.add('speaking'); this.overlay?.classList.add('speaker-left'); }
-        if (side === 'right') { R?.classList.add('speaking'); this.overlay?.classList.add('speaker-right'); }
+        if (side === 'left') {
+            L?.classList.add('speaking');
+            this.overlay?.classList.add('speaker-left');
+        }
+        if (side === 'right') {
+            R?.classList.add('speaking');
+            this.overlay?.classList.add('speaker-right');
+        }
     }
 
     _applyPortrait(side, poseOverride = null) {
-        const { img } = this._els(side);
-        const actor    = (side === 'left') ? this.active?.leftChar  : this.active?.rightChar;
-        const basePose = (side === 'left') ? this.active?.leftPose  : this.active?.rightPose;
-        const pose     = poseOverride || basePose;
+        const {img} = this._els(side);
+        const actor = (side === 'left') ? this.active?.leftChar : this.active?.rightChar;
+        const basePose = (side === 'left') ? this.active?.leftPose : this.active?.rightPose;
+        const pose = poseOverride || basePose;
 
-        if (!img || !actor) { if (img) img.src = ''; return; }
+        if (!img || !actor) {
+            if (img) img.src = '';
+            return;
+        }
 
         const poses = actor.poses || {};
-        const src0  = (pose && poses[pose]) || poses.neutral || Object.values(poses)[0] || '';
+        const src0 = (pose && poses[pose]) || poses.neutral || Object.values(poses)[0] || '';
         img.src = this.game._resolveAsset(src0);
         img.alt = this.game._text(actor.name) || '';
     }
@@ -191,26 +251,29 @@ export class DialogUI {
 
     _renderStep() {
         const step = this.active?.dlg?.sequence?.[this.active?.idx ?? -1];
-        if (!step) { void this._end(); return; }
+        if (!step) {
+            void this._end();
+            return;
+        }
 
         // default pose updates on step
-        if (step.leftPose)  this.active.leftPose  = step.leftPose;
+        if (step.leftPose) this.active.leftPose = step.leftPose;
         if (step.rightPose) this.active.rightPose = step.rightPose;
 
         // speaker + possible pose override
         const sp = step.speaker === 'left' ? 'left' : (step.speaker === 'right' ? 'right' : null);
         this._setSpeaking(sp);
-        this._applyPortrait('left',  (step.pose && step.speaker === 'left')  ? step.pose : null);
+        this._applyPortrait('left', (step.pose && step.speaker === 'left') ? step.pose : null);
         this._applyPortrait('right', (step.pose && step.speaker === 'right') ? step.pose : null);
 
         // panel content
-        const nameEl    = this.overlay?.querySelector('.dlg-nameplate');
-        const textEl    = this.overlay?.querySelector('.dlg-text');
+        const nameEl = this.overlay?.querySelector('.dlg-nameplate');
+        const textEl = this.overlay?.querySelector('.dlg-text');
         const choicesEl = this.overlay?.querySelector('.dlg-choices');
 
         if (nameEl) {
             let speakerName = '';
-            if (step.speaker === 'left'  && this.active.leftChar)  speakerName = this.game._text(this.active.leftChar.name);
+            if (step.speaker === 'left' && this.active.leftChar) speakerName = this.game._text(this.active.leftChar.name);
             if (step.speaker === 'right' && this.active.rightChar) speakerName = this.game._text(this.active.rightChar.name);
             nameEl.textContent = speakerName || '';
         }
@@ -220,13 +283,18 @@ export class DialogUI {
             choicesEl.innerHTML = '';
             if (Array.isArray(step.choices) && step.choices.length) {
                 step.choices.forEach(ch => {
+                    /** @type {HTMLButtonElement} */
                     const b = document.createElement('button');
+                    b.type = 'button';
+                    // Base dialog choice using puzzle-like button look (CSS supplies the theme).
                     b.className = 'dlg-choice';
                     b.textContent = this.game._text(ch?.label || '');
                     b.addEventListener('click', async (e) => {
                         e.stopPropagation();
+                        // Visual confirmation before advancing.
+                        await this._flashChoice(b);
                         await this._applyChoice(step, ch || {});
-                    });
+                    }, {passive: false});
                     choicesEl.appendChild(b);
                 });
             }
@@ -239,9 +307,16 @@ export class DialogUI {
 
         if (act.jump) {
             const to = (this.active?.dlg?.sequence || []).findIndex(n => n?.id === act.jump);
-            if (to >= 0) { this.active.idx = to; this._renderStep(); return; }
+            if (to >= 0) {
+                this.active.idx = to;
+                this._renderStep();
+                return;
+            }
         }
-        if (act.end) { await this._end(act.onEnd || null); return; }
+        if (act.end) {
+            await this._end(act.onEnd || null);
+            return;
+        }
 
         await this.next();
     }
@@ -249,13 +324,19 @@ export class DialogUI {
     async next() {
         if (!this.active) return;
         const step = this.active?.dlg?.sequence?.[this.active?.idx ?? -1];
-        if (!step) { await this._end(); return; }
+        if (!step) {
+            await this._end();
+            return;
+        }
 
         if (step.onNext) await this._applyOnNodeEnd(step.onNext);
 
         this.active.idx++;
         const total = this.active?.dlg?.sequence?.length ?? 0;
-        if (this.active.idx >= total) { await this._end(this.active.dlg.onEnd || null); return; }
+        if (this.active.idx >= total) {
+            await this._end(this.active.dlg.onEnd || null);
+            return;
+        }
         this._renderStep();
     }
 
@@ -264,12 +345,19 @@ export class DialogUI {
     }
 
     async _applyFlags(flags) {
-        const g = this.game; let changed = false;
+        const g = this.game;
+        let changed = false;
         if (Array.isArray(flags)) {
-            for (const f of flags) if (!g.state.flags[f]) { g.state.flags[f] = true; changed = true; }
+            for (const f of flags) if (!g.state.flags[f]) {
+                g.state.flags[f] = true;
+                changed = true;
+            }
         } else if (flags && typeof flags === 'object') {
             for (const [k, v] of Object.entries(flags)) {
-                if (!!g.state.flags[k] !== !!v) { g.state.flags[k] = !!v; changed = true; }
+                if (!!g.state.flags[k] !== !!v) {
+                    g.state.flags[k] = !!v;
+                    changed = true;
+                }
             }
         }
         if (changed) g._saveState();
