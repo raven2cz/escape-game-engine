@@ -1,14 +1,17 @@
+/* ==========================================================================
+   Base layout & UI
+   ========================================================================== */
+
 * {
-    box-sizing: border-box
+    box-sizing: border-box;
 }
 
-html,
-body {
+html, body {
     height: 100%;
     margin: 0;
     font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
     background: #0f0f12;
-    color: #f5f5f5
+    color: #f5f5f5;
 }
 
 .topbar {
@@ -20,12 +23,12 @@ body {
     border-bottom: 1px solid #2a2a33;
     position: sticky;
     top: 0;
-    z-index: 50
+    z-index: 50;
 }
 
 .topbar .title {
     font-weight: 700;
-    letter-spacing: .3px
+    letter-spacing: .3px;
 }
 
 .topbar .controls button {
@@ -35,17 +38,17 @@ body {
     border: 1px solid #3a3a47;
     border-radius: 10px;
     padding: 8px 10px;
-    cursor: pointer
+    cursor: pointer;
 }
 
 .topbar .controls button:hover {
-    background: #3a3a47
+    background: #3a3a47;
 }
 
 #gameRoot {
     max-width: 1100px;
     margin: 0 auto;
-    padding: 10px
+    padding: 10px;
 }
 
 #sceneContainer {
@@ -54,14 +57,14 @@ body {
     background: #111;
     border: 1px solid #2a2a33;
     border-radius: 14px;
-    overflow: hidden
+    overflow: hidden;
 }
 
 #sceneImage {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    display: block
+    display: block;
 }
 
 #hotspotLayer {
@@ -69,21 +72,21 @@ body {
     left: 0;
     top: 0;
     right: 0;
-    bottom: 0
+    bottom: 0;
 }
 
 .hotspot {
     position: absolute;
-    border: 2px solid rgba(255, 255, 255, .0);
-    cursor: pointer
+    border: 2px solid rgba(255, 255, 255, 0);
+    cursor: pointer;
 }
 
 .hotspot:focus {
-    outline: none
+    outline: none;
 }
 
 .hotspot.require {
-    outline: 2px dashed rgba(255, 255, 0, .8)
+    outline: 2px dashed rgba(255, 255, 0, .8);
 }
 
 #uiBar {
@@ -91,13 +94,13 @@ body {
     gap: 10px;
     align-items: center;
     justify-content: space-between;
-    margin-top: 10px
+    margin-top: 10px;
 }
 
 #inventory {
     display: flex;
     gap: 8px;
-    flex-wrap: wrap
+    flex-wrap: wrap;
 }
 
 .item {
@@ -118,21 +121,21 @@ body {
 
 .item:active {
     transform: translateY(1px);
-    opacity: .9
+    opacity: .9;
 }
 
 .item img {
     width: 22px;
     height: 22px;
-    object-fit: contain
+    object-fit: contain;
 }
 
 #msg {
-    opacity: .9
+    opacity: .9;
 }
 
 .hidden {
-    display: none !important
+    display: none !important;
 }
 
 #modal {
@@ -142,7 +145,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 100
+    z-index: 100;
 }
 
 .modal-content {
@@ -150,24 +153,24 @@ body {
     background: #18181d;
     border: 1px solid #30303b;
     border-radius: 14px;
-    padding: 14px
+    padding: 14px;
 }
 
 .modal-title {
     font-weight: 700;
-    margin-bottom: 8px
+    margin-bottom: 8px;
 }
 
-.modal-body input[type=text],
-.modal-body input[type=password] {
+.modal-body input[type=text], .modal-body input[type=password] {
     width: 100%;
     padding: 10px;
     border-radius: 10px;
     border: 1px solid #343444;
     background: #101014;
-    color: #fff
+    color: #fff;
 }
 
+/* Editor overlay (scene/puzzle editor) */
 #editorOverlay {
     position: absolute;
     left: 0;
@@ -180,7 +183,7 @@ body {
 
 .editor-on #hotspotLayer .hotspot {
     pointer-events: none !important;
-    border-color: rgba(0, 200, 255, .75)
+    border-color: rgba(0, 200, 255, .75);
 }
 
 .editor-toolbar {
@@ -203,7 +206,7 @@ body {
     border: 1px solid #3a3a47;
     border-radius: 8px;
     padding: 6px 8px;
-    cursor: pointer
+    cursor: pointer;
 }
 
 .editor-hint {
@@ -212,7 +215,7 @@ body {
     top: 10px;
     background: rgba(0, 0, 0, .45);
     padding: 6px 8px;
-    border-radius: 8px
+    border-radius: 8px;
 }
 
 .hs-label {
@@ -242,7 +245,7 @@ body {
 }
 
 .editor-jsonpanel-title {
-    font-weight: 700
+    font-weight: 700;
 }
 
 .editor-jsonpanel-text {
@@ -271,6 +274,7 @@ body {
     cursor: pointer;
 }
 
+/* Strong hotspot reset to avoid theme collisions */
 #hotspotLayer .hotspot {
     position: absolute;
     background: transparent !important;
@@ -282,12 +286,11 @@ body {
     appearance: none;
     -webkit-appearance: none;
     -moz-appearance: none;
-    -webkit-tap-highlight-color: transparent; /* mobile Safari/Chrome */
+    -webkit-tap-highlight-color: transparent;
     cursor: pointer;
 }
 
-#hotspotLayer .hotspot:focus,
-#hotspotLayer .hotspot:focus-visible {
+#hotspotLayer .hotspot:focus, #hotspotLayer .hotspot:focus-visible {
     outline: none !important;
     box-shadow: none !important;
 }
@@ -303,12 +306,10 @@ body {
     background: rgba(255, 255, 0, .12) !important;
 }
 
+/* Toasts */
 .toast-container {
     position: fixed !important;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    left: 0;
+    inset: 0;
     width: 100vw;
     height: 100vh;
     display: flex !important;
@@ -318,7 +319,6 @@ body {
     pointer-events: none;
 }
 
-/* Toast */
 .toast {
     max-width: min(640px, 90vw);
     background: rgba(20, 20, 26, .95);
@@ -345,62 +345,58 @@ body {
     z-index: 50;
     border-radius: 12px;
     background: radial-gradient(ellipse at center,
-    rgba(0, 200, 255, 0.18) 0%,
-    rgba(0, 200, 255, 0.12) 60%,
-    rgba(0, 200, 255, 0.00) 100%);
-    box-shadow: 0 0 0.8rem rgba(0, 200, 255, .35),
-    0 0 2.2rem rgba(0, 200, 255, .25);
+    rgba(0, 200, 255, .18) 0%,
+    rgba(0, 200, 255, .12) 60%,
+    rgba(0, 200, 255, 0) 100%);
+    box-shadow: 0 0 .8rem rgba(0, 200, 255, .35), 0 0 2.2rem rgba(0, 200, 255, .25);
     animation: hs-pulse 1.4s ease-in-out infinite;
     will-change: opacity, transform;
 }
 
-/* .hs-glow.outline { background: transparent; border: 2px solid rgba(0,200,255,.9); } */
-
 @keyframes hs-pulse {
     0% {
-        opacity: 0.65;
-        transform: scale(0.98);
+        opacity: .65;
+        transform: scale(.98);
     }
-
     50% {
-        opacity: 1.00;
-        transform: scale(1.00);
+        opacity: 1;
+        transform: scale(1);
     }
-
     100% {
-        opacity: 0.65;
-        transform: scale(0.98);
+        opacity: .65;
+        transform: scale(.98);
     }
 }
 
-/* Selected inventory item (use-mode) */
+/* Inventory: selected item & use-mode pointer */
 .item.selected {
-    outline: 2px solid rgba(30, 144, 255, 0.9);
+    outline: 2px solid rgba(30, 144, 255, .9);
     outline-offset: 2px;
 }
 
-/* Optional: cursor hint while in use-mode */
 body.use-on #hotspotLayer {
     cursor: crosshair;
 }
 
-/* === Dialog UI – portraits pinned to panel (baseline + speaking effect) === */
+/* ==========================================================================
+   Dialog UI – portraits pinned to the panel
+   ========================================================================== */
 
 .dlg-overlay {
     position: absolute; /* inside #sceneContainer */
     inset: 0;
     z-index: 1100;
     display: grid;
-    grid-template-rows: 1fr auto; /* stage on top, panel at bottom */
-    background: rgba(0, 0, 0, 0.35);
-    pointer-events: none; /* clicks pass through; panel handles them */
+    grid-template-rows: 1fr auto; /* stage, panel */
+    background: rgba(0, 0, 0, .35);
+    pointer-events: none; /* panel takes the clicks */
 }
 
 .dlg-overlay.hidden {
     display: none !important;
 }
 
-/* top stage – its bottom edge aligns with panel’s top edge */
+/* Stage holds two portrait anchors that sit on the panel's top edge */
 .dlg-stage {
     position: relative;
     min-height: 0;
@@ -408,17 +404,16 @@ body.use-on #hotspotLayer {
     pointer-events: none;
 }
 
-/* Portrait frame is absolutely positioned in .dlg-stage,
-   sitting on the bottom => exactly on top of the panel */
+/* Portrait columns */
 .dlg-char {
     position: absolute;
     left: 2vw;
     right: auto;
-    bottom: 0; /* KEY: sit on the panel */
-    height: 100%; /* height = full stage */
+    bottom: 0;
+    height: 100%;
     width: min(42vw, 380px);
     display: flex;
-    align-items: flex-end; /* image sits on the “ground” of the frame */
+    align-items: flex-end;
     justify-content: center;
     user-select: none;
     transform: translateY(0) scale(1);
@@ -431,8 +426,6 @@ body.use-on #hotspotLayer {
     right: 2vw;
 }
 
-/* Images never exceed the frame height.
-   Small safety offset so heads don’t clip on a pixel. */
 .dlg-char-img {
     width: 100%;
     height: auto;
@@ -443,7 +436,7 @@ body.use-on #hotspotLayer {
     transform: translateZ(0);
 }
 
-/* Speaker emphasis – NO opacity: gentle lift+scale and stronger shadow */
+/* Speaker emphasis: subtle lift + slight scale */
 .dlg-char.speaking {
     transform: translateY(-6px) scale(1.02);
 }
@@ -452,12 +445,12 @@ body.use-on #hotspotLayer {
     filter: drop-shadow(0 12px 34px rgba(0, 0, 0, .55)) saturate(1.04);
 }
 
-/* Non-speaker: tiny attenuation only (no transparency) */
+/* Non-speaker: mild attenuation, no opacity fade */
 .dlg-char:not(.speaking) .dlg-char-img {
     filter: drop-shadow(0 10px 28px rgba(0, 0, 0, .45)) brightness(.95);
 }
 
-/* panel */
+/* Dialog panel */
 .dlg-panel {
     position: relative;
     width: min(1100px, 100%);
@@ -467,10 +460,10 @@ body.use-on #hotspotLayer {
     border-radius: 14px 14px 0 0;
     padding: 12px 14px 32px 14px;
     box-shadow: 0 -8px 30px rgba(0, 0, 0, .35);
-    pointer-events: auto; /* panel accepts clicks */
+    pointer-events: auto;
 }
 
-/* speaker nameplate – sits on the panel, left-aligned */
+/* Speaker nameplate */
 .dlg-nameplate {
     position: absolute;
     left: 16px;
@@ -488,44 +481,14 @@ body.use-on #hotspotLayer {
     text-overflow: ellipsis;
 }
 
-/* text / choices */
+/* Text */
 .dlg-text {
     min-height: 56px;
     line-height: 1.45;
     color: #f5f5f5;
 }
 
-.dlg-choices {
-    margin-top: 10px;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-}
-
-.dlg-choice {
-    background: #2b2b34;
-    color: #fff;
-    border: 1px solid #3a3a47;
-    border-radius: 10px;
-    padding: 8px 10px;
-    cursor: pointer;
-}
-
-.dlg-choice:active {
-    transform: translateY(1px);
-    opacity: .95;
-}
-
-.dlg-continue {
-    position: absolute;
-    right: 12px;
-    bottom: 8px;
-    font-size: 12px;
-    opacity: .75;
-    user-select: none;
-}
-
-/* compact mode */
+/* Compact mode tweaks */
 .dlg-compact .dlg-char {
     width: min(36vw, 300px);
 }
@@ -536,157 +499,106 @@ body.use-on #hotspotLayer {
     }
 }
 
-.editor-on #hotspotLayer .hotspot {
-    /* your highlight in editor */
-}
-
+/* Keep scene hotspots invisible while puzzle editor is active */
 .editor-puzzle-mode #hotspotLayer > .hotspot {
     visibility: hidden !important;
     pointer-events: none !important;
 }
 
 /* ==========================================================================
-   Dialog choices unified with puzzle buttons
-   - Reuse puzzle variables/animation if puzzles.css is loaded
-   - Provide safe fallbacks so dialogs look fine standalone
-   ======================================================================= */
+   Dialog choices – unified with puzzle buttons
+   - Scoped to .dlg-overlay to prevent global leaks
+   - Pill buttons around text (no 100% width)
+   - Green hover/confirm to match OK/correct visuals
+   ========================================================================== */
 
-/* Scope variables to the dialog overlay so they don't leak globally. */
 .dlg-overlay {
-    /* Pull from puzzles.css if present, otherwise use fallbacks */
-    --pz-btn-bg: var(--pz-btn-bg, rgba(255, 255, 255, 0.10));
-    --pz-btn-border: var(--pz-btn-border, rgba(255, 255, 255, 0.35));
-    --pz-btn-radius: var(--pz-btn-radius, 12px);
-    --pz-btn-text: var(--pz-btn-text, rgba(255, 255, 255, 0.95));
+    /* Stable dialog-scoped tokens (optionally reading from puzzles.css) */
+    --dlg-choice-bg: var(--pz-btn-bg, rgba(255, 255, 255, 0.10));
+    --dlg-choice-border: var(--pz-btn-border, rgba(255, 255, 255, 0.35));
+    --dlg-choice-text: var(--pz-btn-text, rgba(255, 255, 255, 0.95));
+    --dlg-choice-radius: var(--pz-btn-radius, 12px);
 
-    --pz-selected-bg: var(--pz-selected-bg, rgba(90, 160, 255, 0.22));
-    --pz-selected-border: var(--pz-selected-border, rgba(90, 160, 255, 0.50));
+    /* Green look aligned with OK/correct */
+    --dlg-choice-hover-bg: var(--pz-correct-bg, rgba(80, 200, 120, 0.18));
+    --dlg-choice-hover-border: var(--pz-correct-border, rgba(80, 200, 120, 0.55));
+    --dlg-choice-selected-bg: var(--pz-correct-bg, rgba(80, 200, 120, 0.24));
+    --dlg-choice-selected-border: var(--pz-correct-border, rgba(80, 200, 120, 0.62));
 
-    --pz-correct-bg: var(--pz-correct-bg, rgba(20, 220, 90, 0.22));
-    --pz-correct-border: var(--pz-correct-border, rgba(20, 220, 90, 0.65));
-
-    --pz-hover-boost: var(--pz-hover-boost, 0 0 0 3px rgba(255, 255, 255, 0.10));
-    --pz-transition-normal: var(--pz-transition-normal, 250ms ease);
-    --pz-transition-slow: var(--pz-transition-slow, 350ms ease);
-
-    /* Optional explicit hover vars; fall back to "selected" tint if puzzles.css doesn't define them */
-    --pz-btn-hover-bg: var(--pz-btn-hover-bg, var(--pz-selected-bg, rgba(90, 160, 255, 0.22)));
-    --pz-btn-hover-border: var(--pz-btn-hover-border, var(--pz-selected-border, rgba(90, 160, 255, 0.50)));
-    --pz-btn-disabled-bg: var(--pz-btn-disabled-bg, rgba(255, 255, 255, 0.06));
-    --pz-btn-disabled-border: var(--pz-btn-disabled-border, rgba(255, 255, 255, 0.18));
+    --dlg-t: 250ms ease;
 }
 
-/* Base look mirrors puzzle buttons (see puzzles.css). */
-.dlg-choices {
+/* Choices container: vertical, centered, with spacing */
+.dlg-overlay .dlg-choices {
+    pointer-events: auto;
     display: flex;
     flex-direction: column;
-    gap: clamp(6px, 1.2vh, 12px);
+    align-items: center;
+    gap: 12px;
+    padding: 4px 0;
+    margin-top: 10px;
 }
 
-.dlg-choice {
-    background: var(--pz-btn-bg);
-    border: 1px solid var(--pz-btn-border);
-    border-radius: var(--pz-btn-radius);
-    color: var(--pz-btn-text);
-    font: 600 1rem/1.2 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
-    cursor: pointer;
-    text-align: center;
-    min-width: 8ch;
-    padding: 0.8vh 1.5vw;
-    transition: background var(--pz-transition-slow),
-    border-color var(--pz-transition-slow),
-    box-shadow var(--pz-transition-normal),
-    transform 80ms ease;
+/* Ensure the “tap to continue” hint never blocks hover */
+.dlg-overlay .dlg-continue {
+    position: absolute;
+    right: 12px;
+    bottom: 8px;
+    font-size: 12px;
+    opacity: .75;
     user-select: none;
+    pointer-events: none;
 }
 
-/* Visible hover/focus tint (blue-ish like puzzle selection) */
-.dlg-choice:hover {
-    background: var(--pz-btn-hover-bg);
-    border-color: var(--pz-btn-hover-border);
-    box-shadow: var(--pz-hover-boost);
+/* Choice pills – compact, not full-width */
+.dlg-overlay .dlg-choice {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: auto !important;
+    max-width: min(92%, 780px);
+    padding: 10px 18px;
+    background: var(--dlg-choice-bg);
+    color: var(--dlg-choice-text);
+    border: 1px solid var(--dlg-choice-border);
+    border-radius: var(--dlg-choice-radius);
+    text-align: center;
+    white-space: normal;
+    transition: background var(--dlg-t), border-color var(--dlg-t),
+    box-shadow var(--dlg-t), transform 80ms ease;
 }
 
-.dlg-choice:focus-visible {
+.dlg-overlay .dlg-choice:hover,
+.dlg-overlay .dlg-choice:focus-visible {
     outline: none;
-    background: var(--pz-btn-hover-bg);
-    border-color: var(--pz-btn-hover-border);
-    box-shadow: 0 0 0 2px var(--pz-btn-hover-border), var(--pz-hover-boost);
-    transition: box-shadow var(--pz-transition-normal), background var(--pz-transition-slow), border-color var(--pz-transition-slow);
+    background: var(--dlg-choice-hover-bg) !important; /* green hover */
+    border-color: var(--dlg-choice-hover-border) !important;
+    box-shadow: 0 0 0 2px var(--dlg-choice-hover-border),
+    0 0 0 4px rgba(0, 0, 0, .15);
 }
 
-.dlg-choice:active {
+.dlg-overlay .dlg-choice:active {
     transform: translateY(1px);
 }
 
-/* Selected = "OK-like" green pulse (consistent with puzzle OK/Correct). */
-.dlg-choice--selected {
-    background: var(--pz-correct-bg);
-    border-color: var(--pz-correct-border);
-    /* token-pulse-correct is defined in puzzles.css; if absent, animation just won't run */
-    animation: token-pulse-correct 0.4s ease;
+/* Confirmed selection (JS toggles .dlg-choice--selected) */
+.dlg-overlay .dlg-choice.dlg-choice--selected {
+    background: var(--dlg-choice-selected-bg) !important;
+    border-color: var(--dlg-choice-selected-border) !important;
+    box-shadow: 0 0 0 2px var(--dlg-choice-selected-border),
+    0 0 0 6px rgba(0, 0, 0, .18);
+    animation: token-pulse-correct .35s ease;
 }
 
-/* Disabled state during flash to avoid double clicks */
-.dlg-choice[disabled] {
+/* Disabled while flashing to prevent double taps/clicks */
+.dlg-overlay .dlg-choice[disabled] {
     cursor: default;
-    background: var(--pz-btn-disabled-bg);
-    border-color: var(--pz-btn-disabled-border);
-    opacity: 0.85;
+    background: rgba(255, 255, 255, .06);
+    border-color: rgba(255, 255, 255, .18);
+    opacity: .85;
 }
 
-/* === Dialog choices – compact OK-like pills (scoped to .dlg-overlay) === */
-.dlg-overlay{
-  --dlg-choice-bg:           var(--pz-btn-bg, rgba(255,255,255,0.06));
-  --dlg-choice-border:       var(--pz-btn-border, rgba(255,255,255,0.24));
-  --dlg-choice-hover-bg:     var(--pz-correct-bg, rgba(80,200,120,0.18));
-  --dlg-choice-hover-border: var(--pz-correct-border, rgba(80,200,120,0.55));
-  --dlg-choice-radius:       var(--pz-radius, 12px);
+/* Compact viewport: slightly tighter paddings */
+.dlg-overlay.dlg-compact .dlg-choice {
+    padding: 8px 14px;
 }
-
-/* Konteiner voleb – zarovnání na střed, svisle pod sebou, žádné blokování hoveru */
-.dlg-overlay .dlg-choices{
-  pointer-events: auto;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  padding: 4px 0;
-}
-.dlg-overlay .dlg-continue{ pointer-events: none; }
-
-.dlg-overlay .dlg-choice{
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: auto !important;
-  max-width: min(92%, 780px);
-  padding: 10px 18px;
-  border-radius: var(--dlg-choice-radius);
-  background-color: var(--dlg-choice-bg);
-  border: 1px solid var(--dlg-choice-border);
-  color: inherit;
-  text-align: center;
-  white-space: normal;
-  transition: background-color 200ms ease, border-color 200ms ease,
-              box-shadow 200ms ease, transform 100ms ease;
-}
-.dlg-overlay .dlg-choice:hover,
-.dlg-overlay .dlg-choice:focus-visible{
-  outline: none;
-  background-color: var(--dlg-choice-hover-bg) !important;      /* zelený hover */
-  border-color: var(--dlg-choice-hover-border) !important;
-  box-shadow: 0 0 0 2px var(--dlg-choice-hover-border), 0 0 0 4px rgba(0,0,0,.15);
-}
-.dlg-overlay .dlg-choice:active{ transform: translateY(1px); }
-
-/* „OK-like“ potvrzení po kliknutí (JS přidává .dlg-choice--selected) */
-.dlg-overlay .dlg-choice.dlg-choice--selected{
-  background-color: var(--pz-correct-bg, rgba(80,200,120,0.24)) !important;
-  border-color: var(--pz-correct-border, rgba(80,200,120,0.62)) !important;
-  box-shadow: 0 0 0 2px var(--pz-correct-border), 0 0 0 6px rgba(0,0,0,.18);
-  animation: token-pulse-correct 0.35s ease;
-}
-
-/* Kompakt mód (nižší viewport) – lehčí padding */
-.dlg-overlay.dlg-compact .dlg-choice{ padding: 8px 14px; }
