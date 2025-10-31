@@ -22,7 +22,7 @@ function t(i18n, key, fallback = '', params = null) {
     const result = fmt(raw, params);
 
     if (DBG() && key && result === fallback) {
-        console.debug('[i18n] key not found:', { key, fallback, result });
+        console.debug('[i18n] key not found:', {key, fallback, result});
     }
 
     return result;
@@ -61,4 +61,4 @@ function text(i18n, val, fallback = '') {
     return String(val ?? fallback);
 }
 
-export { fmt, t, text };
+export {fmt, t, text};

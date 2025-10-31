@@ -1,7 +1,7 @@
 // engine/puzzles/kinds/group.js
 // Kind: group â€“ drag tokens into correct group areas (grid/manual layout)
 
-import { BasePuzzle } from '../base.js';
+import {BasePuzzle} from '../base.js';
 
 const DBG = () => (typeof window !== 'undefined' && /\bdebug=1\b/.test(window.location.search));
 
@@ -52,7 +52,7 @@ export default class GroupPuzzle extends BasePuzzle {
             const groupCount = (this.config.groups || []).length;
 
             // Calculate optimal grid dimensions
-            const { cols, rows } = this._calculateGridDimensions(groupCount, dir);
+            const {cols, rows} = this._calculateGridDimensions(groupCount, dir);
 
             const gap = layoutCfg.gap || '10px';
 
@@ -146,30 +146,30 @@ export default class GroupPuzzle extends BasePuzzle {
      * Ensures groups are centered and well-distributed.
      */
     _calculateGridDimensions(count, direction) {
-        if (count <= 0) return { cols: 1, rows: 1 };
+        if (count <= 0) return {cols: 1, rows: 1};
 
         if (direction === 'vertical') {
             // Vertical: prefer filling columns first (groups side by side)
             // 1-3 groups → single row
             // 4+ groups → try to make roughly square grid
             if (count <= 3) {
-                return { cols: count, rows: 1 };
+                return {cols: count, rows: 1};
             }
             // For 4+: calculate optimal columns (roughly sqrt, prefer more columns than rows)
             const cols = Math.ceil(Math.sqrt(count));
             const rows = Math.ceil(count / cols);
-            return { cols, rows };
+            return {cols, rows};
         } else {
             // Horizontal: prefer filling rows first (groups stacked vertically)
             // 1-3 groups → single column
             // 4+ groups → try to make roughly square grid
             if (count <= 3) {
-                return { cols: 1, rows: count };
+                return {cols: 1, rows: count};
             }
             // For 4+: calculate optimal rows (roughly sqrt, prefer more rows than columns)
             const rows = Math.ceil(Math.sqrt(count));
             const cols = Math.ceil(count / rows);
-            return { cols, rows };
+            return {cols, rows};
         }
     }
 
@@ -243,15 +243,15 @@ export default class GroupPuzzle extends BasePuzzle {
             }
 
             if (DBG()) {
-                console.debug('[PZ.group] drag end:', { id, group: hitGroupId });
+                console.debug('[PZ.group] drag end:', {id, group: hitGroupId});
             }
         };
 
         el.addEventListener('mousedown', onDown);
-        el.addEventListener('touchstart', onDown, { passive: false });
+        el.addEventListener('touchstart', onDown, {passive: false});
 
         document.addEventListener('mousemove', onMove);
-        document.addEventListener('touchmove', onMove, { passive: false });
+        document.addEventListener('touchmove', onMove, {passive: false});
 
         document.addEventListener('mouseup', onUp);
         document.addEventListener('touchend', onUp);
@@ -294,7 +294,7 @@ export default class GroupPuzzle extends BasePuzzle {
                     this._inGroup.delete(id);
                 }
             }
-            return { hold: true };
+            return {hold: true};
         }
 
         const detail = {};
@@ -303,12 +303,12 @@ export default class GroupPuzzle extends BasePuzzle {
         }
 
         if (DBG()) {
-            console.debug('[PZ.group] onOk result:', { allOk, groups: detail, solutions: sol });
+            console.debug('[PZ.group] onOk result:', {allOk, groups: detail, solutions: sol});
         }
 
         return {
             ok: allOk,
-            detail: { groups: detail }
+            detail: {groups: detail}
         };
     }
 }

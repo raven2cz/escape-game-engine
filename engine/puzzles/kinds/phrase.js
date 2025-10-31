@@ -1,5 +1,5 @@
-import { BasePuzzle } from '../base.js';
-import { normalizeText } from '../../utils.js';
+import {BasePuzzle} from '../base.js';
+import {normalizeText} from '../../utils.js';
 
 const DBG = () => (typeof window !== 'undefined' && /\bdebug=1\b/.test(window.location.search));
 
@@ -14,12 +14,11 @@ export default class PhrasePuzzle extends BasePuzzle {
         const flow = this.flowEl;
         this.root?.classList.add('pz-kind-phrase');
 
-        // Kontejner pro input (expanduje na plnou šířku, centruje vertikálně)
         const inputWrap = document.createElement('div');
         inputWrap.className = 'pz-input-wrap';
 
         const input = document.createElement('input');
-        input.setAttribute('data-id','input');
+        input.setAttribute('data-id', 'input');
         input.className = 'pz-input';
         input.type = 'text';
         const placeholderText = this.t(this.config.placeholder, '…');
@@ -27,8 +26,14 @@ export default class PhrasePuzzle extends BasePuzzle {
         input.autocomplete = 'off';
         input.spellcheck = false;
         input.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter')  { e.preventDefault(); this.onOk(); }
-            if (e.key === 'Escape') { e.preventDefault(); this.onCancel(); }
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                this.onOk();
+            }
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                this.onCancel();
+            }
         });
 
         if (DBG()) {
@@ -80,9 +85,9 @@ export default class PhrasePuzzle extends BasePuzzle {
         if (!ok && this.instanceOptions.blockUntilSolved) {
             this._els.input.classList.add('invalid');
             setTimeout(() => this._els.input.classList.remove('invalid'), 600);
-            return { hold: true };
+            return {hold: true};
         }
 
-        return { ok, detail: { value: v } };
+        return {ok, detail: {value: v}};
     }
 }

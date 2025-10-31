@@ -1,29 +1,43 @@
 // engine/editor.js
-// Unified editor for Scenes and Puzzles 2.0  (FULL VERSION, AUTO vs MANUAL)
-// - Scene mode: zelený výběrový obdélník (copy/show JSON)
-// - Puzzle mode:
-//   AUTO layout  : jen žluté okno (.pz__window) – drag/resize; žádné fialové boxy
-//   MANUAL layout: žluté okno LOCKED 100% (0/0/100/100); fialové boxy pro VŠECHNY [data-id] uvnitř .pz__window
-//                  (footer se polohuje jako celek; ok/cancel se nepolohují, pokud footer existuje)
-// - Auto switch Scene <-> Puzzle
-// - Nikdy neschovávej celý hotspotLayer, pouze .hotspot
+// Unified editor for Scenes and Puzzles 2.0 (AUTO vs MANUAL).
+// Scene mode:
+//   - Green selection rectangle over the hotspot layer (copy/show JSON).
+// Puzzle mode:
+//   - AUTO layout  : only the yellow work window (.pz__window) is draggable/resizable; no purple boxes.
+//   - MANUAL layout: yellow window is LOCKED to 0/0/100/100; purple overlays appear for ALL [data-id]
+//                    elements inside .pz__window. Footer moves as one unit; ok/cancel are positioned
+//                    relative to it if the footer exists.
+// Mode auto-switch: Scene <-> Puzzle when .pz appears or disappears.
+// Never hide the entire hotspot layer. If needed, only hide its direct `.hotspot` children.
 
 const DBG = () => (typeof window !== 'undefined' && /\bdebug=1\b/.test(window.location.search));
 
+/**
+ * Top-level editor orchestrating Scene & Puzzle sub-editors and mode switching.
+ * It owns the global overlay and never hides the user's hotspot layer wholesale.
+ */
 export class Editor {
+    /**
+     * @param {{game:any, overlay:HTMLElement, hotspotLayer:HTMLElement}} deps
+     */
     constructor({game, overlay, hotspotLayer}) {
         this.game = game;
-        this.overlay = overlay;           // globální overlay (pro Scene a info panely)
+        this.overlay = overlay;           // Global overlay (Scene + info panels)
         this.hotspotLayer = hotspotLayer;
         this.sceneContainer = hotspotLayer?.parentElement || document.body;
 
         this.enabled = false;
-        this.currentMode = null;   // 'scene' | 'puzzle'
+        /** @type {'scene'|'puzzle'|null} */
+        this.currentMode = null;
+        /** @type {SceneEditor|null} */
         this.sceneEditor = null;
+        /** @type {PuzzleEditor|null} */
         this.puzzleEditor = null;
+        /** @type {MutationObserver|null} */
         this._rootObserver = null;
     }
 
+    /** Enable the editor; detect initial mode; attach observers. */
     enable() {
         if (this.enabled) return;
         this.enabled = true;
@@ -42,6 +56,7 @@ export class Editor {
         this._startRootObserver();
     }
 
+    /** Disable the editor and remove all overlays and listeners. */
     disable() {
         if (!this.enabled) return;
         this.enabled = false;
@@ -56,10 +71,12 @@ export class Editor {
         document.body.classList.remove('editor-on');
     }
 
+    /** Toggle enable/disable. */
     toggle() {
         this.enabled ? this.disable() : this.enable();
     }
 
+    /** Remove sub-editors, overlays, and restore hotspot layer safety. */
     _cleanup() {
         if (this.sceneEditor) {
             try {
@@ -89,7 +106,7 @@ export class Editor {
 
         document.body.classList.remove('editor-puzzle-mode', 'editor-scene-mode');
 
-        // obnova jen pro jistotu; žádné visibility:hidden na celé vrstvě
+        // Defensive restore: never leave the whole layer hidden or disabled
         if (this.hotspotLayer) {
             this.hotspotLayer.style.visibility = '';
             this.hotspotLayer.style.pointerEvents = '';
@@ -97,6 +114,7 @@ export class Editor {
         }
     }
 
+    /** Switch to scene mode with rectangle drawer. */
     _activateSceneMode() {
         this.currentMode = 'scene';
         this._setSceneHotspotsVisible(true);
@@ -108,10 +126,11 @@ export class Editor {
         this._setModeClasses('scene');
     }
 
+    /** Switch to puzzle mode, choosing AUTO or MANUAL based on .pz root. */
     _activatePuzzleMode(puzzleRoot) {
         this.currentMode = 'puzzle';
 
-        // NIKDY neschovávej celý #hotspotLayer, jen samotné .hotspot
+        // Never hide the whole #hotspotLayer – only its direct .hotspot children
         this._setSceneHotspotsVisible(false);
 
         this.overlay.innerHTML = '';
@@ -123,6 +142,10 @@ export class Editor {
         this._setModeClasses('puzzle');
     }
 
+    /**
+     * Observe DOM for .pz presence and flip Scene/Puzzle mode automatically.
+     * @private
+     */
     _startRootObserver() {
         if (this._rootObserver) return;
         const detect = () => {
@@ -148,6 +171,7 @@ export class Editor {
         detect();
     }
 
+    /** Stop observing root DOM changes. */
     _stopRootObserver() {
         try {
             this._rootObserver?.disconnect();
@@ -156,11 +180,15 @@ export class Editor {
         this._rootObserver = null;
     }
 
-    // ULOŽÍ/OBNOVÍ původní inline-styly hotspotLayer a přepne jeho viditelnost.
+    /**
+     * Toggle visibility and pointer-events for direct `.hotspot` children only.
+     * Never hides the entire layer node to avoid side effects elsewhere.
+     * @param {boolean} show
+     * @private
+     */
     _setSceneHotspotsVisible(show) {
         if (!this.hotspotLayer) return;
-        // :scope zajistí, že saháme jen na přímé potomky v hotspotLayer,
-        // tj. na <button class="hotspot"> – NIC dalšího.
+        // :scope ensures touching direct children only
         const nodes = this.hotspotLayer.querySelectorAll(':scope > .hotspot');
         nodes.forEach(btn => {
             btn.style.visibility = show ? '' : 'hidden';
@@ -168,16 +196,29 @@ export class Editor {
         });
     }
 
-    // Pohodlný přepínač podle módu
+    /** Convenience CSS mode toggler. */
     _setModeClasses(mode) {
         document.body.classList.toggle('editor-puzzle-mode', mode === 'puzzle');
         document.body.classList.toggle('editor-scene-mode', mode === 'scene');
     }
 }
 
-// ---------------- Scene editor ----------------
+/* ========================================================================== */
+/*                                Scene editor                                */
 
+/* ========================================================================== */
+
+/**
+ * Rectangle drawer for Scene hotspots. Allows draw, move, and resize of a single rect
+ * in percentages relative to the hotspot layer.
+ */
 class SceneEditor {
+    /**
+     * @param {any} game
+     * @param {HTMLElement} overlay
+     * @param {HTMLElement} hotspotLayer
+     * @param {HTMLElement} container
+     */
     constructor(game, overlay, hotspotLayer, container) {
         this.game = game;
         this.overlay = overlay;
@@ -201,6 +242,7 @@ class SceneEditor {
         this._onKeyDown = this._onKeyDown.bind(this);
     }
 
+    /** Build UI and attach event listeners. */
     enable() {
         this._buildToolbar();
         this._buildHint();
@@ -208,6 +250,7 @@ class SceneEditor {
         this._renderPersistent();
     }
 
+    /** Remove listeners and nodes. */
     destroy() {
         this._unbind();
         this.overlay.innerHTML = '';
@@ -575,18 +618,31 @@ class SceneEditor {
     }
 }
 
-// ---------------- Puzzle editor ----------------
+/* ========================================================================== */
+/*                               Puzzle editor                                */
 
+/* ========================================================================== */
+
+/**
+ * Manual and AUTO puzzle layout editor.
+ * AUTO: only the yellow window overlay is interactive.
+ * MANUAL: window is locked to 0/0/100/100, each [data-id] gets a purple overlay and can be positioned.
+ */
 class PuzzleEditor {
+    /**
+     * @param {HTMLElement} puzzleRoot  The .pz root
+     * @param {HTMLElement} overlay     Global overlay (used for AUTO mode)
+     * @param {HTMLElement} container   Document container (used for hints/toolbars)
+     */
     constructor(puzzleRoot, overlay, container) {
         this.puzzleRoot = puzzleRoot;
-        this.overlay = overlay;      // globální overlay (pro AUTO)
+        this.overlay = overlay;      // Global overlay (AUTO)
         this.container = container;
 
         this.windowEl = puzzleRoot.querySelector('.pz__window');
         this.isManualLayout = puzzleRoot.classList.contains('pz--manual');
 
-        this.localLayer = null;      // MANUAL: overlay uvnitř .pz__window
+        this.localLayer = null;      // MANUAL: overlay anchored inside .pz__window
         this.visualizations = [];
         this.vizById = new Map();    // id -> viz box
         this.components = new Map(); // el -> { id, type, element, _rect, parentId? }
@@ -605,6 +661,7 @@ class PuzzleEditor {
         this._onKeyDown = this._onKeyDown.bind(this);
     }
 
+    /** Build UI and interactivity for AUTO or MANUAL based on .pz flags. */
     enable() {
         this._buildHint();
         this._buildToolbar();
@@ -615,7 +672,7 @@ class PuzzleEditor {
         }
 
         if (!this.isManualLayout) {
-            // ==== AUTO: žluté okno je DRAG/RESIZE ====
+            // AUTO: yellow window is the only draggable/resizable thing
             this.overlay.style.pointerEvents = 'auto';
             const wRect = this._rectOf(this.windowEl, this.puzzleRoot);
             const winViz = this._makeVizBox(wRect, 'pz-viz-window', 'Work Window', '#ff0', /*locked=*/false);
@@ -631,16 +688,16 @@ class PuzzleEditor {
             return;
         }
 
-        // ==== MANUAL ====
+        // MANUAL
         this._overlayPEBackup = this.overlay.style.pointerEvents || '';
-        this.overlay.style.pointerEvents = 'none'; // nepřekážej myši uvnitř okna
+        this.overlay.style.pointerEvents = 'none'; // do not intercept mouse inside the window
 
         this._waitWindowReady(() => {
             this._ensureLocalLayer();
-            this._lockWindow100();        // žluté okno přepnuto na 0/0/100/100
-            this._detectComponents();     // včetně footer/ok/cancel
-            this._freezeInitialRects();   // absolute % + clamp
-            this._maybeAutoplace();       // rozhození pod sebe, pokud jsou nalepené
+            this._lockWindow100();        // force 0/0/100/100
+            this._detectComponents();     // includes footer/ok/cancel
+            this._freezeInitialRects();   // convert to absolute % + clamp
+            this._maybeAutoplace();       // stack vertically if everything is squashed near top-left
             this._createManualVisualizations();
             this._bind();
             this._updateJson();
@@ -648,6 +705,7 @@ class PuzzleEditor {
         });
     }
 
+    /** Remove listeners, overlays and restore global overlay pointer-events. */
     destroy() {
         this._unbind();
         this.visualizations.forEach(v => v.remove());
@@ -668,6 +726,11 @@ class PuzzleEditor {
 
     /* ---------- readiness & layers ---------- */
 
+    /**
+     * Wait until .pz__window has a measurable box to avoid 0x0 at initial render.
+     * @param {Function} cb
+     * @private
+     */
     _waitWindowReady(cb) {
         let tries = 0;
         const tick = () => {
@@ -680,6 +743,10 @@ class PuzzleEditor {
         requestAnimationFrame(tick);
     }
 
+    /**
+     * Ensure the local overlay layer mounted inside .pz__window for MANUAL mode.
+     * @private
+     */
     _ensureLocalLayer() {
         if (this.localLayer?.isConnected) return;
         const lv = document.createElement('div');
@@ -690,8 +757,11 @@ class PuzzleEditor {
         this.localLayer = lv;
     }
 
+    /**
+     * Lock yellow window to 0/0/100/100 relative to the puzzle root (.pz).
+     * @private
+     */
     _lockWindow100() {
-        // Přepiš `.pz__window` na 0/0/100/100 relativně k .pz (rootu)
         const root = this.puzzleRoot;
         if (getComputedStyle(root).position === 'static') root.style.position = 'relative';
         Object.assign(this.windowEl.style, {
@@ -708,8 +778,8 @@ class PuzzleEditor {
         const hint = document.createElement('div');
         hint.className = 'editor-hint';
         hint.textContent = this.isManualLayout
-            ? 'PUZZLE MANUAL: žluté okno locked 100% • hýbej fialovými boxy • Snap 1%'
-            : 'PUZZLE AUTO: hýbej žlutým oknem (drag/resize)';
+            ? 'PUZZLE MANUAL: yellow window locked 100% • move purple boxes • Snap 1%'
+            : 'PUZZLE AUTO: move the yellow window (drag/resize)';
         Object.assign(hint.style, {
             position: 'absolute',
             left: '10px',
@@ -810,6 +880,7 @@ class PuzzleEditor {
         this._updateJson();
     }
 
+    /** Copy current windowRect and, for MANUAL, the elements map to clipboard. */
     _exportPayload() {
         const payload = {
             windowRect: this._rectOf(this.windowEl || this.puzzleRoot, this.puzzleRoot),
@@ -829,6 +900,7 @@ class PuzzleEditor {
         this._updateJson();
     }
 
+    /** Dump detected [data-id] tree to console and clipboard for debugging. */
     _dumpTree() {
         const tree = this._buildTree();
         const json = JSON.stringify(tree, null, 2);
@@ -838,6 +910,7 @@ class PuzzleEditor {
 
     /* ---------- MANUAL pipeline ---------- */
 
+    /** Re-scan components and rebuild manual overlays. */
     _refreshManual() {
         if (!this.isManualLayout) return;
         this.visualizations.forEach(v => v.remove());
@@ -855,6 +928,7 @@ class PuzzleEditor {
         this._updateJson();
     }
 
+    /** Detect all [data-id] and footer grouping, record meta. */
     _detectComponents() {
         const els = this.windowEl.querySelectorAll('[data-id]');
         let footer = null;
@@ -869,13 +943,14 @@ class PuzzleEditor {
             const type = el.classList.contains('pz-token') ? 'token' : 'component';
             let parentId = null;
 
-            // ok/cancel – eviduj je a umožni ladění uvnitř footru
+            // ok/cancel live under footer for relative positioning and debugging
             if (this.footerEl && (id === 'ok' || id === 'cancel')) parentId = 'footer';
 
             this.components.set(el, {id, type, element: el, parentId});
         });
     }
 
+    /** Convert initial geometry to absolute percentages and clamp to parent. */
     _freezeInitialRects() {
         const relWin = this.windowEl;
         if (getComputedStyle(relWin).position === 'static') relWin.style.position = 'relative';
@@ -884,7 +959,7 @@ class PuzzleEditor {
             const rel = (meta.parentId === 'footer' && this.footerEl) ? this.footerEl : relWin;
             let r = this._rectOf(el, rel);
 
-            // CLAMPS + min size
+            // Clamps and minimal sizes
             if (r.x < 0) {
                 r.w = Math.max(0, r.w + r.x);
                 r.x = 0;
@@ -912,9 +987,12 @@ class PuzzleEditor {
         console.debug('[ED] freeze complete; elements:', this.components.size);
     }
 
+    /**
+     * If elements are squashed near the top-left, arrange them vertically centered,
+     * keep footer near bottom, and place ok/cancel inside the footer.
+     */
     _maybeAutoplace() {
-        // Pokud jsou komponenty nalepené nahoře, rozhoď je pod sebe na střed
-        const metasTop = Array.from(this.components.values()).filter(m => !m.parentId); // bez ok/cancel
+        const metasTop = Array.from(this.components.values()).filter(m => !m.parentId); // top-level only
         const rects = metasTop.map(m => m._rect);
         const squashed = rects.filter(r => r.y <= 2 || (r.x <= 2 && r.w <= 15)).length;
         if (squashed < Math.ceil(rects.length * 0.6)) {
@@ -955,18 +1033,17 @@ class PuzzleEditor {
             if (m.id !== 'footer') y += h + gap;
         });
 
-        // OK/Cancel → zarovnej v rámci footru (L/R)
+        // OK and Cancel inside footer: left and right respectively
         if (this.footerEl) {
             const btns = ['cancel', 'ok'];
             btns.forEach((id, i) => {
                 const el = this.windowEl.querySelector(`[data-id="${id}"]`);
                 if (!el) return;
-                const rel = this.footerEl.getBoundingClientRect();
-                const w = 20, h = 6, x = i === 0 ? 4 : 100 - 4 - w, y = 50 - h / 2;
+                const w = 20, h = 6, x = i === 0 ? 4 : 100 - 4 - w, yPct = 50 - h / 2;
                 Object.assign(el.style, {
                     position: 'absolute',
                     left: x + '%',
-                    top: y + '%',
+                    top: yPct + '%',
                     width: w + '%',
                     height: h + '%'
                 });
@@ -976,21 +1053,23 @@ class PuzzleEditor {
         console.debug('[ED] autoplace applied');
     }
 
+    /** Build overlays for manual mode. Yellow window locked, purple boxes for components. */
     _createManualVisualizations() {
-        // žlutý locked rám 0/0/100/100 uvnitř .pz__window
-        const winViz = this._makeVizBox({
-            x: 0,
-            y: 0,
-            w: 100,
-            h: 100
-        }, 'pz-viz-window', 'Work Window (locked)', '#ff0', true);
+        // Yellow locked frame 0/0/100/100 inside .pz__window
+        const winViz = this._makeVizBox(
+            {x: 0, y: 0, w: 100, h: 100},
+            'pz-viz-window',
+            'Work Window (locked)',
+            '#ff0',
+            true
+        );
         winViz.__target = this.windowEl;
         winViz.__relRoot = this.windowEl;
         this.localLayer.appendChild(winViz);
         this.visualizations.push(winViz);
         this.vizById.set('__window__', winViz);
 
-        // fialové boxy pro top-level + cyan pro ok/cancel
+        // Purple for top-level, cyan for ok/cancel
         for (const [el, meta] of this.components.entries()) {
             const isChild = (meta.parentId === 'footer' && this.footerEl);
             const label = meta.id;
@@ -1000,13 +1079,14 @@ class PuzzleEditor {
             const viz = this._makeVizBox(rWin, isChild ? 'pz-viz-child' : 'pz-viz-component', label, color, false);
             viz.__target = el;
             viz.__meta = meta;
-            viz.__relRoot = isChild ? this.footerEl : this.windowEl; // pohyb v % vůči rodiči
+            viz.__relRoot = isChild ? this.footerEl : this.windowEl; // movement in % relative to parent
             this.localLayer.appendChild(viz);
             this.visualizations.push(viz);
             this.vizById.set(meta.id, viz);
         }
     }
 
+    /** Keep ok/cancel overlays in sync when the footer moves. */
     _syncFooterChildrenPositions() {
         if (!this.footerEl) return;
         const kids = ['ok', 'cancel'];
@@ -1030,8 +1110,19 @@ class PuzzleEditor {
         });
     }
 
-    /* ---------- viz + interakce ---------- */
+    /* ---------- visualization + interactions ---------- */
 
+    /**
+     * Create a draggable/resizable overlay box.
+     * For component boxes there is no visible text label to avoid covering small targets.
+     * @param {{x:number,y:number,w:number,h:number}} rect
+     * @param {string} cls
+     * @param {string} label
+     * @param {string} color
+     * @param {boolean} locked
+     * @returns {HTMLDivElement}
+     * @private
+     */
     _makeVizBox(rect, cls, label, color, locked) {
         const box = document.createElement('div');
         box.className = 'pz-viz ' + cls;
@@ -1046,8 +1137,7 @@ class PuzzleEditor {
             pointerEvents: 'auto'
         });
 
-        // Popisek vykreslujeme jen pro žluté okno; u komponent není žádný text,
-        // aby nebránil v přesném pozicování malých prvků (např. OK/Cancel).
+        // Visible label only for yellow window; not for component overlays
         if (cls === 'pz-viz-window') {
             const lab = document.createElement('div');
             lab.className = 'pz-viz-label';
@@ -1060,8 +1150,7 @@ class PuzzleEditor {
             });
             box.appendChild(lab);
         } else {
-            // jako nenápadná nápověda necháme jen tooltip
-            box.title = label;
+            box.title = label; // unobtrusive hint only
         }
 
         if (!locked) {
@@ -1108,9 +1197,9 @@ class PuzzleEditor {
         return box;
     }
 
+    /** Attach mouse handlers. AUTO: only window. MANUAL: all except locked window. */
     _bind() {
         this.visualizations.forEach(v => {
-            // AUTO: povol jen pz-viz-window; MANUAL: povol všechny kromě locked window
             if (!this.isManualLayout && v.classList.contains('pz-viz-window')) {
                 v.addEventListener('mousedown', this._onMouseDown);
             } else if (this.isManualLayout && !v.classList.contains('pz-viz-window')) {
@@ -1122,6 +1211,7 @@ class PuzzleEditor {
         window.addEventListener('keydown', this._onKeyDown);
     }
 
+    /** Detach mouse handlers. */
     _unbind() {
         this.visualizations.forEach(v => v.removeEventListener('mousedown', this._onMouseDown));
         window.removeEventListener('mousemove', this._onMouseMove);
@@ -1190,22 +1280,19 @@ class PuzzleEditor {
                 nh = +nh.toFixed(2);
             }
 
-            // A) aplikuj na element (v % vůči relRoot)
+            // A) Apply to the element (percentages relative to relRoot)
             this._applyRectToEl(A.targetEl, {x: nx, y: ny, w: nw, h: nh});
 
-            // B) přepočítej viz box do % vůči window (u childů) nebo vůči relRoot (u ostatních)
+            // B) Recompute viz box position
             let rForViz;
             if (A.relRoot === this.footerEl) {
-                rForViz = this._rectOf(A.targetEl, this.windowEl); // viz je v localLayer (vůči window)
+                rForViz = this._rectOf(A.targetEl, this.windowEl); // viz is in localLayer (relative to window)
             } else if (!this.isManualLayout && A.isWindow) {
-                rForViz = this._rectOf(A.targetEl, this.puzzleRoot); // AUTO: viz v globálním overlayi
+                rForViz = this._rectOf(A.targetEl, this.puzzleRoot); // AUTO: viz is in the global overlay
             } else {
-                rForViz = (A.relRoot === this.windowEl) ? this._rectOf(A.targetEl, this.windowEl) : {
-                    x: nx,
-                    y: ny,
-                    w: nw,
-                    h: nh
-                };
+                rForViz = (A.relRoot === this.windowEl)
+                    ? this._rectOf(A.targetEl, this.windowEl)
+                    : {x: nx, y: ny, w: nw, h: nh};
             }
             Object.assign(A.viz.style, {
                 left: rForViz.x + '%',
@@ -1221,7 +1308,7 @@ class PuzzleEditor {
                 lab.textContent = `${p}  x:${rForViz.x} y:${rForViz.y} w:${rForViz.w} h:${rForViz.h}`;
             }
 
-            // pokud hýbeme footrem, posuň vizualizace jeho dětí
+            // When moving the footer, keep child visualizations in sync
             if (A.targetEl === this.footerEl) this._syncFooterChildrenPositions();
 
             this._updateJson();
@@ -1264,11 +1351,12 @@ class PuzzleEditor {
         this.active = null;
     }
 
-    _onKeyDown(e) { /* optional */
+    _onKeyDown(e) { /* optional key bindings can go here */
     }
 
     /* ---------- data / JSON / tree ---------- */
 
+    /** Collect element rects relative to their base (footer for ok/cancel, window for others). */
     _collectElementsMap() {
         const out = {};
         const rel = this.windowEl || this.puzzleRoot;
@@ -1280,6 +1368,7 @@ class PuzzleEditor {
         return out;
     }
 
+    /** Build a flat tree of [data-id] nodes with parent relations. */
     _buildTree() {
         const nodes = [];
         const idOf = el => el.getAttribute('data-id');
@@ -1299,6 +1388,7 @@ class PuzzleEditor {
         return nodes;
     }
 
+    /** JSON reflecting current state for the panel. */
     _currentJson() {
         return JSON.stringify({
             windowRect: this._rectOf(this.windowEl || this.puzzleRoot, this.puzzleRoot),
@@ -1313,6 +1403,13 @@ class PuzzleEditor {
 
     /* ---------- geometry ---------- */
 
+    /**
+     * Get a rect of an element relative to a reference element and convert to percentages.
+     * @param {HTMLElement} el
+     * @param {HTMLElement} relTo
+     * @returns {{x:number,y:number,w:number,h:number}}
+     * @private
+     */
     _rectOf(el, relTo) {
         const pr = relTo.getBoundingClientRect();
         const er = el.getBoundingClientRect();
@@ -1325,6 +1422,12 @@ class PuzzleEditor {
         };
     }
 
+    /**
+     * Apply percentage rect to element as absolute positioning.
+     * @param {HTMLElement} el
+     * @param {{x:number,y:number,w:number,h:number}} rect
+     * @private
+     */
     _applyRectToEl(el, rect) {
         Object.assign(el.style, {
             position: 'absolute',

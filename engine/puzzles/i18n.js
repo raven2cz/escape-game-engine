@@ -10,7 +10,6 @@
 export function resolveI18n(s, dictOrFn) {
     if (typeof s !== 'string') return s;
 
-    // OPRAVA: správný parsing @key@fallback
     if (s.startsWith('@')) {
         const match = s.match(/^@([^@]+)@(.*)$/s);
         if (match) {

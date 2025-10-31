@@ -1,7 +1,7 @@
 // engine/puzzles/kinds/choice.js
 // Kind: choice – text + selectable value (dropdown or editable input)
 
-import { BasePuzzle } from '../base.js';
+import {BasePuzzle} from '../base.js';
 
 const DBG = () => (typeof window !== 'undefined' && /\bdebug=1\b/.test(window.location.search));
 
@@ -45,7 +45,7 @@ export default class ChoicePuzzle extends BasePuzzle {
         }
 
         if (DBG()) {
-            console.debug('[PZ.choice] mounted', { rowCount: this.config.tokens?.length || 0 });
+            console.debug('[PZ.choice] mounted', {rowCount: this.config.tokens?.length || 0});
         }
     }
 
@@ -199,7 +199,7 @@ export default class ChoicePuzzle extends BasePuzzle {
         }
 
         if (DBG()) {
-            console.debug('[PZ.choice] solutions translated:', { raw, translated });
+            console.debug('[PZ.choice] solutions translated:', {raw, translated});
         }
 
         return translated;
@@ -223,7 +223,7 @@ export default class ChoicePuzzle extends BasePuzzle {
         }
 
         if (!allOk && this.instanceOptions.blockUntilSolved) {
-            return { hold: true };
+            return {hold: true};
         }
 
         const detail = {};
@@ -232,12 +232,12 @@ export default class ChoicePuzzle extends BasePuzzle {
         }
 
         if (DBG()) {
-            console.debug('[PZ.choice] onOk result:', { allOk, values: detail, solutions: sol });
+            console.debug('[PZ.choice] onOk result:', {allOk, values: detail, solutions: sol});
         }
 
         return {
             ok: allOk,
-            detail: { values: detail }
+            detail: {values: detail}
         };
     }
 }

@@ -1,7 +1,7 @@
 // engine/puzzles/kinds/match.js
 // Kind: match â€“ pair matching (columns click mode or dragdrop mode)
 
-import { BasePuzzle } from '../base.js';
+import {BasePuzzle} from '../base.js';
 
 const DBG = () => (typeof window !== 'undefined' && /\bdebug=1\b/.test(window.location.search));
 
@@ -76,9 +76,9 @@ export default class MatchPuzzle extends BasePuzzle {
             const id = String(t.id ?? idx);
             const side = (t.side || '').toLowerCase();
             if (side === 'right') {
-                rightTokens.push({ id, ...t });
+                rightTokens.push({id, ...t});
             } else {
-                leftTokens.push({ id, ...t });
+                leftTokens.push({id, ...t});
             }
         });
 
@@ -236,7 +236,7 @@ export default class MatchPuzzle extends BasePuzzle {
             }
 
             if (DBG()) {
-                console.debug('[PZ.match] unpaired:', { id, was: currentPair });
+                console.debug('[PZ.match] unpaired:', {id, was: currentPair});
             }
             return;
         }
@@ -290,7 +290,7 @@ export default class MatchPuzzle extends BasePuzzle {
             }
 
             if (DBG()) {
-                console.debug('[PZ.match] paired:', { first, second: id });
+                console.debug('[PZ.match] paired:', {first, second: id});
             }
         }
     }
@@ -363,7 +363,7 @@ export default class MatchPuzzle extends BasePuzzle {
                     otherEl.style.background = pairColor;
 
                     if (DBG()) {
-                        console.debug('[PZ.match] drag paired:', { id, otherId });
+                        console.debug('[PZ.match] drag paired:', {id, otherId});
                     }
                     break;
                 }
@@ -371,10 +371,10 @@ export default class MatchPuzzle extends BasePuzzle {
         };
 
         el.addEventListener('mousedown', onDown);
-        el.addEventListener('touchstart', onDown, { passive: false });
+        el.addEventListener('touchstart', onDown, {passive: false});
 
         document.addEventListener('mousemove', onMove);
-        document.addEventListener('touchmove', onMove, { passive: false });
+        document.addEventListener('touchmove', onMove, {passive: false});
 
         document.addEventListener('mouseup', onUp);
         document.addEventListener('touchend', onUp);
@@ -418,7 +418,7 @@ export default class MatchPuzzle extends BasePuzzle {
         }
 
         if (!allOk && this.instanceOptions.blockUntilSolved) {
-            return { hold: true };
+            return {hold: true};
         }
 
         const detail = {};
@@ -427,12 +427,12 @@ export default class MatchPuzzle extends BasePuzzle {
         }
 
         if (DBG()) {
-            console.debug('[PZ.match] onOk result:', { allOk, pairs: detail });
+            console.debug('[PZ.match] onOk result:', {allOk, pairs: detail});
         }
 
         return {
             ok: allOk,
-            detail: { pairs: detail }
+            detail: {pairs: detail}
         };
     }
 }

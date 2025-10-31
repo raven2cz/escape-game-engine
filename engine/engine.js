@@ -359,7 +359,7 @@ export class Game {
             return;
         }
         if (h.type === 'puzzle') {
-            // Puzzles 2.0 – otevření přes puzzleRef (definováno v puzzles.json), bez starých modalů
+            // Puzzles 2.0 integration
             const ref = h.puzzleRef || h.puzzle?.ref;
             if (!ref) {
                 throw new Error('Puzzle hotspot missing puzzleRef');
@@ -368,24 +368,27 @@ export class Game {
             const options = h.options || h.puzzle?.options || {};
             const background = h.puzzleBackground || h.puzzle?.background || null;
 
-            // solved-key na základě ref (ať je konzistentní)
+            // solved-key na based ref
             const solvedKey = 'solved:pz:' + ref;
 
-            // Pokud už je vyřešeno a hotspot má onSuccess, rovnou aplikujeme (zachování chování 1.0)
             if (this.state.solved[solvedKey]) {
                 await this._applyActions(h.onSuccess);
                 return;
             }
 
-            this._dbg('open puzzle via hotspot', {ref, rect: h.rect || {x:0,y:0,w:100,h:100}, options, background});
+            this._dbg('open puzzle via hotspot', {
+                ref,
+                rect: h.rect || {x: 0, y: 0, w: 100, h: 100},
+                options,
+                background
+            });
             const res = await this._openPuzzleByRef({
                 ref,
-                rect: h.rect || {x:0, y:0, w:100, h:100},
+                rect: h.rect || {x: 0, y: 0, w: 100, h: 100},
                 options,
                 background
             });
 
-            // aggregateOnly: jen ulož, nevyhodnocuj flow
             if (options.aggregateOnly) {
                 this._appendPuzzleResult({ref, ok: !!res?.ok, detail: res?.detail || null});
                 if (res?.ok && h.onSuccess) await this._applyActions(h.onSuccess);
@@ -445,10 +448,9 @@ export class Game {
             const r = await fetch(url, {cache: 'no-cache'});
             if (r.ok) json = await r.json();
         } catch {
-            // ignore, json zůstane {}
+            // ignore
         }
 
-        // Normalizace na mapu byId:
         // 1) { byId: { ... } }
         if (json && typeof json === 'object' && json.byId && typeof json.byId === 'object') {
             this.data.puzzles = json.byId;
@@ -459,13 +461,13 @@ export class Game {
             this.data.puzzles = Object.fromEntries(json.filter(p => p?.id).map(p => [p.id, p]));
             return;
         }
-        // 3) { id1:{...}, id2:{...} } (už je mapa)
+        // 3) { id1:{...}, id2:{...} }
         if (json && typeof json === 'object') {
             this.data.puzzles = json;
             return;
         }
 
-        // fallback, prázdná mapa
+        // fallback, empty map
         this.data.puzzles = {};
     }
 
@@ -482,7 +484,6 @@ export class Game {
                 i18n: (k) => this._t(k, k),
                 engine: this,
                 onResolve: (result) => {
-                    // korektně odmontovat overlay
                     try {
                         runner?.unmount?.();
                     } catch (_) {
@@ -491,9 +492,7 @@ export class Game {
                 }
             });
 
-            // Mount do vrstvy hotspotů (overlay nad scénou)
             runner.mountInto(this.hotspotLayer);
-            // OK/Cancel řeší puzzle vrstva (onOk / onRequestClose); engine nekliká.
         });
     }
 
@@ -562,7 +561,7 @@ export class Game {
         if (actions.goTo) await this.goto(actions.goTo);
     }
 
-    // zpětná kompatibilita názvu (volá se z několika míst)
+    // backward compatibility
     async _applyOnSuccess(actions) {
         return this._applyActions(actions);
     }
@@ -815,10 +814,10 @@ export class Game {
                 await this.openDialog(act.openDialog);
             }
 
-            // puzzles (Puzzles 2.0) – otevření přes ref
+            // puzzles (Puzzles 2.0)
             if (act.openPuzzle) {
                 const ap = act.openPuzzle;
-                this._dbg('open puzzle via action', {ref: ap.ref, rect: ap.rect || {x:0,y:0,w:100,h:100}});
+                this._dbg('open puzzle via action', {ref: ap.ref, rect: ap.rect || {x: 0, y: 0, w: 100, h: 100}});
                 const res = await this._openPuzzleByRef({
                     ref: ap.ref,
                     rect: ap.rect || {x: 0, y: 0, w: 100, h: 100},
@@ -826,7 +825,6 @@ export class Game {
                     background: ap.background || null
                 });
 
-                // aggregateOnly: jen sbírej, flow ponech na autorovi
                 if (ap.options?.aggregateOnly) {
                     this._appendPuzzleResult({ref: ap.ref, ok: !!res?.ok, detail: res?.detail || null});
                 } else {

@@ -23,7 +23,6 @@ export class BasePuzzle {
         this.kind = ctx.kind;
         this.config = ctx.config || {};
 
-        // Sloučení instance options + config.options (zpětná kompatibilita)
         this.instanceOptions = {...(ctx.instanceOptions || {}), ...(this.config.options || {})};
 
         // I18n centralized through i18n-helpers.js
@@ -64,7 +63,6 @@ export class BasePuzzle {
         container.appendChild(root);
         this.root = root;
 
-        // Pracovní okno - POZOR: workRect aplikujeme SEM (z cfg.rect)
         const win = document.createElement('div');
         win.className = 'pz__window';
         this.windowEl = win;
@@ -78,13 +76,12 @@ export class BasePuzzle {
         root.appendChild(win);
         this.windowEl = win;
 
-        // Debug – ať je to vždy vidět i bez filtrování "verbose"
         console.log('[PZ] base.mount window rect (cfg.rect):', workRect, {
             computedWindowRectPx: win.getBoundingClientRect(),
             parentRectPx: container.getBoundingClientRect()
         });
 
-        // Background overlay (CELÁ OBRAZOVKA, pod rootem)
+        // Background overlay (FULL Screen under root)
         if (backgroundUrl) {
             const overlay = document.createElement('div');
             overlay.className = 'pz-overlay';
@@ -97,13 +94,13 @@ export class BasePuzzle {
             this._bgOverlay = overlay;
         }
 
-        // Flow container - ŽÁDNÉ inline styly!
+        // Flow container - NO INLINE Styles!
         const flow = document.createElement('div');
         flow.className = 'pz__flow';
         win.appendChild(flow);
         this.flowEl = flow;
 
-        // Header group (title + prompt společně nahoře)
+        // Header group (title + prompt up)
         const hasHeader = this.config.title || this.config.prompt;
         if (hasHeader) {
             const headerGroup = document.createElement('div');
@@ -114,7 +111,7 @@ export class BasePuzzle {
                 if (titleVisible) {
                     const title = document.createElement('div');
                     title.className = 'pz-title';
-                    title.setAttribute('data-id','title');
+                    title.setAttribute('data-id', 'title');
                     const titleText = this.t(this.config.title, '');
                     title.textContent = titleText;
 
@@ -132,7 +129,7 @@ export class BasePuzzle {
                 if (promptVisible) {
                     const prompt = document.createElement('div');
                     prompt.className = 'pz-prompt';
-                    prompt.setAttribute('data-id','prompt');
+                    prompt.setAttribute('data-id', 'prompt');
                     const promptText = this.t(this.config.prompt, '');
                     prompt.textContent = promptText;
 
@@ -165,13 +162,13 @@ export class BasePuzzle {
 
         const footer = document.createElement('div');
         footer.className = 'pz-footer';
-        footer.setAttribute('data-id','footer');
+        footer.setAttribute('data-id', 'footer');
 
         if (mergedButtons.ok.visible !== false) {
             const ok = document.createElement('button');
             ok.type = 'button';
             ok.className = 'pz-btn pz-btn--ok';
-            ok.setAttribute('data-id','ok');
+            ok.setAttribute('data-id', 'ok');
             ok.textContent = this.t(mergedButtons.ok.label, 'OK');
             ok.addEventListener('click', () => this.onOk());
             footer.appendChild(ok);
@@ -181,7 +178,7 @@ export class BasePuzzle {
             const c = document.createElement('button');
             c.type = 'button';
             c.className = 'pz-btn pz-btn--cancel';
-            c.setAttribute('data-id','cancel');
+            c.setAttribute('data-id', 'cancel');
             c.textContent = this.t(mergedButtons.cancel.label, 'Zavřít');
             c.addEventListener('click', () => this.onCancel());
             footer.appendChild(c);
