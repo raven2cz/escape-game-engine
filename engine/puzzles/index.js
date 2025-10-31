@@ -8,6 +8,26 @@ import MatchPuzzle from './kinds/match.js';
 import GroupPuzzle from './kinds/group.js';
 import ChoicePuzzle from './kinds/choice.js';
 import ListPuzzle from './kinds/list.js';
+import ClozePuzzle from './kinds/cloze.js';
+
+// ============================================================================
+// PUZZLE KINDS REGISTRY
+// ============================================================================
+// Centrální mapa všech dostupných puzzle typů.
+// Pro přidání nového typu stačí přidat import výše a záznam do této mapy.
+// ============================================================================
+
+const PUZZLE_KINDS = {
+    phrase: PhrasePuzzle,
+    code: CodePuzzle,
+    quiz: QuizPuzzle,
+    order: OrderPuzzle,
+    match: MatchPuzzle,
+    group: GroupPuzzle,
+    choice: ChoicePuzzle,
+    list: ListPuzzle,
+    cloze: ClozePuzzle
+};
 
 const _registry = new Map();
 
@@ -19,14 +39,10 @@ export function getKind(kind) {
     return _registry.get(kind) || BasePuzzle;
 }
 
-registerKind('phrase', PhrasePuzzle);
-registerKind('code', CodePuzzle);
-registerKind('quiz', QuizPuzzle);
-registerKind('order', OrderPuzzle);
-registerKind('match', MatchPuzzle);
-registerKind('group', GroupPuzzle);
-registerKind('choice', ChoicePuzzle);
-registerKind('list', ListPuzzle);
+// Automatická registrace všech puzzle kinds z mapy
+for (const [kind, clazz] of Object.entries(PUZZLE_KINDS)) {
+    registerKind(kind, clazz);
+}
 
 /** Create and run a single puzzle instance inside a container overlay. */
 export function createPuzzleRunner(args) {

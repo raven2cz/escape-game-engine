@@ -602,3 +602,165 @@ body.use-on #hotspotLayer {
 .dlg-overlay.dlg-compact .dlg-choice {
     padding: 8px 14px;
 }
+
+/* ======================================================================
+   Inspect Item — minimal, safe tweaks (no global restyle)
+   - Keep modal size sensible and above dialogs overlay
+   - Add tiny helpers for image, text blocks and inline actions
+   - Unified .btn (scoped to #modal only), + blue "action" variant for Use
+   ====================================================================== */
+
+/* Make sure the modal is above any dialog overlay */
+#modal {
+    z-index: 1300;
+}
+
+/* Prevent tall bodies from overflowing viewport */
+#modal .modal-content {
+    max-height: 90vh;
+    overflow: auto;
+}
+
+#modal .modal-content.modal--item {
+    position: relative;
+    padding-top: 16px; /* rezerva pod křížek */
+}
+
+#modal .modal-content.modal--item .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+/* Circled GNOME-like X */
+#modal .modal-content.modal--item .modal-close {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 30px;
+    height: 30px;
+    border-radius: 999px;
+    background: transparent;
+    border: 1px solid transparent;
+    cursor: pointer;
+    padding: 0;
+    line-height: 0;
+    display: inline-block;
+    transition: background .18s ease, border-color .18s ease, box-shadow .18s ease, transform .08s ease;
+}
+
+/* Drawing close btn */
+#modal .modal-content.modal--item .modal-close::before,
+#modal .modal-content.modal--item .modal-close::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 16px;
+    height: 2px;
+    background: #d7d7d9;
+    border-radius: 1px;
+    transform-origin: center;
+    transform: translate(-50%, -50%) rotate(45deg);
+    pointer-events: none;
+}
+
+#modal .modal-content.modal--item .modal-close::after {
+    transform: translate(-50%, -50%) rotate(-45deg);
+}
+
+/* Hover/focus: red button close X */
+#modal .modal-content.modal--item .modal-close:hover,
+#modal .modal-content.modal--item .modal-close:focus-visible {
+    outline: none;
+    background: rgba(220, 60, 60, 0.16);
+    border-color: rgba(220, 60, 60, 0.55);
+    box-shadow: 0 0 0 2px rgba(220, 60, 60, 0.35);
+}
+
+#modal .modal-content.modal--item .modal-close:hover::before,
+#modal .modal-content.modal--item .modal-close:hover::after,
+#modal .modal-content.modal--item .modal-close:focus-visible::before,
+#modal .modal-content.modal--item .modal-close:focus-visible::after {
+    background: #fff;
+}
+
+/* Active click to close btn */
+#modal .modal-content.modal--item .modal-close:active {
+    transform: translateY(1px);
+}
+
+#modal .item-inspect .modal-img {
+    width: 100%;
+    max-height: 40vh;
+    object-fit: contain;
+    border-radius: 10px;
+    display: block;
+    margin-bottom: 10px;
+}
+
+#modal .item-inspect .modal-word {
+    font-size: 1.25rem;
+    font-weight: 700;
+    text-align: center;
+    margin: 6px 0 2px 0;
+}
+
+#modal .item-inspect .modal-desc {
+    line-height: 1.45;
+    opacity: .95;
+    margin-top: 6px;
+}
+
+/* Small inline actions dock inside modal body (left-aligned) */
+#modal .item-ops {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-start;
+    margin-top: 10px;
+}
+
+/* Scoped pill buttons for modal only (no leakage to topbar/toolbars) */
+#modal .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 8ch;
+    padding: 10px 16px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.96);
+    border: 1px solid rgba(255, 255, 255, 0.24);
+    text-align: center;
+    user-select: none;
+    cursor: pointer;
+    transition: background 220ms ease, border-color 220ms ease,
+    box-shadow 120ms ease, transform 120ms ease;
+}
+
+#modal .btn:hover,
+#modal .btn:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.12);
+}
+
+#modal .btn:active {
+    transform: translateY(1px);
+}
+
+/* Use button: neutral by default; turns blue on hover/focus */
+#modal .btn--action {
+    /* inherit base neutral styles from #modal .btn */
+    /* intentionally no custom background/border here */
+}
+
+#modal .btn--action:hover,
+#modal .btn--action:focus-visible {
+    background: #2a3b6a;
+    border-color: #2d72ff;
+    box-shadow: 0 0 0 2px rgba(45, 114, 255, 0.25) inset,
+    0 0 0 2px rgba(45, 114, 255, 0.30);
+}
+

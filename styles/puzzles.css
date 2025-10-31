@@ -597,3 +597,166 @@
     position: absolute;
 }
 
+/* ============================================================================
+   CLOZE PUZZLE (Doplňovačka) - Fill-in-the-blanks with drag-and-drop
+   ============================================================================ */
+
+.pz-kind-cloze {
+    /* Specific variables for cloze - can be overridden */
+}
+
+/* Main container - splits into text area and tokens area */
+.pz-cloze-container {
+    flex: 1 1 auto;
+    display: flex;
+    gap: calc(var(--pz-token-gap) * 2);
+    min-height: 0;
+}
+
+/* Text area with inline gaps */
+.pz-cloze-text-area {
+    flex: 1 1 50%;
+    padding: 1.5vh 1.5vw;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: var(--pz-token-radius);
+    line-height: 1.8;
+    font-size: 1.05em;
+    overflow-y: auto;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    display: flow-root; /* Better than inline for wrapping with inline-block gaps */
+}
+
+/* Gap - empty slot for token (inline-block for proper text flow) */
+.pz-cloze-gap {
+    display: inline-block;
+    min-width: 80px;
+    height: 1.6em;
+    margin: 0 4px;
+    padding: 2px 8px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 2px dashed var(--pz-token-border);
+    border-radius: 8px;
+    vertical-align: middle;
+    transition: all var(--pz-transition-fast);
+    position: relative;
+    cursor: pointer;
+}
+
+/* Gap during drag-over */
+.pz-cloze-gap.drag-over {
+    background: rgba(90, 160, 255, 0.15);
+    border-color: var(--pz-selected-border);
+    border-style: solid;
+    box-shadow: 0 0 0 2px rgba(90, 160, 255, 0.1);
+}
+
+/* Gap with token inside */
+.pz-cloze-gap.filled {
+    border-style: solid;
+    border-color: transparent;
+    background: transparent;
+    padding: 0;
+    min-width: auto;
+    height: auto;
+    line-height: inherit; /* Použij line-height z parent elementu */
+}
+
+/* Token inside gap - compact style */
+.pz-cloze-gap.filled .pz-token {
+    margin: 0;
+    display: inline-block;
+    height: auto;
+    padding: 0.2em 0.8em;
+    font-size: 0.95em;
+    line-height: 1.2;
+    cursor: pointer;
+    vertical-align: middle;
+    position: relative;
+    top: -0.21em; /* Posun nahoru pro správné zarovnání */
+    transform: translateY(0); /* Reset transform z :active stavu */
+}
+
+/* Tokens area - bank of available tokens */
+.pz-cloze-tokens-area {
+    flex: 1 1 50%;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: var(--pz-token-gap);
+    align-content: flex-start;
+    padding: 1vh 1vw;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: var(--pz-token-radius);
+    overflow-y: auto;
+}
+
+/* Draggable tokens */
+.pz-cloze-tokens-area .pz-token[draggable="true"] {
+    cursor: grab;
+    user-select: none;
+}
+
+.pz-cloze-tokens-area .pz-token[draggable="true"]:active {
+    cursor: grabbing;
+}
+
+.pz-cloze-tokens-area .pz-token.dragging {
+    opacity: 0.5;
+}
+
+/* ============================================================================
+   CLOZE LAYOUT MODES
+   ============================================================================ */
+
+/* Vertical layout (default) - text on top, tokens below */
+.pz--vertical .pz-cloze-container {
+    flex-direction: column;
+}
+
+.pz--vertical .pz-cloze-text-area {
+    flex: 1 1 60%;
+    min-height: 120px;
+}
+
+.pz--vertical .pz-cloze-tokens-area {
+    flex: 0 0 auto;
+    max-height: 35%;
+    min-height: 80px;
+}
+
+/* Horizontal layout - text on left, tokens on right */
+.pz--horizontal .pz-cloze-container {
+    flex-direction: row;
+}
+
+.pz--horizontal .pz-cloze-text-area {
+    flex: 1 1 55%;
+}
+
+.pz--horizontal .pz-cloze-tokens-area {
+    flex: 1 1 45%;
+}
+
+/* ============================================================================
+   CLOZE RESPONSIVE ADJUSTMENTS
+   ============================================================================ */
+
+/* Smaller screens - force vertical layout */
+@media (max-width: 768px) {
+    .pz-cloze-container {
+        flex-direction: column !important;
+    }
+
+    .pz-cloze-text-area {
+        flex: 1 1 auto !important;
+        min-height: 150px !important;
+    }
+
+    .pz-cloze-tokens-area {
+        flex: 0 0 auto !important;
+        max-height: 40% !important;
+    }
+}

@@ -692,6 +692,17 @@
         },
         {
           "type": "puzzle",
+          "rect": {"x":82.36,"y":64.39,"w":11.56,"h":15.66},
+          "puzzleRef": "cloze-bio-cell",
+          "onSuccess": {
+            "message": "@pzlab.list.ok@Hotovo! Zvládl si doplňovačku.."
+          },
+          "onFail": {
+            "message": "@pzlab.list.fail@Nevadí, můžeš zkusit znovu."
+          }
+        },
+        {
+          "type": "puzzle",
           "rect": {
             "x": 6.16,
             "y": 63.61,
