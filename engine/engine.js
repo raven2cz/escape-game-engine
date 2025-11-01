@@ -359,7 +359,7 @@ export class Game {
             return;
         }
         if (h.type === 'puzzle') {
-            // Puzzles 2.0 – otevření přes puzzleRef (definováno v puzzles.json), bez starých modalů
+            // Puzzles 2.0 integration
             const ref = h.puzzleRef || h.puzzle?.ref;
             if (!ref) {
                 throw new Error('Puzzle hotspot missing puzzleRef');
@@ -368,23 +368,27 @@ export class Game {
             const options = h.options || h.puzzle?.options || {};
             const background = h.puzzleBackground || h.puzzle?.background || null;
 
-            // solved-key na základě ref (ať je konzistentní)
+            // solved-key na based ref
             const solvedKey = 'solved:pz:' + ref;
 
-            // Pokud už je vyřešeno a hotspot má onSuccess, rovnou aplikujeme (zachování chování 1.0)
             if (this.state.solved[solvedKey]) {
                 await this._applyActions(h.onSuccess);
                 return;
             }
 
+            this._dbg('open puzzle via hotspot', {
+                ref,
+                rect: h.rect || {x: 0, y: 0, w: 100, h: 100},
+                options,
+                background
+            });
             const res = await this._openPuzzleByRef({
                 ref,
-                rect: {x:0, y:0, w:100, h:100},
+                rect: h.rect || {x: 0, y: 0, w: 100, h: 100},
                 options,
                 background
             });
 
-            // aggregateOnly: jen ulož, nevyhodnocuj flow
             if (options.aggregateOnly) {
                 this._appendPuzzleResult({ref, ok: !!res?.ok, detail: res?.detail || null});
                 if (res?.ok && h.onSuccess) await this._applyActions(h.onSuccess);
@@ -444,10 +448,9 @@ export class Game {
             const r = await fetch(url, {cache: 'no-cache'});
             if (r.ok) json = await r.json();
         } catch {
-            // ignore, json zůstane {}
+            // ignore
         }
 
-        // Normalizace na mapu byId:
         // 1) { byId: { ... } }
         if (json && typeof json === 'object' && json.byId && typeof json.byId === 'object') {
             this.data.puzzles = json.byId;
@@ -458,13 +461,13 @@ export class Game {
             this.data.puzzles = Object.fromEntries(json.filter(p => p?.id).map(p => [p.id, p]));
             return;
         }
-        // 3) { id1:{...}, id2:{...} } (už je mapa)
+        // 3) { id1:{...}, id2:{...} }
         if (json && typeof json === 'object') {
             this.data.puzzles = json;
             return;
         }
 
-        // fallback, prázdná mapa
+        // fallback, empty map
         this.data.puzzles = {};
     }
 
@@ -481,7 +484,6 @@ export class Game {
                 i18n: (k) => this._t(k, k),
                 engine: this,
                 onResolve: (result) => {
-                    // korektně odmontovat overlay
                     try {
                         runner?.unmount?.();
                     } catch (_) {
@@ -490,9 +492,7 @@ export class Game {
                 }
             });
 
-            // Mount do vrstvy hotspotů (overlay nad scénou)
             runner.mountInto(this.hotspotLayer);
-            // OK/Cancel řeší puzzle vrstva (onOk / onRequestClose); engine nekliká.
         });
     }
 
@@ -561,7 +561,7 @@ export class Game {
         if (actions.goTo) await this.goto(actions.goTo);
     }
 
-    // zpětná kompatibilita názvu (volá se z několika míst)
+    // backward compatibility
     async _applyOnSuccess(actions) {
         return this._applyActions(actions);
     }
@@ -609,60 +609,124 @@ export class Game {
         });
     }
 
+    /**
+     * Open the "Inspect Item" modal.
+     * Final UX:
+     * - No OK/Cancel footer at all.
+     * - A top-right close (×) icon that reddens on hover.
+     * - Inside body: single blue "Use" button (adventure style).
+     * - Title/word/description are localized via _text/_t.
+     *
+     * No global modal API changes required — we defensively hide any footer if present.
+     *
+     * @param {{id:string, icon?:string, label?:string|object, meta?:{word?:string|object, description?:string|object}}} item
+     * @returns {Promise<void>}
+     */
     async _inspectItem(item) {
+        // Build modal body
         const body = document.createElement('div');
-        body.style.display = 'grid';
-        body.style.gap = '10px';
+        body.className = 'modal-body item-inspect';
 
         if (item.icon) {
             const img = document.createElement('img');
             img.src = this._resolveAsset(item.icon);
             img.alt = this._text(item.label) || item.id;
-            img.style.width = '100%';
-            img.style.maxHeight = '40vh';
-            img.style.objectFit = 'contain';
+            img.className = 'modal-img';
             body.appendChild(img);
         }
+
         if (item.meta?.word) {
             const w = document.createElement('div');
-            w.textContent = String(item.meta.word);
-            w.style.fontSize = '1.4rem';
-            w.style.fontWeight = '700';
-            w.style.textAlign = 'center';
+            w.className = 'modal-word';
+            const wordValue = this._text(item.meta.word);
+            w.textContent = (wordValue && String(wordValue)) || String(item.meta.word);
             body.appendChild(w);
         }
+
         if (item.meta?.description) {
             const d = document.createElement('div');
-            d.textContent = String(item.meta.description);
+            d.className = 'modal-desc';
+            const descValue = this._text(item.meta.description);
+            d.textContent = (descValue && String(descValue)) || String(item.meta.description);
             body.appendChild(d);
         }
 
-        const row = document.createElement('div');
-        row.style.display = 'flex';
-        row.style.gap = '8px';
-        row.style.justifyContent = 'flex-end';
+        // Inline action dock (only "Use")
+        const ops = document.createElement('div');
+        ops.className = 'item-ops';
 
         const btnUse = document.createElement('button');
+        btnUse.type = 'button';
+        btnUse.className = 'btn btn--action';
         btnUse.textContent = this._t('engine.use.button', 'Použít');
         btnUse.addEventListener('click', () => {
             this.enterUseMode(item.id);
             this._closeModal(true);
         });
 
-        const btnClose = document.createElement('button');
-        btnClose.textContent = this._t('engine.modal.cancel', 'Zavřít');
-        btnClose.addEventListener('click', () => this._closeModal(false));
+        ops.appendChild(btnUse);
+        body.appendChild(ops);
 
-        row.appendChild(btnUse);
-        row.appendChild(btnClose);
-        body.appendChild(row);
-
-        await this.openModal({
+        // Open modal WITHOUT footer labels (try to suppress buttons).
+        // If the modal implementation still renders a footer, we hide it below.
+        const p = this.openModal({
             title: this._text(item.label) || item.id,
             body,
-            okLabel: this._t('engine.modal.ok', 'OK'),
-            cancelLabel: this._t('engine.modal.cancel', 'Zavřít')
+            okLabel: '',          // suppress OK
+            cancelLabel: ''       // suppress Cancel
         });
+
+        // Tune modal DOM after it mounts: add header close icon; hide any footer.
+        const tune = () => {
+            const overlay = document.getElementById('modal');
+            if (!overlay) return;
+            const content = overlay.querySelector('.modal-content');
+            if (!content) return;
+
+            content.classList.add('modal--item');
+
+            // Header with title + close icon (×)
+            let header = content.querySelector('.modal-header');
+            if (!header) {
+                header = document.createElement('div');
+                header.className = 'modal-header';
+
+                const titleEl = document.createElement('div');
+                titleEl.className = 'modal-title';
+                titleEl.textContent = this._text(item.label) || item.id;
+
+                const closeBtn = document.createElement('button');
+                closeBtn.type = 'button';
+                closeBtn.className = 'modal-close';
+                closeBtn.setAttribute('aria-label', this._t('engine.modal.close', 'Close'));
+                closeBtn.innerHTML = '&times;'; // ×
+                closeBtn.addEventListener('click', () => this._closeModal(false));
+
+                header.appendChild(titleEl);
+                header.appendChild(closeBtn);
+
+                // Remove any plain .modal-title block if present and insert header at the top
+                const oldTitle = content.querySelector('.modal-title');
+                if (oldTitle && oldTitle.parentElement === content) oldTitle.remove();
+                content.insertBefore(header, content.firstChild);
+            }
+
+            // Hide any footer/actions row defensively (if openModal created it)
+            const candidates = Array.from(content.children).slice(-3); // last few blocks
+            candidates.forEach(node => {
+                if (node.classList.contains('item-ops')) return; // keep our Use dock
+                const btns = node.querySelectorAll('button');
+                if (btns.length && (node === content.lastElementChild || /ok|cancel|zavř|close/i.test(node.textContent || ''))) {
+                    node.style.display = 'none';
+                    node.classList.add('modal-footer-hidden');
+                }
+            });
+        };
+
+        // Run after layout tick to ensure modal DOM exists
+        setTimeout(tune, 0);
+
+        await p;
     }
 
     _itemLabel(id) {
@@ -814,9 +878,10 @@ export class Game {
                 await this.openDialog(act.openDialog);
             }
 
-            // puzzles (Puzzles 2.0) – otevření přes ref
+            // puzzles (Puzzles 2.0)
             if (act.openPuzzle) {
                 const ap = act.openPuzzle;
+                this._dbg('open puzzle via action', {ref: ap.ref, rect: ap.rect || {x: 0, y: 0, w: 100, h: 100}});
                 const res = await this._openPuzzleByRef({
                     ref: ap.ref,
                     rect: ap.rect || {x: 0, y: 0, w: 100, h: 100},
@@ -824,7 +889,6 @@ export class Game {
                     background: ap.background || null
                 });
 
-                // aggregateOnly: jen sbírej, flow ponech na autorovi
                 if (ap.options?.aggregateOnly) {
                     this._appendPuzzleResult({ref: ap.ref, ok: !!res?.ok, detail: res?.detail || null});
                 } else {

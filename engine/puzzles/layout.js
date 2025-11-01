@@ -43,5 +43,6 @@ export function applyAutoLayout(root, layout) {
         if (typeof window !== 'undefined' && /\bdebug=1\b/.test(window.location.search)) {
             console.debug('[PZ] layout classes:', root.className);
         }
-    } catch {}
+    } catch {
+    }
 }

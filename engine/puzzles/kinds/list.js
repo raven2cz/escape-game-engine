@@ -1,8 +1,8 @@
 // engine/puzzles/kinds/list.js
 // Kind: list – sequential puzzle execution with aggregation and summary
 
-import { BasePuzzle } from '../base.js';
-import { createPuzzleRunner } from '../index.js';
+import {BasePuzzle} from '../base.js';
+import {createPuzzleRunner} from '../index.js';
 
 const DBG = () => (typeof window !== 'undefined' && /\bdebug=1\b/.test(window.location.search));
 
@@ -52,7 +52,7 @@ export default class ListPuzzle extends BasePuzzle {
         const steps = this.config.steps || this.config.items || [];
 
         if (DBG()) {
-            console.debug('[PZ.list] starting sequence', { stepCount: steps.length });
+            console.debug('[PZ.list] starting sequence', {stepCount: steps.length});
         }
 
         this._runSequence(steps);
@@ -82,7 +82,7 @@ export default class ListPuzzle extends BasePuzzle {
 
         // IMPORTANT: Use step.rect if defined, otherwise use full screen (not this.workRect)
         // this.workRect is for the list container itself, not for individual puzzles
-        const puzzleRect = step.rect || { x: 0, y: 0, w: 100, h: 100 };
+        const puzzleRect = step.rect || {x: 0, y: 0, w: 100, h: 100};
 
         const runner = createPuzzleRunner({
             ref: step.ref,
@@ -133,7 +133,7 @@ export default class ListPuzzle extends BasePuzzle {
         const allOk = ok === total;
 
         if (DBG()) {
-            console.debug('[PZ.list] summary', { total, ok, allOk });
+            console.debug('[PZ.list] summary', {total, ok, allOk});
         }
 
         const summary = this.config.summary || {};
@@ -216,13 +216,13 @@ export default class ListPuzzle extends BasePuzzle {
 
     _finish(allOk) {
         if (DBG()) {
-            console.debug('[PZ.list] finished', { allOk, results: this._results });
+            console.debug('[PZ.list] finished', {allOk, results: this._results});
         }
 
         if (allOk) {
-            this.resolveOk?.({ results: this._results });
+            this.resolveOk?.({results: this._results});
         } else {
-            this.resolveFail?.('incomplete', { results: this._results });
+            this.resolveFail?.('incomplete', {results: this._results});
         }
     }
 
@@ -239,11 +239,11 @@ export default class ListPuzzle extends BasePuzzle {
 
     onOk() {
         // List manages its own flow - no manual OK
-        return { hold: true };
+        return {hold: true};
     }
 
     onCancel() {
         this.resolveFail?.('cancel');
-        this.onRequestClose?.({ reason: 'cancel' });
+        this.onRequestClose?.({reason: 'cancel'});
     }
 }

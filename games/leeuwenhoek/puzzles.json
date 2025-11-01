@@ -4,12 +4,6 @@
     "kind": "phrase",
     "title": "@lh.pz.lensTitle@Sestav větu",
     "prompt": "@lh.pz.lensPrompt@Zadej větu, kterou jsi odvodil z indicií.",
-    "rect": {
-      "x": 8.84,
-      "y": 11.84,
-      "w": 79.86,
-      "h": 76.19
-    },
     "placeholder": "@puzzles.phrase.placeholder@Napiš odpověď…",
     "solution": "@lh.pz.lensSolution@pojďme se vrhnout na mikroskopování",
     "options": {
@@ -199,5 +193,223 @@
     "options": {
       "blockUntilSolved": false
     }
+  },
+
+  "cloze-bio-cell": {
+    "id": "cloze-bio-cell",
+    "kind": "cloze",
+    "title": "@cloze.cell.title@Doplň text o buňce",
+    "prompt": "@cloze.cell.prompt@Přetáhni správná slova na vyznačená místa v textu.",
+    "rect": {
+      "x": 8.0,
+      "y": 10.0,
+      "w": 84.0,
+      "h": 75.0
+    },
+    "text": "Buňka obsahuje {gap1}, které je řídícím centrem buňky. V cytoplazmě najdeme {gap2}, které zajišťují buněčné dýchání. Rostlinné buňky mají navíc {gap3}, které provádějí fotosyntézu a dodávají buňce zelenou barvu.",
+    "tokens": [
+      {
+        "id": "t1",
+        "label": "@cloze.nucleus@jádro"
+      },
+      {
+        "id": "t2",
+        "label": "@cloze.mitochondria@mitochondrie"
+      },
+      {
+        "id": "t3",
+        "label": "@cloze.chloroplasts@chloroplasty"
+      }
+    ],
+    "solution": {
+      "gap1": "t1",
+      "gap2": "t2",
+      "gap3": "t3"
+    },
+    "options": {
+      "aggregateOnly": false,
+      "blockUntilSolved": true,
+      "layout": {
+        "mode": "auto",
+        "direction": "vertical"
+      }
+    }
+  },
+
+  "cloze-capital": {
+    "id": "cloze-capital",
+    "kind": "cloze",
+    "title": "Hlavní město",
+    "prompt": "Doplň správné město.",
+    "rect": { "x": 10.0, "y": 15.0, "w": 80.0, "h": 60.0 },
+    "text": "Hlavní město České republiky je {gap1}.",
+    "tokens": [
+      { "id": "t1", "label": "Praha" },
+      { "id": "t2", "label": "Brno" },
+      { "id": "t3", "label": "Ostrava" }
+    ],
+    "solution": {
+      "gap1": "t1"
+    },
+    "options": {
+      "aggregateOnly": false,
+      "blockUntilSolved": true,
+      "layout": { "mode": "auto", "direction": "vertical" }
+    }
+  },
+
+  "cloze-cell-structure": {
+    "id": "cloze-cell-structure",
+    "kind": "cloze",
+    "title": "Stavba buňky",
+    "prompt": "Přetáhni správné pojmy na místa v textu.",
+    "rect": { "x": 5.0, "y": 8.0, "w": 90.0, "h": 80.0 },
+    "text": "Každá buňka má {gap1}, která ji chrání před vnějším prostředím. Uvnitř se nachází {gap2} obsahující DNA. Energii produkují {gap3} pomocí procesu zvaného buněčné dýchání. V rostlinných buňkách najdeme také {gap4}, které využívají světlo k fotosyntéze.",
+    "tokens": [
+      { "id": "t1", "label": "buněčná membrána" },
+      { "id": "t2", "label": "jádro" },
+      { "id": "t3", "label": "mitochondrie" },
+      { "id": "t4", "label": "chloroplasty" },
+      { "id": "t5", "label": "ribozomy" },
+      { "id": "t6", "label": "vakuola" }
+    ],
+    "solution": {
+      "gap1": "t1",
+      "gap2": "t2",
+      "gap3": "t3",
+      "gap4": "t4"
+    },
+    "options": {
+      "aggregateOnly": false,
+      "blockUntilSolved": false,
+      "layout": { "mode": "auto", "direction": "vertical" }
+    }
+  },
+
+  "cloze-chemistry": {
+    "id": "cloze-chemistry",
+    "kind": "cloze",
+    "title": "Chemické reakce",
+    "prompt": "Doplň správné chemické vzorce.",
+    "rect": { "x": 8.0, "y": 10.0, "w": 84.0, "h": 70.0 },
+    "text": "Fotosyntéza je proces, při kterém rostliny přeměňují {gap1} a {gap2} za pomoci světla na {gap3} a {gap4}. Tuto reakci můžeme zapsat jako: 6{gap1} + 6{gap2} → {gap3} + 6{gap4}.",
+    "tokens": [
+      { "id": "t1", "label": "CO₂" },
+      { "id": "t2", "label": "H₂O" },
+      { "id": "t3", "label": "C₆H₁₂O₆" },
+      { "id": "t4", "label": "O₂" }
+    ],
+    "solution": {
+      "gap1": "t1",
+      "gap2": "t2",
+      "gap3": "t3",
+      "gap4": "t4"
+    },
+    "options": {
+      "aggregateOnly": false,
+      "blockUntilSolved": true,
+      "layout": { "mode": "auto", "direction": "horizontal" }
+    }
+  },
+
+  "cloze-math-quiz": {
+    "id": "cloze-math-quiz",
+    "kind": "cloze",
+    "title": "@cloze.math.title@Matematická rovnice",
+    "prompt": "@cloze.math.prompt@Vyřeš rovnici doplněním čísel.",
+    "rect": { "x": 15.0, "y": 20.0, "w": 70.0, "h": 50.0 },
+    "text": "@cloze.math.text@Pokud {gap1} + {gap2} = 10, pak {gap1} = {gap3}.",
+    "tokens": [
+      { "id": "t1", "label": "3" },
+      { "id": "t2", "label": "5" },
+      { "id": "t3", "label": "7" },
+      { "id": "t4", "label": "2" }
+    ],
+    "solution": {
+      "gap1": "t1",
+      "gap2": "t2",
+      "gap3": "t1"
+    },
+    "options": {
+      "aggregateOnly": false,
+      "blockUntilSolved": true,
+      "layout": { "mode": "auto", "direction": "vertical" }
+    }
+  },
+
+  "cloze-custom-theme": {
+    "id": "cloze-custom-theme",
+    "kind": "cloze",
+    "title": "Vlastní vzhled",
+    "text": "Toto je puzzle s {gap1} tématem!",
+    "tokens": [
+      { "id": "t1", "label": "vlastním" },
+      { "id": "t2", "label": "výchozím" }
+    ],
+    "solution": {
+      "gap1": "t1"
+    },
+    "options": {
+      "aggregateOnly": false,
+      "blockUntilSolved": false,
+      "layout": { "mode": "auto", "direction": "vertical" },
+      "theme": {
+        "vars": {
+          "--pz-token-bg": "rgba(100, 200, 255, 0.15)",
+          "--pz-token-border": "rgba(100, 200, 255, 0.5)",
+          "--pz-selected-bg": "rgba(255, 100, 200, 0.22)",
+          "--pz-selected-border": "rgba(255, 100, 200, 0.5)",
+          "--pz-token-radius": "20px"
+        }
+      }
+    }
+  },
+
+  "cloze-long-text": {
+    "id": "cloze-long-text",
+    "kind": "cloze",
+    "title": "Historie Prahy",
+    "prompt": "Doplň důležité roky v historii Prahy.",
+    "rect": { "x": 5.0, "y": 5.0, "w": 90.0, "h": 85.0 },
+    "text": "Praha byla založena v {gap1}. století a stala se hlavním městem Českého království za vlády Karla IV. v {gap2}. století. Pražský hrad je podle Guinessovy knihy rekordů největším souvislým hradním komplexem světa. V roce {gap3} se zde konala Pražská defenestrace, která odstartovala třicetiletou válku. Během komunistické éry mezi lety {gap4} a 1989 byla Praha centrem odporu proti totalitnímu režimu.",
+    "tokens": [
+      { "id": "t1", "label": "9." },
+      { "id": "t2", "label": "14." },
+      { "id": "t3", "label": "1618" },
+      { "id": "t4", "label": "1948" },
+      { "id": "t5", "label": "1848" },
+      { "id": "t6", "label": "16." }
+    ],
+    "solution": {
+      "gap1": "t1",
+      "gap2": "t2",
+      "gap3": "t3",
+      "gap4": "t4"
+    },
+    "options": {
+      "aggregateOnly": false,
+      "blockUntilSolved": false,
+      "layout": { "mode": "auto", "direction": "vertical" }
+    }
+  },
+
+  "cloze-with-background": {
+    "id": "cloze-with-background",
+    "kind": "cloze",
+    "title": "Puzzle s pozadím",
+    "text": "Toto puzzle má {gap1} pozadí.",
+    "tokens": [
+      { "id": "t1", "label": "krásné" },
+      { "id": "t2", "label": "ošklivé" }
+    ],
+    "solution": {
+      "gap1": "t1"
+    },
+    "options": {
+      "blockUntilSolved": false,
+      "layout": { "mode": "auto", "direction": "vertical" }
+    },
+    "background": "assets/puzzles/bg-paper.jpg"
   }
+
 }

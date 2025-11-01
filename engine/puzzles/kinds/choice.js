@@ -1,7 +1,7 @@
 // engine/puzzles/kinds/choice.js
 // Kind: choice – text + selectable value (dropdown or editable input)
 
-import { BasePuzzle } from '../base.js';
+import {BasePuzzle} from '../base.js';
 
 const DBG = () => (typeof window !== 'undefined' && /\bdebug=1\b/.test(window.location.search));
 
@@ -45,7 +45,7 @@ export default class ChoicePuzzle extends BasePuzzle {
         }
 
         if (DBG()) {
-            console.debug('[PZ.choice] mounted', { rowCount: this.config.tokens?.length || 0 });
+            console.debug('[PZ.choice] mounted', {rowCount: this.config.tokens?.length || 0});
         }
     }
 
@@ -63,6 +63,7 @@ export default class ChoicePuzzle extends BasePuzzle {
         // Text label (left side) - can be hidden via style.visible
         const textEl = document.createElement('div');
         textEl.className = 'pz-choice-text';
+        textEl.setAttribute('data-id', `label:${id}`);
         textEl.textContent = this.t(token.label || token.text || '', '');
 
         const textStyle = {
@@ -76,6 +77,7 @@ export default class ChoicePuzzle extends BasePuzzle {
         // Choice control (right side) - dropdown or editable input
         const controlWrap = document.createElement('div');
         controlWrap.className = 'pz-choice-control';
+        controlWrap.setAttribute('data-id', `control:${id}`);
         controlWrap.style.position = 'relative';
 
         const choices = token.choices || [];
@@ -84,6 +86,7 @@ export default class ChoicePuzzle extends BasePuzzle {
         if (editable) {
             // Editable input
             const input = document.createElement('input');
+            input.setAttribute('data-id', `input:${id}`);
             input.type = 'text';
             input.className = 'pz-input pz-choice-input';
             input.placeholder = this.t(token.placeholder || '', '');
@@ -102,6 +105,7 @@ export default class ChoicePuzzle extends BasePuzzle {
         } else {
             // Dropdown (token-styled button + menu)
             const btn = document.createElement('button');
+            btn.setAttribute('data-id', `button:${id}`);
             btn.type = 'button';
             btn.className = 'pz-token pz-choice-button';
             btn.textContent = this.t(token.placeholder || '@engine.select@Vyberte…', 'Vyberte…');
@@ -117,6 +121,7 @@ export default class ChoicePuzzle extends BasePuzzle {
             // Dropdown menu
             const menu = document.createElement('div');
             menu.className = 'pz-dropdown';
+            menu.setAttribute('data-id', `menu:${id}`);
             Object.assign(menu.style, {
                 position: 'absolute',
                 top: 'calc(100% + 4px)',
@@ -194,7 +199,7 @@ export default class ChoicePuzzle extends BasePuzzle {
         }
 
         if (DBG()) {
-            console.debug('[PZ.choice] solutions translated:', { raw, translated });
+            console.debug('[PZ.choice] solutions translated:', {raw, translated});
         }
 
         return translated;
@@ -218,7 +223,7 @@ export default class ChoicePuzzle extends BasePuzzle {
         }
 
         if (!allOk && this.instanceOptions.blockUntilSolved) {
-            return { hold: true };
+            return {hold: true};
         }
 
         const detail = {};
@@ -227,12 +232,12 @@ export default class ChoicePuzzle extends BasePuzzle {
         }
 
         if (DBG()) {
-            console.debug('[PZ.choice] onOk result:', { allOk, values: detail, solutions: sol });
+            console.debug('[PZ.choice] onOk result:', {allOk, values: detail, solutions: sol});
         }
 
         return {
             ok: allOk,
-            detail: { values: detail }
+            detail: {values: detail}
         };
     }
 }

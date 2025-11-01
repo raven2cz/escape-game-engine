@@ -1,7 +1,7 @@
 // engine/puzzles/kinds/order.js
 // Kind: order â€“ click tokens to move from shuffled â†’ ordered; verify final sequence
 
-import { BasePuzzle } from '../base.js';
+import {BasePuzzle} from '../base.js';
 
 const DBG = () => (typeof window !== 'undefined' && /\bdebug=1\b/.test(window.location.search));
 
@@ -126,7 +126,7 @@ export default class OrderPuzzle extends BasePuzzle {
         this._clearMarks();
 
         if (DBG()) {
-            console.debug('[PZ.order] toggle:', { id, ordered: this._ordered });
+            console.debug('[PZ.order] toggle:', {id, ordered: this._ordered});
         }
     }
 
@@ -171,7 +171,7 @@ export default class OrderPuzzle extends BasePuzzle {
         }
 
         if (DBG()) {
-            console.debug('[PZ.order] marked correctness:', { got, want, showHints });
+            console.debug('[PZ.order] marked correctness:', {got, want, showHints});
         }
     }
 
@@ -191,11 +191,11 @@ export default class OrderPuzzle extends BasePuzzle {
         }
 
         if (!ok && this.instanceOptions.blockUntilSolved) {
-            return { hold: true };
+            return {hold: true};
         }
 
         if (DBG()) {
-            console.debug('[PZ.order] onOk result:', { ok, ordered: this._ordered, solution: want });
+            console.debug('[PZ.order] onOk result:', {ok, ordered: this._ordered, solution: want});
         }
 
         return {

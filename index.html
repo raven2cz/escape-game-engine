@@ -47,14 +47,14 @@
 
 <script type="module">
     // Core imports
-    import { Game }   from './engine/engine.js';
-    import { Editor } from './engine/editor.js';
-    import { ENGINE_I18N } from './engine/i18n.js';
+    import {Game} from './engine/engine.js';
+    import {Editor} from './engine/editor.js';
+    import {ENGINE_I18N} from './engine/i18n.js';
 
     // --- Query params --------------------------------------------------------
-    const params  = new URLSearchParams(location.search);
-    const gameId  = params.get('game') || 'leeuwenhoek';
-    const lang    = (params.get('lang') || 'cs').toLowerCase();
+    const params = new URLSearchParams(location.search);
+    const gameId = params.get('game') || 'leeuwenhoek';
+    const lang = (params.get('lang') || 'cs').toLowerCase();
     const baseUrl = `./games/${gameId}/`;
 
     // Per-game CSS (overrides fonty, barvy, tvary…). Stačí soubor přidat do /games/<gameId>/game.css
@@ -69,7 +69,7 @@
     // --- Helpers -------------------------------------------------------------
     async function fetchJsonSafe(url) {
         try {
-            const r = await fetch(url, { cache: 'no-cache' });
+            const r = await fetch(url, {cache: 'no-cache'});
             if (!r.ok) throw new Error(r.statusText);
             return await r.json();
         } catch {
@@ -85,29 +85,29 @@
         // Instantiate engine
         const game = new Game({
             baseUrl,
-            scenesUrl:  `${baseUrl}scenes.json`,
+            scenesUrl: `${baseUrl}scenes.json`,
             dialogsUrl: `${baseUrl}dialogs.json`,
             lang,
             i18n: {
                 engine: ENGINE_I18N?.[lang] || ENGINE_I18N?.cs || {},
-                game:   gameI18n || {},
+                game: gameI18n || {},
             },
             // DOM refs
-            sceneImage:    document.getElementById('sceneImage'),
-            hotspotLayer:  document.getElementById('hotspotLayer'),
+            sceneImage: document.getElementById('sceneImage'),
+            hotspotLayer: document.getElementById('hotspotLayer'),
             inventoryRoot: document.getElementById('inventory'),
-            messageBox:    document.getElementById('msg'),
-            modalRoot:     document.getElementById('modal'),
-            modalTitle:    document.getElementById('modalTitle'),
-            modalBody:     document.getElementById('modalBody'),
-            modalCancel:   document.getElementById('modalCancel'),
-            modalOk:       document.getElementById('modalOk'),
+            messageBox: document.getElementById('msg'),
+            modalRoot: document.getElementById('modal'),
+            modalTitle: document.getElementById('modalTitle'),
+            modalBody: document.getElementById('modalBody'),
+            modalCancel: document.getElementById('modalCancel'),
+            modalOk: document.getElementById('modalOk'),
         });
 
         // Editor (draw hotspots)
         const editor = new Editor({
             game,
-            overlay:      document.getElementById('editorOverlay'),
+            overlay: document.getElementById('editorOverlay'),
             hotspotLayer: document.getElementById('hotspotLayer'),
         });
 
@@ -116,7 +116,7 @@
 
         // UI actions
         document.getElementById('btnRestart').addEventListener('click', () => game.restart());
-        document.getElementById('btnEditor').addEventListener('click',  () => editor.toggle());
+        document.getElementById('btnEditor').addEventListener('click', () => editor.toggle());
 
         // Optional PWA (activated only with ?pwa=1)
         if ('serviceWorker' in navigator && params.get('pwa') === '1') {
@@ -132,21 +132,23 @@
             let baselineAspect = null; // h/w
 
             function setAspectFrom(img) {
-                const iw = img.naturalWidth  || 16;
+                const iw = img.naturalWidth || 16;
                 const ih = img.naturalHeight || 9;
                 document.documentElement.style.setProperty('--scene-aspect', `${iw} / ${ih}`);
                 baselineAspect = ih / iw;
             }
+
             function checkDrift(img) {
                 if (!baselineAspect) return;
-                const iw = img.naturalWidth  || 16;
+                const iw = img.naturalWidth || 16;
                 const ih = img.naturalHeight || 9;
-                const a  = ih / iw;
+                const a = ih / iw;
                 const drift = Math.abs(a - baselineAspect) / baselineAspect;
                 if (drift > 0.02) {
                     window.__game?.toast?.('Pozor: tento obrázek má jiný poměr stran než baseline. Doporučeno sjednotit.', 5000);
                 }
             }
+
             sceneImg.addEventListener('load', () => {
                 if (!baselineAspect) setAspectFrom(sceneImg);
                 checkDrift(sceneImg);

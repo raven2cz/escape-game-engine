@@ -1,8 +1,8 @@
 // engine/puzzles/kinds/code.js
 // Kind: code – password-style input with strong fail feedback
 
-import { BasePuzzle } from '../base.js';
-import { normalizeText } from '../../utils.js';
+import {BasePuzzle} from '../base.js';
+import {normalizeText} from '../../utils.js';
 
 const DBG = () => (typeof window !== 'undefined' && /\bdebug=1\b/.test(window.location.search));
 
@@ -23,6 +23,7 @@ export default class CodePuzzle extends BasePuzzle {
         inputWrap.className = 'pz-input-wrap';
 
         const input = document.createElement('input');
+        input.setAttribute('data-id', 'input');
         input.className = 'pz-input';
         input.type = 'password'; // KEY: password type for code
         const placeholderText = this.t(this.config.placeholder, '******');
@@ -30,8 +31,14 @@ export default class CodePuzzle extends BasePuzzle {
         input.autocomplete = 'off';
         input.spellcheck = false;
         input.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter')  { e.preventDefault(); this.onOk(); }
-            if (e.key === 'Escape') { e.preventDefault(); this.onCancel(); }
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                this.onOk();
+            }
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                this.onCancel();
+            }
         });
 
         if (DBG()) {
@@ -77,7 +84,7 @@ export default class CodePuzzle extends BasePuzzle {
     }
 
     onOk() {
-        if (this._locked) return { hold: true };
+        if (this._locked) return {hold: true};
 
         const v = this._els.input?.value || '';
         const ok = this._isCorrect(v);
@@ -89,9 +96,9 @@ export default class CodePuzzle extends BasePuzzle {
         }
 
         if (!ok && this.instanceOptions.blockUntilSolved) {
-            return { hold: true };
+            return {hold: true};
         }
 
-        return { ok, detail: { value: v } };
+        return {ok, detail: {value: v}};
     }
 }

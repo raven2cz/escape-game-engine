@@ -1,7 +1,7 @@
 // engine/puzzles/kinds/quiz.js
 // Kind: quiz – selectable tokens (text/image), single/multi-select, auto coloring
 
-import { BasePuzzle } from '../base.js';
+import {BasePuzzle} from '../base.js';
 
 const DBG = () => (typeof window !== 'undefined' && /\bdebug=1\b/.test(window.location.search));
 
@@ -83,7 +83,7 @@ export default class QuizPuzzle extends BasePuzzle {
         }
 
         if (DBG()) {
-            console.debug('[PZ.quiz] toggle:', { id, selected: Array.from(this._selected) });
+            console.debug('[PZ.quiz] toggle:', {id, selected: Array.from(this._selected)});
         }
     }
 
@@ -139,7 +139,7 @@ export default class QuizPuzzle extends BasePuzzle {
     }
 
     onOk() {
-        if (this._locked) return { hold: true };
+        if (this._locked) return {hold: true};
 
         const sol = this._solutionIds();
         const sel = this.toIdSet(Array.from(this._selected));
@@ -160,11 +160,11 @@ export default class QuizPuzzle extends BasePuzzle {
                     this._markCorrectness(false);
                 }, 300);
             }
-            return { hold: true };
+            return {hold: true};
         }
 
         if (DBG()) {
-            console.debug('[PZ.quiz] onOk result:', { ok, selected: Array.from(sel), solution: Array.from(sol) });
+            console.debug('[PZ.quiz] onOk result:', {ok, selected: Array.from(sel), solution: Array.from(sol)});
         }
 
         return {
