@@ -60,6 +60,8 @@ export default class PhrasePuzzle extends BasePuzzle {
     _isCorrect(val) {
         const pool = this.config.solutions ?? this.config.solution ?? '';
         const typed = normalizeText(val);
+
+        // Support both single value and array of values
         const arr = Array.isArray(pool) ? pool : [pool];
 
         const result = arr.some(s => {
@@ -85,6 +87,17 @@ export default class PhrasePuzzle extends BasePuzzle {
         if (!ok && this.instanceOptions.blockUntilSolved) {
             this._els.input.classList.add('invalid');
             setTimeout(() => this._els.input.classList.remove('invalid'), 600);
+
+            // Show toast if enabled (default: true)
+            const showToast = this.instanceOptions.showErrorToast ?? this.config.showErrorToast ?? true;
+            if (showToast && this.engine?.toast) {
+                const msg = this.t(
+                    this.config.errorMessage || '@engine.puzzle.incorrect@Puzzle není správně vyřešen.',
+                    'Puzzle není správně vyřešen.'
+                );
+                this.engine.toast(msg, 2500);
+            }
+
             return {hold: true};
         }
 

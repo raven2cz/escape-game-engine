@@ -179,13 +179,18 @@ export default class ChoicePuzzle extends BasePuzzle {
     }
 
     _solutions() {
-        // Expected: solutions: { [tokenId]: "value", ... }
+        // Expected: solutions: { [tokenId]: "value" | ["value1", "value2", ...], ... }
         // IMPORTANT: Translate solution values (may have @key@fallback format)
         const raw = this.config.solutions || {};
         const translated = {};
 
         for (const [id, val] of Object.entries(raw)) {
-            translated[id] = this.t(val, val);
+            // Support multiple correct answers (array or single value)
+            if (Array.isArray(val)) {
+                translated[id] = val.map(v => this.t(v, v));
+            } else {
+                translated[id] = [this.t(val, val)];
+            }
         }
 
         // FALLBACK: Check individual tokens for 'solution' property
@@ -193,7 +198,8 @@ export default class ChoicePuzzle extends BasePuzzle {
             (this.config.tokens || []).forEach((t, i) => {
                 const id = String(t.id ?? i);
                 if (t.solution !== undefined) {
-                    translated[id] = this.t(t.solution, t.solution);
+                    const sol = t.solution;
+                    translated[id] = Array.isArray(sol) ? sol.map(s => this.t(s, s)) : [this.t(sol, sol)];
                 }
             });
         }
@@ -205,24 +211,73 @@ export default class ChoicePuzzle extends BasePuzzle {
         return translated;
     }
 
+    _isCorrect(id, value, solutions) {
+        const expectedValues = solutions[id];
+        if (!expectedValues) return false;
+        const got = String(value ?? '');
+        return expectedValues.some(expected => got === String(expected));
+    }
+
     onOk() {
         const sol = this._solutions();
         let allOk = true;
+        const wrongRows = [];
 
         for (const [id, row] of this._rows.entries()) {
-            const got = String(this._valueMap.get(id) ?? '');
-            const expect = String(sol[id] ?? '');
-            const good = (got === expect);
+            const got = this._valueMap.get(id);
+            const good = this._isCorrect(id, got, sol);
 
             if (!this.instanceOptions.aggregateOnly) {
-                row.classList.remove('correct', 'wrong', 'is-correct', 'is-wrong');
+                row.classList.remove('correct', 'wrong', 'is-correct', 'is-wrong', 'invalid');
                 row.classList.add(good ? 'correct' : 'wrong', good ? 'is-correct' : 'is-wrong');
             }
 
-            if (!good) allOk = false;
+            if (!good) {
+                allOk = false;
+                wrongRows.push(row);
+            }
         }
 
         if (!allOk && this.instanceOptions.blockUntilSolved) {
+            // Add visual feedback (shake animation)
+            wrongRows.forEach(row => {
+                row.classList.add('invalid');
+                setTimeout(() => row.classList.remove('invalid'), 600);
+            });
+
+            // Show toast if enabled (default: true)
+            const showToast = this.instanceOptions.showErrorToast ?? this.config.showErrorToast ?? true;
+
+            if (DBG()) {
+                console.debug('[PZ.choice] Toast check:', {
+                    showToast,
+                    hasEngine: !!this.engine,
+                    hasToastMethod: !!(this.engine?.toast),
+                    engineType: typeof this.engine,
+                    engineConstructor: this.engine?.constructor?.name,
+                    errorMessage: this.config.errorMessage
+                });
+            }
+
+            if (showToast) {
+                const msg = this.t(
+                    this.config.errorMessage || '@engine.puzzle.incorrect@Puzzle není správně vyřešen.',
+                    'Puzzle není správně vyřešen.'
+                );
+
+                // Try engine.toast first, then fallback to direct call
+                if (this.engine?.toast) {
+                    this.engine.toast(msg, 2500);
+                } else if (typeof window !== 'undefined' && window.game?.toast) {
+                    window.game.toast(msg, 2500);
+                } else {
+                    console.warn('[PZ.choice] Toast method not available:', {
+                        hasEngine: !!this.engine,
+                        hasWindowGame: !!(typeof window !== 'undefined' && window.game)
+                    });
+                }
+            }
+
             return {hold: true};
         }
 

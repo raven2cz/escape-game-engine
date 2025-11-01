@@ -153,6 +153,24 @@ export default class QuizPuzzle extends BasePuzzle {
         }
 
         if (!ok && this.instanceOptions.blockUntilSolved) {
+            // Add shake animation to wrong selections
+            for (const [id, el] of this._tokenEls.entries()) {
+                if (this._selected.has(id) && !sol.has(id)) {
+                    el.classList.add('invalid');
+                    setTimeout(() => el.classList.remove('invalid'), 600);
+                }
+            }
+
+            // Show toast if enabled (default: true)
+            const showToast = this.instanceOptions.showErrorToast ?? this.config.showErrorToast ?? true;
+            if (showToast && this.engine?.toast) {
+                const msg = this.t(
+                    this.config.errorMessage || '@engine.puzzle.incorrect@Puzzle není správně vyřešen.',
+                    'Puzzle není správně vyřešen.'
+                );
+                this.engine.toast(msg, 2500);
+            }
+
             // Keep open; optional reset
             if (this.instanceOptions.resetOnFail !== false) {
                 setTimeout(() => {

@@ -474,6 +474,14 @@ export class Game {
     async _openPuzzleByRef({ref, rect, options = {}, background = null}) {
         await this._ensurePuzzlesLoaded();
 
+        // If background not provided in hotspot, try to get it from puzzle config
+        if (!background) {
+            const puzzleCfg = this.data.puzzles?.[ref];
+            if (puzzleCfg?.background) {
+                background = puzzleCfg.background;
+            }
+        }
+
         return await new Promise((resolve) => {
             const runner = createPuzzleRunner({
                 ref,

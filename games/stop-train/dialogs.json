@@ -1,0 +1,60 @@
+{
+  "meta": { "id": "leeuwenhoek", "name": "Dialogs" },
+
+  "characters": [
+    {
+      "id": "pruvodci",
+      "name": "@character.leeuwenhoek.name@Průvodčí",
+      "poses": {
+        "neutral": "assets/npc/pruvodci/neutral.webp",
+        "smile":   "assets/npc/pruvodci/smile.webp"
+      }
+    },
+    {
+      "id": "hero",
+      "name": "@character.hero.name@Hrdina",
+      "poses": {
+        "idle":     "assets/npc/hero/idle.webp",
+        "thinking": "assets/npc/hero/thinking.webp",
+        "happy":    "assets/npc/hero/happy.webp",
+        "fear":     "assets/npc/hero/fear.webp"
+      }
+    }
+  ],
+
+  "dialogs": [
+    {
+      "id": "intro.mainRoom",
+      "once": true,
+      "title": "@dialog.intro.mainRoom.title@Hlavní nádraží",
+      "left":  { "characterId": "pruvodci", "defaultPose": "neutral" },
+      "ui": { "tapToNext": true, "allowSkip": true },
+
+      "sequence": [
+        {
+          "id": "m1",
+          "speaker": "left",
+          "pose": "neutral",
+          "text": "@dialog.intro.mainRoom.m1@Nacházíš se na hlavním nádraží. Rozhlédni se kolem sebe a objevíš 5 úkolů."
+        },
+        {
+          "id": "m2",
+          "speaker": "left",
+          "pose": "neutral",
+          "text": "@dialog.intro.mainRoom.m3@Na nádraží sedí také žena, která má pro tebe další úkol."
+        },
+        {
+          "id": "m3",
+          "speaker": "left",
+          "pose": "smile",
+          "text": "@dialog.intro.mainRoom.m4@Klikej na jednotlivé objekty a vyřeš všechny puzzly!"
+        }
+      ],
+
+      "onEnd": {
+        "message": "@dialog.intro.mainRoom.end@Úkol: Rozhlédni se kolem sebe a objevíš 5 úkolů.",
+        "setFlags": ["mission_started"]
+      }
+    }
+  ]
+}

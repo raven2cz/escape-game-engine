@@ -1,0 +1,230 @@
+{
+  "puzzle-woman": {
+    "id": "puzzle-woman",
+    "kind": "choice",
+    "title": "Vlak se rozjiždí po přímé trati. U následujících vět rozhodni, zda jsou pravdivé (Pravda) či lež (Lež).",
+    "prompt": "Vyber správné možnosti.",
+    "tokens": [
+      {
+        "id": "q1",
+        "text": "a) Vlak koná rovnoměrný pohyb.",
+        "choices": [
+          { "value": "true", "label": "Pravda" },
+          { "value": "false", "label": "Lež" }
+        ]
+      },
+      {
+        "id": "q2",
+        "text": "b) Strojvedoucí je vzhledem k sedadlu v klidu.",
+        "choices": [
+          { "value": "true", "label": "Pravda" },
+          { "value": "false", "label": "Lež" }
+        ]
+      },
+      {
+        "id": "q3",
+        "text": "c) Strom je vzhledem k vlaku v klidu.",
+        "choices": [
+          { "value": "true", "label": "Pravda" },
+          { "value": "false", "label": "Lež" }
+        ]
+      },
+      {
+        "id": "q4",
+        "text": "d) Strojvedoucí koná vzhledem k trati pohyb posuvný.",
+        "choices": [
+          { "value": "true", "label": "Pravda" },
+          { "value": "false", "label": "Lež" }
+        ]
+      },
+      {
+        "id": "q5",
+        "text": "e) Přední koli koná vzhledem k trati jen otáčivý pohyb.",
+        "choices": [
+          { "value": "true", "label": "Pravda" },
+          { "value": "false", "label": "Lež" }
+        ]
+      },
+      {
+        "id": "q6",
+        "text": "f) Vlak koná křivkočarý pohyb.",
+        "choices": [
+          { "value": "true", "label": "Pravda" },
+          { "value": "false", "label": "Lež" }
+        ]
+      }
+    ],
+    "solutions": {
+      "q1": "false",
+      "q2": "true",
+      "q3": "false",
+      "q4": "true",
+      "q5": "false",
+      "q6": "false"
+    },
+    "errorMessage": "Některé odpovědi nejsou správné.",
+    "options": {
+      "aggregateOnly": false,
+      "blockUntilSolved": true,
+      "showErrorToast": true,
+      "layout": { "mode": "auto", "direction": "vertical" }
+    },
+    "rect": { "x": 1, "y": 3, "w": 54, "h": 92 },
+    "background": "assets/puzzles/puzzle-woman-bg.jpg"
+  },
+
+  "puzzle-clock": {
+    "id": "puzzle-clock",
+    "kind": "phrase",
+    "title": "V kolik hodin vlak dorazí do cílové stanice?",
+    "prompt": "Zapiš ve formátu hodiny:minuty (06:53)",
+    "placeholder": "hodiny:minuty",
+    "solution": "10:22",
+    "options": {
+      "aggregateOnly": false,
+      "blockUntilSolved": true,
+      "layout": { "mode": "auto", "direction": "vertical" }
+    },
+    "rect": { "x": 55, "y": 7, "w": 44, "h": 84 },
+    "background": "assets/puzzles/puzzle-clock-bg.jpg"
+  },
+
+  "puzzle-suit": {
+    "id": "puzzle-suit",
+    "kind": "phrase",
+    "title": "Jak rychle se vlak pohybuje?",
+    "prompt": "Zapiš v km/h",
+    "placeholder": "km/h",
+    "solution": "54",
+    "options": {
+      "aggregateOnly": false,
+      "blockUntilSolved": true,
+      "layout": { "mode": "auto", "direction": "vertical" }
+    },
+    "rect": { "x": 55, "y": 4, "w": 43, "h": 80 },
+    "background": "assets/puzzles/puzzle-suit-bg.jpg"
+  },
+
+  "puzzle-couple": {
+    "id": "puzzle-couple",
+    "kind": "choice",
+    "title": "Zapiš svoje výsledky.",
+    "prompt": "Zapiš vypočtené výsledky do políček.",
+    "tokens": [
+      {
+        "id": "q1",
+        "text": "a) Urči rychlost vlaku A v km/h.",
+        "choices": [],
+        "editable": true,
+        "placeholder": "km/h"
+      },
+      {
+        "id": "q2",
+        "text": "b) Urči rychlost vlaku B v km/h.",
+        "choices": [],
+        "editable": true,
+        "placeholder": "km/h"
+      },
+      {
+        "id": "q3",
+        "text": "c) Dráhu vlaku A za 2h od startu v km.",
+        "choices": [],
+        "editable": true,
+        "placeholder": "km"
+      },
+      {
+        "id": "q4",
+        "text": "d) Za jakou dobu ujede vlak B dráhu 30 km (v hodinách)?",
+        "choices": [],
+        "editable": true,
+        "placeholder": "hodiny"
+      },
+      {
+        "id": "q5",
+        "text": "e) Jak daleko jsou od sebe vlaky vzdáleny za dobu 1h po startu (v km)?",
+        "choices": [],
+        "editable": true,
+        "placeholder": "km"
+      }
+    ],
+    "solutions": {
+      "q1": "30",
+      "q2": "60",
+      "q3": "60",
+      "q4": ["0,5", "0.5"],
+      "q5": "30"
+    },
+    "errorMessage": "Některé odpovědi nejsou správné. Zkontrolujte prosím své výpočty.",
+    "options": {
+      "aggregateOnly": false,
+      "blockUntilSolved": true,
+      "layout": { "mode": "auto", "direction": "vertical" }
+    },
+    "rect": { "x": 0, "y": 3, "w": 61, "h": 93 },
+    "background": "assets/puzzles/puzzle-couple-bg.jpg"
+  },
+
+  "puzzle-train": {
+    "id": "puzzle-train",
+    "kind": "choice",
+    "title": "Zapiš svoje výsledky.",
+    "prompt": "Zapiš vypočtené výsledky do políček.",
+    "tokens": [
+      {
+        "id": "q1",
+        "text": "a) Vlak se pohyboval nerovnoměrně.",
+        "choices": [
+          { "value": "true", "label": "Pravda" },
+          { "value": "false", "label": "Lež" }
+        ]
+      },
+      {
+        "id": "q2",
+        "text": "b) Nejrychleji jel 10 minut po startu.",
+        "choices": [
+          { "value": "true", "label": "Pravda" },
+          { "value": "false", "label": "Lež" }
+        ]
+      },
+      {
+        "id": "q3",
+        "text": "c) Jízda trvala 45 minut.",
+        "choices": [
+          { "value": "true", "label": "Pravda" },
+          { "value": "false", "label": "Lež" }
+        ]
+      },
+      {
+        "id": "q4",
+        "text": "d) Vlak mezi 10. a 15. minutou zrychloval.",
+        "choices": [
+          { "value": "true", "label": "Pravda" },
+          { "value": "false", "label": "Lež" }
+        ]
+      },
+      {
+        "id": "q5",
+        "text": "e) Vlak mezi 30. a 40. minutou zpomaloval.",
+        "choices": [
+          { "value": "true", "label": "Pravda" },
+          { "value": "false", "label": "Lež" }
+        ]
+      }
+    ],
+    "solutions": {
+      "q1": "true",
+      "q2": "false",
+      "q3": "false",
+      "q4": "false",
+      "q5": "true"
+    },
+    "errorMessage": "Zkuste to znovu! Odpověď není správná.",
+    "options": {
+      "aggregateOnly": false,
+      "blockUntilSolved": true,
+      "layout": { "mode": "auto", "direction": "vertical" }
+    },
+    "rect": { "x": 57, "y": 1, "w": 42, "h": 97 },
+    "background": "assets/puzzles/puzzle-train-bg.jpg"
+  }
+}

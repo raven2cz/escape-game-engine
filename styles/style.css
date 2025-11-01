@@ -315,7 +315,7 @@ html, body {
     display: flex !important;
     align-items: center;
     justify-content: center;
-    z-index: 1200;
+    z-index: 9000; /* Higher than puzzle overlay (8000) */
     pointer-events: none;
 }
 

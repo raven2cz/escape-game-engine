@@ -1,0 +1,415 @@
+{
+  "meta": {
+    "id": "stop-train",
+    "name": "Zastavte vlak",
+    "description": "Fyzikální úniková hra o pohybu vlaků.",
+    "author": "raven2cz",
+    "version": "1.0.0",
+    "tags": [
+      "physics",
+      "motion",
+      "trains"
+    ],
+    "languages": [
+      "cs"
+    ]
+  },
+  "settings": {
+    "hints": {
+      "acceptNeed": true
+    }
+  },
+  "items": [
+    {
+      "id": "indicie-1",
+      "label": "Indicie Hodiny",
+      "icon": "assets/indicie-1.jpg",
+      "meta": {
+        "description": "Indicie Hodiny"
+      }
+    },
+    {
+      "id": "indicie-2",
+      "label": "Indicie Kufr",
+      "icon": "assets/indicie-2.jpg",
+      "meta": {
+        "description": "Indicie Kufr"
+      }
+    },
+    {
+      "id": "indicie-3",
+      "label": "Indicie Žena",
+      "icon": "assets/indicie-3.jpg",
+      "meta": {
+        "description": "Indicie Žena"
+      }
+    },
+    {
+      "id": "indicie-4",
+      "label": "Indicie Pár",
+      "icon": "assets/indicie-4.jpg",
+      "meta": {
+        "description": "Indicie Pár"
+      }
+    },
+    {
+      "id": "indicie-5",
+      "label": "Indicie Vlak",
+      "icon": "assets/indicie-5.jpg",
+      "meta": {
+        "description": "Indicie Vlak"
+      }
+    }
+  ],
+  "scenes": [
+    {
+      "id": "intro",
+      "title": "Vítej! Čeká Tě důležitý úkol.",
+      "image": "assets/intro.jpg",
+      "hotspots": [
+        {
+          "type": "goTo",
+          "target": "main-room",
+          "rect": {"x":72.58,"y":84.51,"w":25.38,"h":15.49}
+        }
+      ]
+    },
+    {
+      "id": "main-room",
+      "title": "Objev 5 předmětů a vyřeš úkoly.",
+      "image": "assets/main-room.jpg",
+      "hotspots": [
+        {
+          "type": "goTo",
+          "target": "clock",
+          "rect": {"x":44.33,"y":17.75,"w":10.6,"h":17.29}
+        },
+        {
+          "type": "goTo",
+          "target": "suit",
+          "rect": {"x":48.07,"y":67.97,"w":8.53,"h":15.32}
+        },
+        {
+          "type": "goTo",
+          "target": "couple",
+          "rect": {"x":51.45,"y":41.34,"w":7.26,"h":23.44}
+        },
+        {
+          "type": "goTo",
+          "target": "train",
+          "rect": {"x":60.63,"y":29.35,"w":23.82,"h":33.93}
+        },
+        {
+          "type": "puzzle",
+          "rect": {"x":18.29,"y":57.31,"w":14.61,"h":34.29},
+          "puzzleRef": "puzzle-woman",
+          "options": {
+            "blockUntilSolved": true
+          },
+          "onSuccess": {
+            "giveItem": "indicie-3"
+          }
+        },
+        {
+          "type": "goTo",
+          "target": "exit",
+          "requireItems": [
+            "indicie-1",
+            "indicie-2",
+            "indicie-3",
+            "indicie-4",
+            "indicie-5"
+          ],
+          "rect": {"x":72.24,"y":0.09,"w":25.83,"h":16.21}
+        }
+      ]
+    },
+    {
+      "id": "clock",
+      "title": "Vypočítej příklad do sešitu",
+      "image": "assets/clock.jpg",
+      "hotspots": [
+        {
+          "type": "puzzle",
+          "rect": {"x":42.01,"y":85.21,"w":7.28,"h":13.72},
+          "puzzleRef": "puzzle-clock",
+          "options": {
+            "blockUntilSolved": true
+          },
+          "onSuccess": {
+            "message": "🎉 Správně! Získal jsi první indicii.",
+            "giveItem": "indicie-1",
+            "goTo": "main-room"
+          }
+        },
+        {
+          "type": "goTo",
+          "target": "main-room",
+          "rect": {"x":90.39,"y":84.93,"w":7.02,"h":12.64}
+        }
+      ]
+    },
+    {
+      "id": "suit",
+      "title": "Vypočítej příklad do sešitu",
+      "image": "assets/suit.jpg",
+      "hotspots": [
+        {
+          "type": "puzzle",
+          "rect": {"x":89.94,"y":63.32,"w":7.63,"h":13.44},
+          "puzzleRef": "puzzle-suit",
+          "options": {
+            "blockUntilSolved": true
+          },
+          "onSuccess": {
+            "message": "🎉 Správně! Získal jsi druhou indicii.",
+            "giveItem": "indicie-2",
+            "goTo": "main-room"
+          }
+        },
+        {
+          "type": "goTo",
+          "target": "main-room",
+          "rect": {"x":90.37,"y":84.84,"w":6.96,"h":12.78}
+        }
+      ]
+    },
+    {
+      "id": "couple",
+      "title": "Zapiš si odpovědi do sešitu.",
+      "image": "assets/couple.jpg",
+      "hotspots": [
+        {
+          "type": "puzzle",
+          "rect": {"x":2.56,"y":84.37,"w":7.26,"h":13.06},
+          "puzzleRef": "puzzle-couple",
+          "options": {
+            "blockUntilSolved": true
+          },
+          "onSuccess": {
+            "message": "🎉 Výborně! Získal jsi čtvrtou indicii.",
+            "giveItem": "indicie-4",
+            "goTo": "main-room"
+          }
+        },
+        {
+          "type": "goTo",
+          "target": "main-room",
+          "rect": {"x":90.29,"y":84.28,"w":7.28,"h":13.29}
+        }
+      ]
+    },
+    {
+      "id": "train",
+      "title": "Zapiš si odpovědi do sešitu.",
+      "image": "assets/train.jpg",
+      "hotspots": [
+        {
+          "type": "puzzle",
+          "rect": {"x":2.93,"y":83.57,"w":7.36,"h":13.34},
+          "puzzleRef": "puzzle-train",
+          "options": {
+            "blockUntilSolved": true
+          },
+          "onSuccess": {
+            "message": "🎉 Skvělé! Získal jsi pátou indicii.",
+            "giveItem": "indicie-5",
+            "goTo": "main-room"
+          }
+        },
+        {
+          "type": "goTo",
+          "target": "main-room",
+          "rect": {"x":90.31,"y":84.74,"w":7.34,"h":12.92}
+        }
+      ]
+    },
+    {
+      "id": "exit",
+      "title": "Dokázal jsi to! VLAK ZASTAVEN!",
+      "image": "assets/exit.jpg",
+      "end": true,
+      "hotspots": []
+    }
+  ],
+  "events": [
+    {
+      "id": "toast-indicie-1",
+      "once": true,
+      "when": {
+        "on": "stateChange",
+        "requireItems": ["indicie-1"]
+      },
+      "then": {
+        "toast": {
+          "text": "🎉 Získal jsi první indicii!",
+          "ms": 3000
+        }
+      }
+    },
+    {
+      "id": "toast-indicie-2",
+      "once": true,
+      "when": {
+        "on": "stateChange",
+        "requireItems": ["indicie-2"]
+      },
+      "then": {
+        "toast": {
+          "text": "🎉 Získal jsi druhou indicii!",
+          "ms": 3000
+        }
+      }
+    },
+    {
+      "id": "toast-indicie-3",
+      "once": true,
+      "when": {
+        "on": "stateChange",
+        "requireItems": ["indicie-3"]
+      },
+      "then": {
+        "toast": {
+          "text": "🎉 Získal jsi třetí indicii!",
+          "ms": 3000
+        }
+      }
+    },
+    {
+      "id": "toast-indicie-4",
+      "once": true,
+      "when": {
+        "on": "stateChange",
+        "requireItems": ["indicie-4"]
+      },
+      "then": {
+        "toast": {
+          "text": "🎉 Získal jsi čtvrtou indicii!",
+          "ms": 3000
+        }
+      }
+    },
+    {
+      "id": "toast-indicie-5",
+      "once": true,
+      "when": {
+        "on": "stateChange",
+        "requireItems": ["indicie-5"]
+      },
+      "then": {
+        "toast": {
+          "text": "🎉 Získal jsi pátou indicii!",
+          "ms": 3000
+        }
+      }
+    },
+    {
+      "id": "hint-exit-available",
+      "once": true,
+      "when": {
+        "on": "enterScene",
+        "scene": "main-room",
+        "requireItems": [
+          "indicie-1",
+          "indicie-2",
+          "indicie-3",
+          "indicie-4",
+          "indicie-5"
+        ]
+      },
+      "then": {
+        "toast": {
+          "text": "🎉 Máš všech 5 indicií! Východ je nyní otevřen!",
+          "ms": 5000
+        },
+        "highlightHotspot": {
+          "sceneId": "main-room",
+          "rect": {"x":72.24,"y":0.09,"w":25.83,"h":16.21},
+          "ms": 5000
+        }
+      }
+    },
+    {
+      "id": "hint-pick-indicie-1",
+      "once": false,
+      "when": {
+        "on": "enterScene",
+        "scene": "clock",
+        "missingItems": [
+          "indicie-1"
+        ]
+      },
+      "then": {
+        "toast": {
+          "text": "📋 Vyřeš puzzle, abys získal indicii!",
+          "ms": 4000
+        }
+      }
+    },
+    {
+      "id": "hint-pick-indicie-2",
+      "once": false,
+      "when": {
+        "on": "enterScene",
+        "scene": "suit",
+        "missingItems": [
+          "indicie-2"
+        ]
+      },
+      "then": {
+        "toast": {
+          "text": "📋 Vyřeš puzzle, abys získal indicii!",
+          "ms": 4000
+        }
+      }
+    },
+    {
+      "id": "hint-pick-indicie-4",
+      "once": false,
+      "when": {
+        "on": "enterScene",
+        "scene": "couple",
+        "missingItems": [
+          "indicie-4"
+        ]
+      },
+      "then": {
+        "toast": {
+          "text": "📋 Vyřeš puzzle, abys získal indicii!",
+          "ms": 4000
+        }
+      }
+    },
+    {
+      "id": "hint-pick-indicie-5",
+      "once": false,
+      "when": {
+        "on": "enterScene",
+        "scene": "train",
+        "missingItems": [
+          "indicie-5"
+        ]
+      },
+      "then": {
+        "toast": {
+          "text": "📋 Vyřeš puzzle, abys získal indicii!",
+          "ms": 4000
+        }
+      }
+    },
+    {
+      "id": "dlg-intro-mainRoom",
+      "once": true,
+      "when": {
+        "on": "enterScene",
+        "scene": "main-room"
+      },
+      "then": {
+        "openDialog": {
+          "id": "intro.mainRoom"
+        }
+      }
+    }
+  ],
+  "startScene": "intro"
+}

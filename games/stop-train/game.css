@@ -1,0 +1,168 @@
+/* games/stop-train/game.css
+   Per-game CSS overrides for Stop the Train escape room
+   Cascades: puzzles.css → game.css → puzzle.theme → token.style
+*/
+
+/* ========================================================================== */
+/* FONT CONFIGURATION - SpecialElite-Regular                                  */
+/* ========================================================================== */
+
+@font-face {
+  font-family: 'Special Elite';
+  src: url('assets/fonts/SpecialElite-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Apply Special Elite font globally with system fallback */
+html, body {
+  font-family: 'Special Elite', 'Courier New', monospace, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+}
+
+/* ========================================================================== */
+/* TYPOGRAPHY HIERARCHY                                                       */
+/* ========================================================================== */
+
+/* Title - larger size like in Leeuwenhoek */
+.topbar .title {
+  font-size: 1.4em;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+/* Scene titles */
+#sceneContainer .scene-title {
+  font-size: 1.2em;
+  font-weight: 600;
+}
+
+/* Puzzle titles */
+.pz-title {
+  font-size: 1.3em;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+/* Regular text */
+.pz-prompt,
+.pz-choice-text,
+.pz-token-text {
+  font-size: 1em;
+  letter-spacing: 0.2px;
+}
+
+/* ========================================================================== */
+/* PUZZLE STYLING - Light text on dark backgrounds                           */
+/* ========================================================================== */
+
+/* CRITICAL: Override token text color for dark backgrounds */
+.pz {
+  --pz-token-text-color: rgba(0, 0, 0, 0.95) !important;
+}
+
+/* Ensure all text elements are light colored */
+.pz-token,
+.pz-token-text {
+  color: rgba(0, 0, 0, 0.95) !important;
+}
+
+.pz-choice-text {
+  color: rgba(0, 0, 0, 0.9) !important;
+}
+
+.pz-input,
+.pz-input::placeholder {
+  color: rgba(0, 0, 0, 0.95) !important;
+}
+
+.pz-title,
+.pz-prompt {
+  color: rgba(0, 0, 0, 0.98) !important;
+}
+
+/* ========================================================================== */
+/* OPTIONAL: Specific puzzle overrides                                       */
+/* ========================================================================== */
+
+/* Physics puzzle specific styling */
+.pz--id-puzzle-woman,
+.pz--id-puzzle-train {
+  /* Choice puzzles with true/false options */
+}
+
+.pz--id-puzzle-clock,
+.pz--id-puzzle-suit {
+  /* Phrase input puzzles */
+}
+
+.pz--id-puzzle-couple {
+  /* Editable choice puzzle with numeric inputs */
+}
+
+/* ========================================================================== */
+/* ITEM LABELS                                                                */
+/* ========================================================================== */
+
+/* Inventory items use Special Elite font */
+#inventory .item-label {
+  font-family: 'Special Elite', 'Courier New', monospace;
+  font-size: 0.9em;
+  letter-spacing: 0.3px;
+}
+
+/* ========================================================================== */
+/* BUTTON STYLING                                                             */
+/* ========================================================================== */
+
+button, .btn {
+  font-family: 'Special Elite', 'Courier New', monospace;
+  letter-spacing: 0.5px;
+}
+
+/* ========================================================================== */
+/* BUTTONS - Dark grey/black styling                                         */
+/* ========================================================================== */
+
+/* Primary button (OK) - dark grey */
+.pz-btn--ok,
+button.pz-btn--ok {
+  background: rgba(80, 80, 80, 0.85) !important;
+  color: rgba(255, 255, 255, 0.95) !important;
+  border: 2px solid rgba(50, 50, 50, 0.9) !important;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.pz-btn--ok:hover {
+  background: rgba(60, 60, 60, 0.95) !important;
+  border-color: rgba(30, 30, 30, 1) !important;
+}
+
+/* Cancel button - lighter grey */
+.pz-btn--cancel,
+button.pz-btn--cancel {
+  background: rgba(150, 150, 150, 0.75) !important;
+  color: rgba(0, 0, 0, 0.9) !important;
+  border: 2px solid rgba(100, 100, 100, 0.8) !important;
+  font-weight: 500;
+}
+
+.pz-btn--cancel:hover {
+  background: rgba(130, 130, 130, 0.85) !important;
+  border-color: rgba(80, 80, 80, 1) !important;
+}
+
+/* ========================================================================== */
+/* LIGHT THEME - Dark text on light backgrounds                              */
+/* ========================================================================== */
+
+/* Override puzzle container background to light */
+.pz {
+  --pz-token-text-color: rgba(0, 0, 0, 0.9) !important;
+  --pz-token-bg: rgba(200, 200, 200, 0.3);
+  --pz-token-border: rgba(100, 100, 100, 0.5);
+  --pz-selected-bg: rgba(150, 150, 150, 0.4);
+  --pz-selected-border: rgba(80, 80, 80, 0.7);
+}
+

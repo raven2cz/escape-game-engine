@@ -392,6 +392,19 @@
     animation: shake 0.4s ease;
 }
 
+/* Invalid state for choice rows and tokens */
+.pz-choice-row.invalid {
+    background: var(--pz-wrong-bg);
+    border-color: var(--pz-wrong-border);
+    animation: token-shake 0.6s ease;
+}
+
+.pz-token.invalid {
+    background: var(--pz-wrong-bg);
+    border-color: var(--pz-wrong-border);
+    animation: token-shake 0.6s ease;
+}
+
 /* ============================================================================
    BUTTONS - OK/Cancel s barevnými hover stavy
    ============================================================================ */
