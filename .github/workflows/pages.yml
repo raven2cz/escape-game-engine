@@ -25,7 +25,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # (VOLITELNÉ) PWA cache-bust: nahradíme placeholder v service workeru
       - name: Prepare artifact
         run: |
           mkdir -p out
