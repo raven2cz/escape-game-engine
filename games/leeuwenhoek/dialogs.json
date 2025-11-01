@@ -6,19 +6,19 @@
       "id": "leeuwenhoek",
       "name": "@character.leeuwenhoek.name@Antoni",
       "poses": {
-        "neutral": "assets/npc/leeu/neutral.png",
-        "smile":   "assets/npc/leeu/smile.png",
-        "angry":   "assets/npc/leeu/angry.png"
+        "neutral": "assets/npc/leeu/neutral.webp",
+        "smile":   "assets/npc/leeu/smile.webp",
+        "angry":   "assets/npc/leeu/angry.webp"
       }
     },
     {
       "id": "hero",
       "name": "@character.hero.name@Hrdina",
       "poses": {
-        "idle":     "assets/npc/hero/idle.png",
-        "thinking": "assets/npc/hero/thinking.png",
-        "happy":    "assets/npc/hero/happy.png",
-        "fear":     "assets/npc/hero/fear.png"
+        "idle":     "assets/npc/hero/idle.webp",
+        "thinking": "assets/npc/hero/thinking.webp",
+        "happy":    "assets/npc/hero/happy.webp",
+        "fear":     "assets/npc/hero/fear.webp"
       }
     }
   ],
