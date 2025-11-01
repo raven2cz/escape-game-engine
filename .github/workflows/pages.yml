@@ -28,9 +28,19 @@ jobs:
       - name: Prepare artifact
         run: |
           mkdir -p out
-          cp -R index.html style.css assets engine game manifest.webmanifest service-worker.js out/
-          # GitHub Pages bez Jekyllu (pro jistotu)
+          # Kopírovat všechny důležité soubory a složky
+          cp index.html out/
+          cp service-worker.js out/
+          cp manifest.webmanifest out/
+          
+          # Kopírovat složky
+          cp -R styles out/
+          cp -R engine out/
+          cp -R games out/
+          
+          # GitHub Pages bez Jekyllu
           touch out/.nojekyll
+          
           # Pokud v SW existuje __CACHE_VERSION__, nahradíme krátkým SHA
           if grep -q "__CACHE_VERSION__" out/service-worker.js; then
             SHORT_SHA=${GITHUB_SHA::7}
