@@ -1,0 +1,283 @@
+{
+  "meta": {
+    "id": "reactor",
+    "name": "Reaktor",
+    "description": "Fyzikální únikovka o jaderných reakcích a záchraně reaktoru.",
+    "author": "raven2cz",
+    "version": "1.0.0",
+    "tags": [
+      "physics",
+      "nuclear",
+      "reactor"
+    ],
+    "languages": [
+      "cs"
+    ]
+  },
+  "settings": {
+    "hints": {
+      "acceptNeed": true
+    }
+  },
+  "items": [
+    {
+      "id": "clue-A",
+      "label": "Indicie A",
+      "icon": "assets/clue-A.jpg",
+      "meta": {
+        "description": "Písmeno: A"
+      }
+    },
+    {
+      "id": "clue-D",
+      "label": "Indicie D",
+      "icon": "assets/clue-D.jpg",
+      "meta": {
+        "description": "Písmeno: D"
+      }
+    },
+    {
+      "id": "clue-R",
+      "label": "Indicie R",
+      "icon": "assets/clue-R.jpg",
+      "meta": {
+        "description": "Písmeno: R"
+      }
+    }
+  ],
+  "scenes": [
+    {
+      "id": "intro-1",
+      "title": "Záchrana reaktoru 9",
+      "image": "assets/intro-1.jpg",
+      "hotspots": [
+        {
+          "type": "goTo",
+          "target": "intro-2",
+          "rect": {"x":42.04,"y":24.67,"w":12.83,"h":21.22}
+        }
+      ]
+    },
+    {
+      "id": "intro-2",
+      "title": "Seznam se s lordem Rutherfordem",
+      "image": "assets/intro-2.jpg",
+      "hotspots": [
+        {
+          "type": "goTo",
+          "target": "intro-3",
+          "rect": {"x":33.66,"y":40.19,"w":21.17,"h":41.23}
+        }
+      ]
+    },
+    {
+      "id": "intro-3",
+      "title": "Kvíz s lordem Rutherfordem",
+      "image": "assets/intro-3.jpg",
+      "hotspots": [
+        {
+          "type": "puzzle",
+          "rect": {"x":76.21,"y":79.18,"w":23.21,"h":20.82},
+          "puzzleRef": "puzzle-quiz-list-1",
+          "options": {
+            "blockUntilSolved": true
+          },
+          "onSuccess": {
+            "message": "Výborně! Získal jsi indicii A! 🎉",
+            "giveItem": "clue-A",
+            "goTo": "quiz-1-after"
+          }
+        }
+      ]
+    },
+    {
+      "id": "quiz-1-after",
+      "title": "Výborně! Zvládl jsi to. Klikni na symbol radioaktivity.",
+      "image": "assets/quiz-1-after.jpg",
+      "hotspots": [
+        {
+          "type": "goTo",
+          "target": "main-room",
+          "rect": {"x":77.77,"y":4.39,"w":16.21,"h":43.59}
+        }
+      ]
+    },
+    {
+      "id": "main-room",
+      "title": "Vyřeš 2 úkoly.",
+      "image": "assets/main-room.jpg",
+      "hotspots": [
+        {
+          "type": "goTo",
+          "target": "light-1",
+          "rect": {"x":43.21,"y":1.07,"w":13.69,"h":11.3}
+        },
+        {
+          "type": "goTo",
+          "target": "atom-1",
+          "rect": {"x":41.75,"y":38.87,"w":16.76,"h":27.25}
+        },
+        {
+          "type": "goTo",
+          "target": "door-1",
+          "requireItems": ["clue-D", "clue-A", "clue-R"],
+          "rect": {"x":76.51,"y":78.62,"w":22.82,"h":20.36}
+        }
+      ]
+    },
+    {
+      "id": "atom-1",
+      "title": "Reactor Hall",
+      "image": "assets/atom-1.jpg",
+      "hotspots": [
+        {
+          "type": "goTo",
+          "target": "main-room",
+          "rect": {"x":88.37,"y":80.9,"w":9.02,"h":16.76}
+        },
+        {
+          "type": "goTo",
+          "target": "reactor-hall",
+          "rect": {"x":11.57,"y":10.77,"w":31.4,"h":62.54}
+        }
+      ]
+    },
+    {
+      "id": "reactor-hall",
+      "title": "Štěpná reakce",
+      "image": "assets/reactor-hall.jpg",
+      "hotspots": [
+        {
+          "type": "goTo",
+          "target": "main-room",
+          "rect": {"x":88.43,"y":79.92,"w":9.01,"h":17.24}
+        },
+        {
+          "type": "puzzle",
+          "rect":{"x":46.49,"y":77.25,"w":10.99,"h":21.25},
+          "puzzleRef": "puzzle-atom-list",
+          "options": {
+            "blockUntilSolved": true
+          },
+          "onSuccess": {
+            "message": "Skvělé! Získal jsi indicii D! 🎉",
+            "giveItem": "clue-D",
+            "goTo": "main-room"
+          }
+        }
+      ]
+    },
+    {
+      "id": "light-1",
+      "title": "Jaderná fúze",
+      "image": "assets/light-1.jpg",
+      "hotspots": [
+        {
+          "type": "puzzle",
+          "rect": {"x":76.82,"y":77.15,"w":22.32,"h":21.94},
+          "puzzleRef": "puzzle-light-list",
+          "options": {
+            "blockUntilSolved": true
+          },
+          "onSuccess": {
+            "message": "Perfektní! Získal jsi indicii R! 🎉",
+            "giveItem": "clue-R",
+            "goTo": "main-room"
+          }
+        },
+        {
+          "type": "goTo",
+          "target": "main-room",
+          "rect":{"x":2.17,"y":81.26,"w":11.02,"h":17.04}
+        }
+      ]
+    },
+    {
+      "id": "door-1",
+      "title": "Zadej heslo pomocí indicií.",
+      "image": "assets/door-1.jpg",
+      "hotspots": [
+        {
+          "type": "puzzle",
+          "rect": {"x":10.91,"y":18.87,"w":46.8,"h":54.99},
+          "puzzleRef": "puzzle-door-1",
+          "options": {
+            "blockUntilSolved": true
+          },
+          "onSuccess": {
+            "message": "Heslo přijato! Vstup otevřen! ✅",
+            "goTo": "exit"
+          }
+        }
+      ]
+    },
+    {
+      "id": "exit",
+      "title": "Dokázal jsi to! SYSTÉM ZNOVU NASTARTOVÁN!",
+      "image": "assets/exit.jpg",
+      "hotspots": []
+    }
+  ],
+  "events": [
+    {
+      "id": "dlg-intro-mainRoom",
+      "once": true,
+      "when": {
+        "on": "enterScene",
+        "scene": "main-room"
+      },
+      "then": {
+        "openDialog": {
+          "id": "main-room.rutherford"
+        }
+      }
+    },
+    {
+      "id": "hint-all-clues-collected",
+      "once": true,
+      "when": {
+        "on": "enterScene",
+        "scene": "main-room",
+        "requireItems": ["clue-D", "clue-A", "clue-R"]
+      },
+      "then": {
+        "toast": {
+          "text": "Nyní již máme dostatek indicií k otevření řídící místnosti! 🔑",
+          "ms": 5000
+        },
+        "highlightHotspot": {
+          "rect": {"x":76.51,"y":78.62,"w":22.82,"h":20.36},
+          "ms": 4000
+        }
+      }
+    },
+    {
+      "id": "dlg-exit-einstein",
+      "once": true,
+      "when": {
+        "on": "enterScene",
+        "scene": "exit"
+      },
+      "then": {
+        "openDialog": {
+          "id": "exit.einstein"
+        }
+      }
+    },
+    {
+      "id": "highlight-exit-success",
+      "once": true,
+      "when": {
+        "on": "enterScene",
+        "scene": "door-1"
+      },
+      "then": {
+        "highlightHotspot": {
+          "rect": {"x":38.86,"y":18.9,"w":18.46,"h":54.75},
+          "ms": 5000
+        }
+      }
+    }
+  ],
+  "startScene": "intro-1"
+}

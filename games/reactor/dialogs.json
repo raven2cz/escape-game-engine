@@ -1,0 +1,122 @@
+{
+  "meta": { 
+    "id": "reactor", 
+    "name": "Dialogs" 
+  },
+
+  "characters": [
+    {
+      "id": "rutherford",
+      "name": "Ernest Rutherford",
+      "poses": {
+        "neutral": "assets/npc/rutherford/neutral.webp",
+        "smile": "assets/npc/rutherford/smile.webp",
+        "serious": "assets/npc/rutherford/serious.webp"
+      }
+    },
+    {
+      "id": "einstein",
+      "name": "Albert Einstein",
+      "poses": {
+        "neutral": "assets/npc/einstein/neutral.webp",
+        "smile": "assets/npc/einstein/smile.webp",
+        "serious": "assets/npc/einstein/serious.webp"
+      }
+    }
+  ],
+
+  "dialogs": [
+    {
+      "id": "main-room.rutherford",
+      "once": true,
+      "title": "Nebezpečná zóna",
+      "left": { 
+        "characterId": "rutherford", 
+        "defaultPose": "neutral" 
+      },
+      "ui": { 
+        "tapToNext": true, 
+        "allowSkip": true 
+      },
+
+      "sequence": [
+        {
+          "id": "m1",
+          "speaker": "left",
+          "pose": "smile",
+          "text": "Výborně! Věděl jsem, že se ti to podaří!"
+        },
+        {
+          "id": "m2",
+          "speaker": "left",
+          "pose": "serious",
+          "text": "Dostal jsi se do Nebezpečné zóny. Pozorně se rozhlédni..."
+        },
+        {
+          "id": "m3",
+          "speaker": "left",
+          "pose": "neutral",
+          "text": "Musíš najít ještě dvě indicie, abys dokázal otevřít hlavní dveře do řídící místnosti."
+        },
+        {
+          "id": "m4",
+          "speaker": "left",
+          "pose": "smile",
+          "text": "Věřím, že to zvládneš. Hodně štěstí!"
+        }
+      ],
+
+      "onEnd": {
+        "message": "Úkol: Najdi zbývající dvě indicie pro otevření dveří.",
+        "setFlags": ["danger_zone_entered"]
+      }
+    },
+
+    {
+      "id": "exit.einstein",
+      "once": true,
+      "title": "Záchrana se podařila!",
+      "left": { 
+        "characterId": "einstein", 
+        "defaultPose": "neutral" 
+      },
+      "ui": { 
+        "tapToNext": true, 
+        "allowSkip": false 
+      },
+
+      "sequence": [
+        {
+          "id": "m1",
+          "speaker": "left",
+          "pose": "serious",
+          "text": "Víš, udělal jsem v životě velkou chybu..."
+        },
+        {
+          "id": "m2",
+          "speaker": "left",
+          "pose": "serious",
+          "text": "Když jsem podepsal ten dopis pro vynález atomových bomb."
+        },
+        {
+          "id": "m3",
+          "speaker": "left",
+          "pose": "smile",
+          "text": "Ale ty... ty jsi dnes zachránil celý svět!"
+        },
+        {
+          "id": "m4",
+          "speaker": "left",
+          "pose": "neutral",
+          "text": "Musíš v tom dále pokračovat. Svět tě potřebuje."
+        }
+      ],
+
+      "onEnd": {
+        "message": "🎉 Gratulujeme! Dokončil jsi hru Reaktor!",
+        "setFlags": ["game_completed"]
+      }
+    }
+  ]
+}
+

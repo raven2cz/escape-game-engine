@@ -1,0 +1,556 @@
+{
+  "puzzle-quiz-list-1": {
+    "id": "puzzle-quiz-list-1",
+    "kind": "list",
+    "title": "Základy jaderné fyziky",
+    "prompt": "",
+    "items": [
+      { "ref": "puzzle-quiz-1-1" },
+      { "ref": "puzzle-quiz-1-2" },
+      { "ref": "puzzle-quiz-1-3" },
+      { "ref": "puzzle-quiz-1-4" },
+      { "ref": "puzzle-quiz-1-5" },
+      { "ref": "puzzle-quiz-1-6" },
+      { "ref": "puzzle-quiz-1-7" },
+      { "ref": "puzzle-quiz-1-8" },
+      { "ref": "puzzle-quiz-1-9" }
+    ],
+    "summary": {
+      "showScore": true,
+      "messageOk": "Výborně! Zvládl jsi všech 9 otázek o jaderné fyzice.",
+      "messageFail": "Některé odpovědi nebyly správné. Zkus si je znovu rozmyslet."
+    },
+    "errorMessage": "Některé odpovědi nejsou správné. Přečti si pečlivě o jaderných reakcích!",
+    "options": {
+      "blockUntilSolved": false,
+      "showErrorToast": true
+    }
+  },
+
+  "puzzle-quiz-1-1": {
+    "id": "puzzle-quiz-1-1",
+    "kind": "quiz",
+    "title": "Co je jaderná reakce?",
+    "prompt": "",
+    "tokens": [
+      { "id": "c1", "label": "A) Když se dvě jádra pohádají o proton" },
+      { "id": "c2", "label": "B) Když se elektrony rozhodnou dát výpověď a opustí atom" },
+      { "id": "c3", "label": "C) Když se atom rozpadne na dvě menší jádra a uvolní energii" },
+      { "id": "c4", "label": "D) Když se vědci hádají o tom, kdo měl pravdu" }
+    ],
+    "solutionIds": ["c3"],
+    "options": {
+      "multiSelect": false,
+      "aggregateOnly": true,
+      "blockUntilSolved": false,
+      "layout": { "mode": "auto", "direction": "vertical" }
+    },
+    "rect": {
+      "x": 41,
+      "y": 0,
+      "w": 58,
+      "h": 99
+    },
+    "background": "assets/puzzles/puzzle-quiz-1-1-bg.jpg"
+  },
+
+  "puzzle-quiz-1-2": {
+    "id": "puzzle-quiz-1-2",
+    "kind": "quiz",
+    "title": "Kdo byl Ernest Rutherford?",
+    "prompt": "",
+    "tokens": [
+      { "id": "c1", "label": "A) Britský fyzik, který objevil atomové jádro" },
+      { "id": "c2", "label": "B) Spisovatel příběhů o radiu" },
+      { "id": "c3", "label": "C) Cestovatel po Antarktidě" },
+      { "id": "c4", "label": "D) Herec, který si spletl scénu s laboratoří" }
+    ],
+    "solutionIds": ["c1"],
+    "options": {
+      "multiSelect": false,
+      "aggregateOnly": true,
+      "blockUntilSolved": false,
+      "layout": { "mode": "auto", "direction": "vertical" }
+    },
+    "rect": {
+      "x": 49,
+      "y": 1,
+      "w": 50,
+      "h": 98
+    },
+    "background": "assets/puzzles/puzzle-quiz-1-2-bg.jpg"
+  },
+
+  "puzzle-quiz-1-3": {
+    "id": "puzzle-quiz-1-3",
+    "kind": "quiz",
+    "title": "Jak Rutherford objevil jádro atomu?",
+    "prompt": "",
+    "tokens": [
+      { "id": "c1", "label": "A) Omylem mu spadl atom na zem" },
+      { "id": "c2", "label": "B) Pozoroval atom pod mikroskopem" },
+      { "id": "c3", "label": "C) Použil magnet na protony" },
+      { "id": "c4", "label": "D) Střílel alfa částice do zlaté fólie a sledoval, kam se odrazí" }
+    ],
+    "solutionIds": ["c4"],
+    "options": {
+      "multiSelect": false,
+      "aggregateOnly": true,
+      "blockUntilSolved": false,
+      "layout": { "mode": "auto", "direction": "vertical" }
+    },
+    "rect": {
+      "x": 0,
+      "y": 2,
+      "w": 47,
+      "h": 98
+    },
+    "background": "assets/puzzles/puzzle-quiz-1-3-bg.jpg"
+  },
+
+  "puzzle-quiz-1-4": {
+    "id": "puzzle-quiz-1-4",
+    "kind": "quiz",
+    "title": "Jakou první jadernou přeměnu Rutherford provedl?",
+    "prompt": "",
+    "tokens": [
+      { "id": "c1", "label": "A) Přeměnil dusík na kyslík" },
+      { "id": "c2", "label": "B) Přeměnil zlato na uran" },
+      { "id": "c3", "label": "C) Z kávy udělal energii" },
+      { "id": "c4", "label": "D) Přeměnil elektrony na neutrony" }
+    ],
+    "solutionIds": ["c1"],
+    "options": {
+      "multiSelect": false,
+      "aggregateOnly": true,
+      "blockUntilSolved": false,
+      "layout": { "mode": "auto", "direction": "vertical" }
+    },
+    "rect": {
+      "x": 47,
+      "y": 0,
+      "w": 52,
+      "h": 100
+    },
+    "background": "assets/puzzles/puzzle-quiz-1-4-bg.jpg"
+  },
+
+  "puzzle-quiz-1-5": {
+    "id": "puzzle-quiz-1-5",
+    "kind": "quiz",
+    "title": "Za co Rutherford získal Nobelovu cenu?",
+    "prompt": "",
+    "tokens": [
+      { "id": "c1", "label": "A) Za fyziku" },
+      { "id": "c2", "label": "B) Za chemii" },
+      { "id": "c3", "label": "C) Za nejlepší účes v laboratoři" },
+      { "id": "c4", "label": "D) Za mír" }
+    ],
+    "solutionIds": ["c2"],
+    "options": {
+      "multiSelect": false,
+      "aggregateOnly": true,
+      "blockUntilSolved": false,
+      "layout": { "mode": "auto", "direction": "vertical" }
+    },
+    "rect": {
+      "x": 46,
+      "y": 0,
+      "w": 53,
+      "h": 100
+    },
+    "background": "assets/puzzles/puzzle-quiz-1-5-bg.jpg"
+  },
+
+  "puzzle-quiz-1-6": {
+    "id": "puzzle-quiz-1-6",
+    "kind": "quiz",
+    "title": "Co se stane, když neutron narazí do jádra uranu?",
+    "prompt": "",
+    "tokens": [
+      { "id": "c1", "label": "A) Vznikne supernova v laboratoři" },
+      { "id": "c2", "label": "B) Jádro se srazí a odletí na dovolenou" },
+      { "id": "c3", "label": "C) Uran se změní na železo" },
+      { "id": "c4", "label": "D) Jádro se rozštěpí a uvolní energii" }
+    ],
+    "solutionIds": ["c4"],
+    "options": {
+      "multiSelect": false,
+      "aggregateOnly": true,
+      "blockUntilSolved": false,
+      "layout": { "mode": "auto", "direction": "vertical" }
+    },
+    "rect": {
+      "x": 46,
+      "y": 0,
+      "w": 54,
+      "h": 100
+    },
+    "background": "assets/puzzles/puzzle-quiz-1-6-bg.jpg"
+  },
+
+  "puzzle-quiz-1-7": {
+    "id": "puzzle-quiz-1-7",
+    "kind": "quiz",
+    "title": "Která částice určuje, o jaký prvek jde?",
+    "prompt": "",
+    "tokens": [
+      { "id": "c1", "label": "A) Neutron" },
+      { "id": "c2", "label": "B) Elektron" },
+      { "id": "c3", "label": "C) Proton" },
+      { "id": "c4", "label": "D) Fotbalon" }
+    ],
+    "solutionIds": ["c3"],
+    "options": {
+      "multiSelect": false,
+      "aggregateOnly": true,
+      "blockUntilSolved": false,
+      "layout": { "mode": "auto", "direction": "vertical" }
+    },
+    "rect": {
+      "x": 0,
+      "y": 2,
+      "w": 42,
+      "h": 98
+    },
+    "background": "assets/puzzles/puzzle-quiz-1-7-bg.jpg"
+  },
+
+  "puzzle-quiz-1-8": {
+    "id": "puzzle-quiz-1-8",
+    "kind": "quiz",
+    "title": "",
+    "prompt": "",
+    "tokens": [
+      { "id": "c1", "label": "A) E = mc²" },
+      { "id": "c2", "label": "B) F = ma" },
+      { "id": "c3", "label": "C) H₂O" },
+      { "id": "c4", "label": "D) CTRL + ALT + DELETE" }
+    ],
+    "solutionIds": ["c1"],
+    "options": {
+      "multiSelect": false,
+      "aggregateOnly": true,
+      "blockUntilSolved": false,
+      "layout": { "mode": "auto", "direction": "vertical" }
+    },
+    "rect": {
+      "x": 28,
+      "y": 24,
+      "w": 42,
+      "h": 75
+    },
+    "background": "assets/puzzles/puzzle-quiz-1-8-bg.jpg"
+  },
+
+  "puzzle-quiz-1-9": {
+    "id": "puzzle-quiz-1-9",
+    "kind": "quiz",
+    "title": "",
+    "prompt": "",
+    "tokens": [
+      { "id": "c1", "label": "A) Atomová lavina" },
+      { "id": "c2", "label": "B) Domino efekt" },
+      { "id": "c3", "label": "C) Řetězová reakce" },
+      { "id": "c4", "label": "D) Fyzikální party" }
+    ],
+    "solutionIds": ["c3"],
+    "options": {
+      "multiSelect": false,
+      "aggregateOnly": true,
+      "blockUntilSolved": false,
+      "layout": { "mode": "auto", "direction": "vertical" }
+    },
+    "rect": {
+      "x": 15,
+      "y": 30,
+      "w": 45,
+      "h": 53
+    },
+    "background": "assets/puzzles/puzzle-quiz-1-9-bg.jpg"
+  },
+
+  "puzzle-atom-list": {
+    "id": "puzzle-atom-list",
+    "kind": "list",
+    "title": "Atomová energie",
+    "prompt": "",
+    "items": [
+      { "ref": "puzzle-atom-1" },
+      { "ref": "puzzle-atom-2" },
+      { "ref": "puzzle-atom-3" }
+    ],
+    "summary": {
+      "showScore": true,
+      "messageOk": "Výborně! Zvládl jsi všechny úkoly o jaderném štěpení.",
+      "messageFail": "Některé odpovědi nebyly správné. Zkus to znovu."
+    },
+    "errorMessage": "Některé odpovědi nejsou správné. Přečti si pečlivě o reaktoru!",
+    "options": {
+      "blockUntilSolved": false,
+      "showErrorToast": true
+    }
+  },
+
+  "puzzle-atom-1": {
+    "id": "puzzle-atom-1",
+    "kind": "order",
+    "title": "Seřaď kroky jaderné reakce",
+    "prompt": "Seřaď kroky ve správném pořadí",
+    "tokens": [
+      { "id": "s1", "text": "Uvolní se energie a další neutrony" },
+      { "id": "s2", "text": "Neutron narazí do jádra uranu" },
+      { "id": "s3", "text": "Reakce pokračuje dál – řetězově" },
+      { "id": "s4", "text": "Jádro se rozštěpí na dvě menší" }
+    ],
+    "solution": ["s2", "s4", "s1", "s3"],
+    "options": {
+      "aggregateOnly": false,
+      "blockUntilSolved": true,
+      "layout": { "mode": "auto", "direction": "vertical" }
+    },
+    "background": "assets/puzzles/puzzle-atom-1-bg.jpg"
+  },
+
+  "puzzle-atom-2": {
+    "id": "puzzle-atom-2",
+    "kind": "quiz",
+    "title": "",
+    "prompt": "",
+    "tokens": [
+      { "id": "c1", "label": "A) Jádra se spojují" },
+      { "id": "c2", "label": "B) Jádra se rozdělují" },
+      { "id": "c3", "label": "C) Vzniká helium" },
+      { "id": "c4", "label": "D) Probíhá ve Slunci" }
+    ],
+    "solutionIds": ["c2"],
+    "options": {
+      "multiSelect": false,
+      "aggregateOnly": false,
+      "blockUntilSolved": true,
+      "layout": { "mode": "auto", "direction": "vertical" }
+    },
+    "rect": {
+      "x": 22,
+      "y": 22,
+      "w": 35,
+      "h": 78
+    },
+    "background": "assets/puzzles/puzzle-atom-2-bg.jpg"
+  },
+
+  "puzzle-atom-3": {
+    "id": "puzzle-atom-3",
+    "kind": "match",
+    "title": "Tvým úkolem je nyní najít správné dvojice",
+    "prompt": "součást → role v reaktoru",
+    "mode": "columns",
+    "tokens": [
+      { "id": "l1", "label": "Moderátor", "side": "left" },
+      { "id": "l2", "label": "Regulační tyč", "side": "left" },
+      { "id": "l3", "label": "Chladivo", "side": "left" },
+      { "id": "l4", "label": "Turbína", "side": "left" },
+      { "id": "l5", "label": "Uran-235", "side": "left" },
+      { "id": "l6", "label": "Generátor", "side": "left" },
+      { "id": "r1", "label": "Látka, která se v reaktoru štěpí a uvolňuje energii", "side": "right" },
+      { "id": "r2", "label": "Zpomaluje neutrony, aby reakce nebyla moc rychlá", "side": "right" },
+      { "id": "r3", "label": "Pohlcuje přebytečné neutrony a tím brzdí řetězovou reakci", "side": "right" },
+      { "id": "r4", "label": "Odvádí teplo pryč z reaktoru", "side": "right" },
+      { "id": "r5", "label": "Přeměňuje pohybovou energii na elektrickou", "side": "right" },
+      { "id": "r6", "label": "Roztočí své lopatky díky páře", "side": "right" }
+    ],
+    "pairs": [
+      ["l1", "r2"],
+      ["l2", "r3"],
+      ["l3", "r4"],
+      ["l4", "r6"],
+      ["l5", "r1"],
+      ["l6", "r5"]
+    ],
+    "options": {
+      "aggregateOnly": false,
+      "blockUntilSolved": true,
+      "layout": { "mode": "auto", "direction": "vertical" }
+    },
+    "rect": {
+      "x": 5,
+      "y": 1,
+      "w": 89,
+      "h": 98
+    },
+    "background": "assets/puzzles/puzzle-atom-3-bg.jpg"
+  },
+
+  "puzzle-light-list": {
+    "id": "puzzle-light-list",
+    "kind": "list",
+    "title": "Jaderná fúze",
+    "prompt": "",
+    "items": [
+      { "ref": "puzzle-light-1" },
+      { "ref": "puzzle-light-2" },
+      { "ref": "puzzle-light-3" },
+      { "ref": "puzzle-light-4" },
+      { "ref": "puzzle-light-5" }
+    ],
+    "summary": {
+      "showScore": true,
+      "messageOk": "Výborně! Zvládl jsi všech 5 otázek o jaderné fúzi.",
+      "messageFail": "Některé odpovědi nebyly správné. Zkus si je znovu rozmyslet."
+    },
+    "errorMessage": "Některé odpovědi nejsou správné. Přečti si pečlivě o jaderné fúzi!",
+    "options": {
+      "blockUntilSolved": false,
+      "showErrorToast": true
+    }
+  },
+
+  "puzzle-light-1": {
+    "id": "puzzle-light-1",
+    "kind": "quiz",
+    "title": "Co se při fúzi děje?",
+    "prompt": "",
+    "tokens": [
+      { "id": "c1", "label": "A) Vzniká uran" },
+      { "id": "c2", "label": "B) Jádra se rozdělují" },
+      { "id": "c3", "label": "C) Elektrony tančí kolem jádra" },
+      { "id": "c4", "label": "D) Dvě lehká jádra se spojují v těžší" }
+    ],
+    "solutionIds": ["c4"],
+    "options": {
+      "multiSelect": false,
+      "aggregateOnly": true,
+      "blockUntilSolved": false,
+      "layout": { "mode": "auto", "direction": "vertical" }
+    },
+    "rect": {
+      "x": 2,
+      "y": 1,
+      "w": 69,
+      "h": 99
+    },
+    "background": "assets/puzzles/puzzle-light-1-bg.jpg"
+  },
+
+  "puzzle-light-2": {
+    "id": "puzzle-light-2",
+    "kind": "quiz",
+    "title": "",
+    "prompt": "",
+    "tokens": [
+      { "id": "c1", "label": "A) Slunce se nabíjí jako baterka" },
+      { "id": "c2", "label": "B) Jádra hélia se štěpí na vodík" },
+      { "id": "c3", "label": "C) Jádra vodíku se slučují na hélium" },
+      { "id": "c4", "label": "D) Profesor si tam ohřívá čaj" }
+    ],
+    "solutionIds": ["c3"],
+    "options": {
+      "multiSelect": false,
+      "aggregateOnly": true,
+      "blockUntilSolved": false,
+      "layout": { "mode": "auto", "direction": "vertical" }
+    },
+    "rect": {
+      "x": 40,
+      "y": 33,
+      "w": 60,
+      "h": 67
+    },
+    "background": "assets/puzzles/puzzle-light-2-bg.jpg"
+  },
+
+  "puzzle-light-3": {
+    "id": "puzzle-light-3",
+    "kind": "quiz",
+    "title": "",
+    "prompt": "",
+    "tokens": [
+      { "id": "c1", "label": "A) Protože je tam obrovské horko a žádná nádoba to nevydrží" },
+      { "id": "c2", "label": "B) Protože vědci ztratili návod" },
+      { "id": "c3", "label": "C) Protože jim došla elektřina" },
+      { "id": "c4", "label": "D) Protože Slunce nechce pomáhat" }
+    ],
+    "solutionIds": ["c1"],
+    "options": {
+      "multiSelect": false,
+      "aggregateOnly": true,
+      "blockUntilSolved": false,
+      "layout": { "mode": "auto", "direction": "vertical" }
+    },
+    "rect": {
+      "x": 45,
+      "y": 23,
+      "w": 55,
+      "h": 77
+    },
+    "background": "assets/puzzles/puzzle-light-3-bg.jpg"
+  },
+
+  "puzzle-light-4": {
+    "id": "puzzle-light-4",
+    "kind": "quiz",
+    "title": "Kolik energie se uvolní při fúzi oproti štěpení?",
+    "prompt": "",
+    "tokens": [
+      { "id": "c1", "label": "A) Méně než při štěpení" },
+      { "id": "c2", "label": "B) Zhruba stejně" },
+      { "id": "c3", "label": "C) Mnohem víc" },
+      { "id": "c4", "label": "D) Záleží, kolik má Slunce k obědu" }
+    ],
+    "solutionIds": ["c3"],
+    "options": {
+      "multiSelect": false,
+      "aggregateOnly": true,
+      "blockUntilSolved": false,
+      "layout": { "mode": "auto", "direction": "vertical" }
+    },
+    "rect": {
+      "x": 46,
+      "y": 1,
+      "w": 54,
+      "h": 99
+    },
+    "background": "assets/puzzles/puzzle-light-4-bg.jpg"
+  },
+
+  "puzzle-light-5": {
+    "id": "puzzle-light-5",
+    "kind": "quiz",
+    "title": "Co je hlavní výhodou jaderné fúze oproti štěpení?",
+    "prompt": "",
+    "tokens": [
+      { "id": "c1", "label": "A) Dá se snadno provozovat" },
+      { "id": "c2", "label": "B) Nevyžaduje žádné přístroje" },
+      { "id": "c3", "label": "C) Funguje i při pokojové teplotě" },
+      { "id": "c4", "label": "D) Nevzniká radioaktivní odpad" }
+    ],
+    "solutionIds": ["c4"],
+    "options": {
+      "multiSelect": false,
+      "aggregateOnly": true,
+      "blockUntilSolved": false,
+      "layout": { "mode": "auto", "direction": "vertical" }
+    },
+    "rect": {
+      "x": 0,
+      "y": 0,
+      "w": 53,
+      "h": 100
+    },
+    "background": "assets/puzzles/puzzle-light-5-bg.jpg"
+  },
+
+  "puzzle-door-1": {
+    "id": "puzzle-door-1",
+    "kind": "phrase",
+    "title": "Dveře bez hesla nelze otevřít!",
+    "prompt": "Indicie by mohly pomoci s nalezením hesla",
+    "placeholder": "Napiš heslo...",
+    "solution": "RAD",
+    "options": {
+      "aggregateOnly": false,
+      "blockUntilSolved": true,
+      "layout": { "mode": "auto", "direction": "vertical" }
+    }
+  }
+}
