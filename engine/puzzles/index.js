@@ -121,13 +121,21 @@ export function createPuzzleRunner(args) {
         rootEl.appendChild(container);
 
         const workRect = cfg.rect || {x: 10, y: 10, w: 80, h: 80};
+
+        // Resolve background: args.background (from list step) OR cfg.background (from puzzle config)
+        const resolvedBackground = args.background ||
+                                   (cfg.background ? (args.engine?._resolveAsset?.(cfg.background) || cfg.background) : undefined);
+
         console.log('[PZ] runner mountInto:', {
             id: puzzle.id,
             kind: puzzle.kind,
             argsRect: args.rect,
             cfgRect: cfg.rect,
             containerRect,
-            workRect
+            workRect,
+            'args.background': args.background,
+            'cfg.background': cfg.background,
+            'resolvedBackground': resolvedBackground
         });
 
         if (/\bdebug=1\b/.test(window.location.search)) {
@@ -142,7 +150,7 @@ export function createPuzzleRunner(args) {
             });
         }
 
-        puzzle.mount(container, workRect, args.background);
+        puzzle.mount(container, workRect, resolvedBackground);
         puzzle.render?.();
     }
 

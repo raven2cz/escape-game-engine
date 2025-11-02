@@ -133,8 +133,20 @@ export default class GroupPuzzle extends BasePuzzle {
         const label = document.createElement('div');
         label.className = 'pz-group-label';
         label.textContent = this.t(group.label || '', '');
-        label.style.fontWeight = '600';
-        label.style.opacity = '0.7';
+
+        // Position label at top center, above tokens
+        Object.assign(label.style, {
+            position: 'absolute',
+            top: '8px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            fontWeight: '600',
+            opacity: '0.7',
+            pointerEvents: 'none', // Don't interfere with token drag
+            zIndex: '1',
+            whiteSpace: 'nowrap'
+        });
+
         el.appendChild(label);
 
         this._groupAreas.set(String(group.id), el);
