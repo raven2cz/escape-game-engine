@@ -308,6 +308,15 @@ textarea::placeholder {
 .dlg-overlay {
   background: rgba(5, 10, 20, 0.88);
   backdrop-filter: blur(16px);
+
+  /* Dialog choice color variables - green hover to match OK button */
+  --dlg-choice-bg: rgba(255, 255, 255, 0.10);
+  --dlg-choice-border: rgba(200, 220, 240, 0.30);
+  --dlg-choice-text: rgba(240, 245, 250, 0.95);
+  --dlg-choice-hover-bg: rgba(80, 200, 120, 0.25);
+  --dlg-choice-hover-border: rgba(80, 200, 120, 0.65);
+  --dlg-choice-selected-bg: rgba(80, 200, 120, 0.30);
+  --dlg-choice-selected-border: rgba(80, 200, 120, 0.75);
 }
 
 .dlg-panel {
@@ -328,17 +337,41 @@ textarea::placeholder {
   line-height: 1.5;
 }
 
-.dlg-choice {
-  background: rgba(255, 255, 255, 0.1);
+/* Dialog choices - ensure hover works with higher specificity */
+.dlg-overlay .dlg-choice {
+  background: var(--dlg-choice-bg);
   backdrop-filter: blur(8px);
-  border: 1px solid rgba(200, 220, 240, 0.3);
-  color: rgba(240, 245, 250, 0.95);
+  border: 1px solid var(--dlg-choice-border);
+  color: var(--dlg-choice-text);
+  transition: all 0.25s ease;
+  pointer-events: auto;
+  cursor: pointer;
 }
 
-.dlg-choice:hover {
-  background: rgba(255, 220, 100, 0.25);
-  border-color: rgba(255, 220, 100, 0.5);
-  box-shadow: 0 0 12px rgba(255, 220, 100, 0.3);
+/* CRITICAL: Hover must have high specificity and use !important to override */
+.dlg-overlay .dlg-choice:hover:not([disabled]),
+.dlg-overlay .dlg-choice:focus-visible:not([disabled]) {
+  background: var(--dlg-choice-hover-bg) !important;
+  border-color: var(--dlg-choice-hover-border) !important;
+  box-shadow: 0 0 16px rgba(80, 200, 120, 0.35),
+              0 4px 12px rgba(0, 0, 0, 0.3) !important;
+  transform: translateY(-2px);
+  outline: none;
+}
+
+/* Selected/confirmed state */
+.dlg-overlay .dlg-choice.dlg-choice--selected {
+  background: var(--dlg-choice-selected-bg) !important;
+  border-color: var(--dlg-choice-selected-border) !important;
+  box-shadow: 0 0 20px rgba(80, 200, 120, 0.45) !important;
+  animation: token-pulse-correct 0.35s ease;
+}
+
+/* Disabled state */
+.dlg-overlay .dlg-choice[disabled] {
+  opacity: 0.6;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 /* ========================================================================== */

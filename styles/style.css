@@ -389,7 +389,7 @@ body.use-on #hotspotLayer {
     display: grid;
     grid-template-rows: 1fr auto; /* stage, panel */
     background: rgba(0, 0, 0, .35);
-    pointer-events: none; /* panel takes the clicks */
+    pointer-events: auto !important; /* CRITICAL: Block hotspots behind dialog */
 }
 
 .dlg-overlay.hidden {
@@ -401,7 +401,7 @@ body.use-on #hotspotLayer {
     position: relative;
     min-height: 0;
     overflow: hidden;
-    pointer-events: none;
+    pointer-events: none; /* Transparent for portraits */
 }
 
 /* Portrait columns */
@@ -514,16 +514,16 @@ body.use-on #hotspotLayer {
 
 .dlg-overlay {
     /* Stable dialog-scoped tokens (optionally reading from puzzles.css) */
-    --dlg-choice-bg: var(--pz-btn-bg, rgba(255, 255, 255, 0.10));
-    --dlg-choice-border: var(--pz-btn-border, rgba(255, 255, 255, 0.35));
-    --dlg-choice-text: var(--pz-btn-text, rgba(255, 255, 255, 0.95));
-    --dlg-choice-radius: var(--pz-btn-radius, 12px);
+    --dlg-choice-bg: rgba(255, 255, 255, 0.10);
+    --dlg-choice-border: rgba(255, 255, 255, 0.35);
+    --dlg-choice-text: rgba(255, 255, 255, 0.95);
+    --dlg-choice-radius: 12px;
 
-    /* Green look aligned with OK/correct */
-    --dlg-choice-hover-bg: var(--pz-correct-bg, rgba(80, 200, 120, 0.18));
-    --dlg-choice-hover-border: var(--pz-correct-border, rgba(80, 200, 120, 0.55));
-    --dlg-choice-selected-bg: var(--pz-correct-bg, rgba(80, 200, 120, 0.24));
-    --dlg-choice-selected-border: var(--pz-correct-border, rgba(80, 200, 120, 0.62));
+    /* Green look aligned with OK/correct - EXPLICIT VALUES */
+    --dlg-choice-hover-bg: rgba(80, 200, 120, 0.25);
+    --dlg-choice-hover-border: rgba(80, 200, 120, 0.65);
+    --dlg-choice-selected-bg: rgba(80, 200, 120, 0.30);
+    --dlg-choice-selected-border: rgba(80, 200, 120, 0.75);
 
     --dlg-t: 250ms ease;
 }
@@ -564,20 +564,24 @@ body.use-on #hotspotLayer {
     border-radius: var(--dlg-choice-radius);
     text-align: center;
     white-space: normal;
+    cursor: pointer;
+    pointer-events: auto;
     transition: background var(--dlg-t), border-color var(--dlg-t),
     box-shadow var(--dlg-t), transform 80ms ease;
 }
 
-.dlg-overlay .dlg-choice:hover,
-.dlg-overlay .dlg-choice:focus-visible {
+/* CRITICAL FIX: Green hover with highest specificity */
+.dlg-overlay .dlg-choice:hover:not([disabled]),
+.dlg-overlay .dlg-choice:focus-visible:not([disabled]) {
     outline: none;
-    background: var(--dlg-choice-hover-bg) !important; /* green hover */
+    background: var(--dlg-choice-hover-bg) !important;
     border-color: var(--dlg-choice-hover-border) !important;
     box-shadow: 0 0 0 2px var(--dlg-choice-hover-border),
     0 0 0 4px rgba(0, 0, 0, .15);
+    transform: translateY(-1px);
 }
 
-.dlg-overlay .dlg-choice:active {
+.dlg-overlay .dlg-choice:active:not([disabled]) {
     transform: translateY(1px);
 }
 
@@ -592,10 +596,11 @@ body.use-on #hotspotLayer {
 
 /* Disabled while flashing to prevent double taps/clicks */
 .dlg-overlay .dlg-choice[disabled] {
-    cursor: default;
+    cursor: not-allowed;
     background: rgba(255, 255, 255, .06);
     border-color: rgba(255, 255, 255, .18);
-    opacity: .85;
+    opacity: .65;
+    pointer-events: none;
 }
 
 /* Compact viewport: slightly tighter paddings */

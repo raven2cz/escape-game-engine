@@ -218,9 +218,26 @@ export default class MatchPuzzle extends BasePuzzle {
         const el = this._tokenEls.get(id);
         if (!el) return;
 
-        // Check if this token is already paired
-        const currentPair = this._pairs.get(id);
+        // CRITICAL FIX: Remove validation classes to allow re-selection after onOk
+        // This enables clicking on tokens marked as .correct or .wrong
+        el.classList.remove('correct', 'wrong', 'is-correct', 'is-wrong');
 
+        // Reset background from validation (keep pairing colors)
+        const currentPair = this._pairs.get(id);
+        if (!currentPair) {
+            // Only reset if not paired (paired tokens have color coding)
+            el.style.background = '';
+        }
+
+        // If already paired, also clear validation from paired token
+        if (currentPair) {
+            const otherEl = this._tokenEls.get(currentPair);
+            if (otherEl) {
+                otherEl.classList.remove('correct', 'wrong', 'is-correct', 'is-wrong');
+            }
+        }
+
+        // Check if this token is already paired
         if (currentPair) {
             // Unpair: remove pairing and reset colors
             this._pairs.delete(id);
