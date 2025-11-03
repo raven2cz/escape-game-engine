@@ -388,8 +388,17 @@ body.use-on #hotspotLayer {
     z-index: 1100;
     display: grid;
     grid-template-rows: 1fr auto; /* stage, panel */
+    pointer-events: none; /* Allow children to control their own pointer-events */
+}
+
+/* Background blocker - blocks hotspots (z-index: 50) but is UNDER dialog panel */
+.dlg-overlay::before {
+    content: '';
+    position: absolute;
+    inset: 0;
     background: rgba(0, 0, 0, .35);
-    pointer-events: auto !important; /* CRITICAL: Block hotspots behind dialog */
+    pointer-events: auto; /* CRITICAL: Block hotspots behind dialog */
+    z-index: 1099; /* Between hotspots (50) and dialog panel (1101) */
 }
 
 .dlg-overlay.hidden {
@@ -402,6 +411,7 @@ body.use-on #hotspotLayer {
     min-height: 0;
     overflow: hidden;
     pointer-events: none; /* Transparent for portraits */
+    z-index: 1100;
 }
 
 /* Portrait columns */
@@ -450,7 +460,7 @@ body.use-on #hotspotLayer {
     filter: drop-shadow(0 10px 28px rgba(0, 0, 0, .45)) brightness(.95);
 }
 
-/* Dialog panel */
+/* Dialog panel - HIGHER z-index than blocker, allows interactions */
 .dlg-panel {
     position: relative;
     width: min(1100px, 100%);
@@ -460,7 +470,8 @@ body.use-on #hotspotLayer {
     border-radius: 14px 14px 0 0;
     padding: 12px 14px 32px 14px;
     box-shadow: 0 -8px 30px rgba(0, 0, 0, .35);
-    pointer-events: auto;
+    pointer-events: auto; /* CRITICAL: Enable all interactions */
+    z-index: 1101; /* CRITICAL: Above blocker (1099) to allow hover */
 }
 
 /* Speaker nameplate */
