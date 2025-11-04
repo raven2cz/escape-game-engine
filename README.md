@@ -4,11 +4,11 @@ A **no-build**, iPad-friendly **escape game framework** in plain HTML/CSS/JS.
 Create sophisticated point-and-click adventures with **Puzzles 2.0**, **dialogs**, **theming system**, and an **in-browser editor**.
 
 - **Demo (GitHub Pages):**
-  - https://raven2cz.github.io/escape-game-engine/index.html?game=leeuwenhoek&lang=cs&debug=1&hero=adam&reset=1 (two heroes: "adam" and "eva")
-  - https://raven2cz.github.io/escape-game-engine/index.html?game=leeuwenhoek&lang=cs&debug=1&hero=eva&reset=1 (two heroes: "adam" and "eva")
-  - https://raven2cz.github.io/escape-game-engine/index.html?game=stop-train&lang=cs&debug=1&hero=adam&reset=1 (two heroes: "adam" and "eva")
-  - https://raven2cz.github.io/escape-game-engine/index.html?game=time-factory&lang=cs&debug=1&hero=adam&reset=1 (two heroes: "adam" and "eva")
-  - https://raven2cz.github.io/escape-game-engine/index.html?game=reactor&lang=cs&debug=1&hero=adam&reset=1 (two heroes: "adam" and "eva")
+  - https://raven2cz.github.io/escape-game-engine/index.html?game=leeuwenhoek&lang=cs&debug=1&hero=adam&reset=1 (two heroes: "adam" and "eva", adam selected)
+  - https://raven2cz.github.io/escape-game-engine/index.html?game=leeuwenhoek&lang=cs&debug=1&hero=eva&reset=1 (two heroes: "adam" and "eva", eva selected)
+  - https://raven2cz.github.io/escape-game-engine/index.html?game=stop-train&lang=cs&debug=1&hero=adam&reset=1 
+  - https://raven2cz.github.io/escape-game-engine/index.html?game=time-factory&lang=cs&debug=1&hero=adam&reset=1
+  - https://raven2cz.github.io/escape-game-engine/index.html?game=reactor&lang=cs&debug=1&hero=adam&reset=1
 - **PWA:** append `?pwa=1` for installable/offline mode.
 
 ---
