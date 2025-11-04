@@ -17,6 +17,9 @@
   "settings": {
     "hints": {
       "acceptNeed": true
+    },
+    "accessibility": {
+      "useGuard": "hide"
     }
   },
   "items": [

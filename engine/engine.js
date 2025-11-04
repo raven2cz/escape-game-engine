@@ -267,6 +267,30 @@ export class Game {
         }
     }
 
+    _getUseGuardPolicy() {
+        const s = this.currentScene?.settings?.useGuard
+            ?? this.data?.settings?.accessibility?.useGuard
+            ?? this.data?.settings?.useGuard; // fallback
+        if (s === true) return 'hide';
+        return (s === 'hide' || s === 'disable') ? s : 'off';
+    }
+
+    /** It this item really usable in an actual scene? */
+    _isItemApplicableHere(itemId) {
+        const hs = this.currentScene?.hotspots || [];
+        return hs.some(h => {
+            if (!h || !Array.isArray(h.acceptItems)) return false;
+
+            const accepts = h.acceptItems.map(x => typeof x === 'string' ? { id: x } : x);
+            if (!accepts.some(a => a?.id === itemId)) return false;
+
+            if (h.requireItems && !this._hasAll(h.requireItems)) return false;
+            if (h.requireFlags && !this._hasAllFlags(h.requireFlags)) return false;
+
+            return true;
+        });
+    }
+
     // --- renderers --------------------------------------------------------------
 
     _renderHotspots() {
@@ -667,12 +691,33 @@ export class Game {
         btnUse.type = 'button';
         btnUse.className = 'btn btn--action';
         btnUse.textContent = this._t('engine.use.button', 'Použít');
-        btnUse.addEventListener('click', () => {
-            this.enterUseMode(item.id);
-            this._closeModal(true);
-        });
 
-        ops.appendChild(btnUse);
+        const policy = this._getUseGuardPolicy();
+        if (policy !== 'off') {
+            const allowed = this._isItemApplicableHere(item.id);
+            if (policy === 'hide' && !allowed) {
+                // the button is not placed to the panel
+            } else {
+                if (!allowed) {
+                    btnUse.disabled = true;
+                    btnUse.title = this._t('engine.use.disabledHere', 'Na této scéně teď nemáš kde použít.');
+                    btnUse.classList.add('is-disabled');
+                }
+                btnUse.addEventListener('click', () => {
+                    if (btnUse.disabled) return;
+                    this.enterUseMode(item.id);
+                    this._closeModal(true);
+                });
+                ops.appendChild(btnUse);
+            }
+        } else {
+            btnUse.addEventListener('click', () => {
+                this.enterUseMode(item.id);
+                this._closeModal(true);
+            });
+            ops.appendChild(btnUse);
+        }
+
         body.appendChild(ops);
 
         // Open modal WITHOUT footer labels (try to suppress buttons).

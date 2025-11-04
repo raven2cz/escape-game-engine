@@ -39,7 +39,7 @@
       },
       {
         "id": "q5",
-        "text": "e) Přední koli koná vzhledem k trati jen otáčivý pohyb.",
+        "text": "e) Předními koly koná vzhledem k trati jen otáčivý pohyb.",
         "choices": [
           { "value": "true", "label": "Pravda" },
           { "value": "false", "label": "Lež" }

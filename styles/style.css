@@ -780,3 +780,10 @@ body.use-on #hotspotLayer {
     0 0 0 2px rgba(45, 114, 255, 0.30);
 }
 
+#modal .btn[disabled],
+#modal .btn.is-disabled {
+    opacity: .45;
+    cursor: not-allowed;
+    filter: grayscale(.15);
+    box-shadow: none !important;
+}
