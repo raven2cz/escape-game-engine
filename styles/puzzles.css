@@ -307,11 +307,36 @@
     }
 }
 
+/* MATCH only — disable :hover on touch devices to avoid sticky hover overlaying pair color */
+@media (hover: none), (pointer: coarse) {
+    .pz--kind-match .pz-token:hover,
+    .pz-kind-match .pz-token:hover {
+        background: inherit !important;
+        border-color: inherit !important;
+        box-shadow: none !important;
+        transform: none !important;
+    }
+}
+
+.pz.is-touch.pz--kind-match .pz-token:hover,
+.pz.is-touch.pz-kind-match .pz-token:hover {
+    background: inherit !important;
+    border-color: inherit !important;
+    box-shadow: none !important;
+    transform: none !important;
+}
+
+.pz--kind-match .pz-token,
+.pz-kind-match .pz-token {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+}
+
 .pz-token:active {
     transform: translateY(1px);
 }
 
-/* Token states - animované */
+/* Token states - animated */
 .pz-token.is-selected,
 .pz-token.selected {
     background: var(--pz-selected-bg);

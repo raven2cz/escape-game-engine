@@ -493,10 +493,22 @@ export default class MatchPuzzle extends BasePuzzle {
         return pairMap;
     }
 
+    /**
+     * OK/Confirm handler.
+     * - Highlights wrong tokens.
+     * - If blockUntilSolved is enabled, briefly shows errors, then:
+     *   - unlinks wrong pairs,
+     *   - clears transient red highlight from ALL wrong tokens (paired + unpaired).
+     * @returns {{ ok: boolean, detail: { pairs: Record<string,string> } } | { hold: true }}
+     */
     onOk() {
         const sol = this._solutionPairs();
         let allOk = true;
-        const wrongTokens = []; // Track wrong tokens for auto-reset
+
+        /** @type {string[]} paired wrong endpoints to unlink */
+        const wrongTokens = [];
+        /** @type {string[]} ALL wrong tokens (paired or unpaired) to clear red after flash */
+        const wrongAll = [];
 
         for (const [id, el] of this._tokenEls.entries()) {
             const pairedWith = this._pairs.get(id);
@@ -509,10 +521,11 @@ export default class MatchPuzzle extends BasePuzzle {
                 if (good && pairedWith) {
                     el.classList.add('correct', 'is-correct');
                 } else if (!good) {
+                    // show red flash
                     el.classList.add('wrong', 'is-wrong');
-                    // Reset color for wrong pairs
+                    // ensure the red CSS is visible (no leftover pair color)
                     el.style.background = '';
-                    // Track wrong tokens for auto-reset
+                    wrongAll.push(id);
                     if (pairedWith) {
                         wrongTokens.push(id);
                     }
@@ -523,60 +536,61 @@ export default class MatchPuzzle extends BasePuzzle {
         }
 
         if (!allOk && this.instanceOptions.blockUntilSolved) {
-            // Auto-reset wrong pairs after a short delay for better UX (especially for children)
-            if (wrongTokens.length > 0) {
+            // Auto-reset after a short delay so the user briefly sees mistakes
+            if (wrongTokens.length > 0 || wrongAll.length > 0) {
                 setTimeout(() => {
-                    // Reset wrong tokens - unpair them automatically
+                    // 1) Unlink wrong pairs + clear their visuals on BOTH ends
                     const alreadyReset = new Set();
-
                     for (const id of wrongTokens) {
                         if (alreadyReset.has(id)) continue;
 
                         const el = this._tokenEls.get(id);
                         const pairedWith = this._pairs.get(id);
+                        if (!pairedWith || !el) continue;
 
-                        if (pairedWith && el) {
-                            const otherEl = this._tokenEls.get(pairedWith);
+                        const otherEl = this._tokenEls.get(pairedWith);
 
-                            // Remove pairing
-                            this._pairs.delete(id);
-                            this._pairs.delete(pairedWith);
+                        // remove the pair both ways
+                        this._pairs.delete(id);
+                        this._pairs.delete(pairedWith);
 
-                            // Clear styles and classes
-                            el.classList.remove('wrong', 'is-wrong', 'selected', 'is-selected');
-                            el.style.background = '';
+                        // clear styles & classes (both ends)
+                        el.classList.remove('wrong', 'is-wrong', 'selected', 'is-selected');
+                        el.style.background = '';
+                        if (typeof el.blur === 'function') el.blur();
 
-                            if (otherEl) {
-                                otherEl.classList.remove('wrong', 'is-wrong', 'selected', 'is-selected');
-                                otherEl.style.background = '';
-                            }
+                        if (otherEl) {
+                            otherEl.classList.remove('wrong', 'is-wrong', 'selected', 'is-selected');
+                            otherEl.style.background = '';
+                            if (typeof otherEl.blur === 'function') otherEl.blur();
+                        }
 
-                            alreadyReset.add(id);
-                            alreadyReset.add(pairedWith);
+                        alreadyReset.add(id);
+                        alreadyReset.add(pairedWith);
+                    }
 
-                            if (DBG()) {
-                                console.debug('[PZ.match] auto-reset wrong pair:', {id, pairedWith});
-                            }
+                    // 2) Clear the transient red highlight from ANY still-marked wrong token (unpaired mistakes)
+                    for (const [tid, tel] of this._tokenEls.entries()) {
+                        if (tel && tel.classList && tel.classList.contains('is-wrong')) {
+                            tel.classList.remove('wrong', 'is-wrong');
+                            if (typeof tel.blur === 'function') tel.blur();
                         }
                     }
-                }, 800); // 800ms delay - enough to see the error, not too long
+                }, 800); // enough to notice, not too long
             }
 
+            // Keep the user in the puzzle until solved.
             return {hold: true};
         }
 
+        // Build detail map for the engine
         const detail = {};
         for (const [id, pairedWith] of this._pairs.entries()) {
             detail[id] = pairedWith;
         }
 
-        if (DBG()) {
-            console.debug('[PZ.match] onOk result:', {allOk, pairs: detail});
-        }
+        if (DBG()) console.debug('[PZ.match] onOk result:', {ok: allOk, pairs: detail});
 
-        return {
-            ok: allOk,
-            detail: {pairs: detail}
-        };
+        return {ok: allOk, detail: {pairs: detail}};
     }
 }
