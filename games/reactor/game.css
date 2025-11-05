@@ -126,23 +126,18 @@ body {
   transition: all 0.25s ease;
 }
 
-/* Hover - but NOT for match tokens (they use pair colors) */
-.pz-token:hover:not(.selected):not(.is-selected):not(.correct):not(.is-correct):not(.wrong):not(.is-wrong) {
-  background: rgba(255, 255, 255, 0.12);
-  border-color: rgba(100, 180, 255, 0.4);
-  box-shadow: 0 0 12px rgba(100, 180, 255, 0.25),
-              0 4px 12px rgba(0, 0, 0, 0.35);
-  transform: translateY(-2px);
+/* Hover - only on devices with mouse (not touch devices) */
+@media (hover: hover) {
+  .pz-token:hover:not(.selected):not(.is-selected):not(.correct):not(.is-correct):not(.wrong):not(.is-wrong) {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(100, 180, 255, 0.4);
+    box-shadow: 0 0 12px rgba(100, 180, 255, 0.25),
+                0 4px 12px rgba(0, 0, 0, 0.35);
+    transform: translateY(-2px);
+  }
 }
 
-/* CRITICAL: Completely disable hover styling for match puzzle */
-.pz--kind-match .pz-token:hover:not(.selected):not(.is-selected) {
-  background: transparent !important;
-  border-color: rgba(255, 220, 100, 0.6) !important; /* Yellow border only */
-  box-shadow: 0 0 8px rgba(255, 220, 100, 0.3) !important;
-  transform: none !important;
-}
-
+/* Match puzzle - selected tokens show pair color (set by JS) */
 .pz--kind-match .pz-token.selected,
 .pz--kind-match .pz-token.is-selected {
   /* Don't override - let JS set the pair color */
@@ -214,16 +209,19 @@ button,
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
 }
 
-button:hover,
-.btn:hover,
-.pz-btn:hover,
-.pz-footer button:hover {
-  background: rgba(255, 220, 100, 0.25) !important;
-  border-color: rgba(255, 220, 100, 0.5) !important;
-  box-shadow: 0 0 16px rgba(255, 220, 100, 0.35),
-              0 4px 12px rgba(0, 0, 0, 0.3);
-  transform: translateY(-2px);
-  color: rgba(255, 255, 255, 0.98);
+/* Button hover - only on devices with mouse */
+@media (hover: hover) {
+  button:hover,
+  .btn:hover,
+  .pz-btn:hover,
+  .pz-footer button:hover {
+    background: rgba(255, 220, 100, 0.25) !important;
+    border-color: rgba(255, 220, 100, 0.5) !important;
+    box-shadow: 0 0 16px rgba(255, 220, 100, 0.35),
+                0 4px 12px rgba(0, 0, 0, 0.3);
+    transform: translateY(-2px);
+    color: rgba(255, 255, 255, 0.98);
+  }
 }
 
 button:active,
@@ -311,11 +309,14 @@ textarea::placeholder {
   transition: all 0.25s ease;
 }
 
-.item:hover {
-  background: rgba(255, 255, 255, 0.12);
-  border-color: rgba(100, 180, 255, 0.4);
-  box-shadow: 0 0 12px rgba(100, 180, 255, 0.25);
-  transform: translateY(-2px);
+/* Item hover - only on devices with mouse */
+@media (hover: hover) {
+  .item:hover {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(100, 180, 255, 0.4);
+    box-shadow: 0 0 12px rgba(100, 180, 255, 0.25);
+    transform: translateY(-2px);
+  }
 }
 
 /* ========================================================================== */
@@ -365,15 +366,17 @@ textarea::placeholder {
   cursor: pointer;
 }
 
-/* CRITICAL: Hover must have high specificity and use !important to override */
-.dlg-overlay .dlg-choice:hover:not([disabled]),
-.dlg-overlay .dlg-choice:focus-visible:not([disabled]) {
-  background: var(--dlg-choice-hover-bg) !important;
-  border-color: var(--dlg-choice-hover-border) !important;
-  box-shadow: 0 0 16px rgba(80, 200, 120, 0.35),
-              0 4px 12px rgba(0, 0, 0, 0.3) !important;
-  transform: translateY(-2px);
-  outline: none;
+/* Dialog choice hover - only on devices with mouse */
+@media (hover: hover) {
+  .dlg-overlay .dlg-choice:hover:not([disabled]),
+  .dlg-overlay .dlg-choice:focus-visible:not([disabled]) {
+    background: var(--dlg-choice-hover-bg) !important;
+    border-color: var(--dlg-choice-hover-border) !important;
+    box-shadow: 0 0 16px rgba(80, 200, 120, 0.35),
+                0 4px 12px rgba(0, 0, 0, 0.3) !important;
+    transform: translateY(-2px);
+    outline: none;
+  }
 }
 
 /* Selected/confirmed state */
@@ -455,10 +458,13 @@ textarea::placeholder {
   backdrop-filter: none !important;
 }
 
-.hotspot:hover {
-  background: rgba(100, 180, 255, 0.12) !important;
-  box-shadow: 0 0 16px rgba(100, 180, 255, 0.3) inset;
-  backdrop-filter: none !important;
+/* Hotspot hover - only on devices with mouse */
+@media (hover: hover) {
+  .hotspot:hover {
+    background: rgba(100, 180, 255, 0.12) !important;
+    box-shadow: 0 0 16px rgba(100, 180, 255, 0.3) inset;
+    backdrop-filter: none !important;
+  }
 }
 
 /* ========================================================================== */

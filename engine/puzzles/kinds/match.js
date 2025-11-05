@@ -292,11 +292,13 @@ export default class MatchPuzzle extends BasePuzzle {
 
             el.style.background = ''; // Reset to default
             el.classList.remove('selected', 'is-selected');
+            el.blur(); // Remove sticky hover
 
             const otherEl = this._tokenEls.get(currentPair);
             if (otherEl) {
                 otherEl.style.background = ''; // Reset to default
                 otherEl.classList.remove('selected', 'is-selected');
+                otherEl.blur(); // Remove sticky hover
             }
 
             if (DBG()) {
@@ -316,6 +318,7 @@ export default class MatchPuzzle extends BasePuzzle {
             // Use final pair color instead of yellow/blue selected state
             el.style.background = previewColor;
             el.classList.add('selected', 'is-selected'); // Keep class for other effects
+            el.blur(); // Remove sticky :hover state on touch devices
 
             if (DBG()) {
                 console.debug('[PZ.match] first selected with preview color:', {id, color: previewColor});
@@ -325,6 +328,7 @@ export default class MatchPuzzle extends BasePuzzle {
             this._selectedForPair = null;
             el.classList.remove('selected', 'is-selected');
             el.style.background = ''; // Remove preview color
+            el.blur(); // Remove sticky hover on touch devices
 
             if (DBG()) {
                 console.debug('[PZ.match] deselected:', id);
@@ -342,6 +346,7 @@ export default class MatchPuzzle extends BasePuzzle {
                 if (firstEl) {
                     firstEl.classList.remove('selected', 'is-selected');
                     firstEl.style.background = '';
+                    firstEl.blur(); // Remove sticky hover
                 }
 
                 // Now select the clicked token as the new first
@@ -352,6 +357,7 @@ export default class MatchPuzzle extends BasePuzzle {
 
                 el.style.background = previewColor;
                 el.classList.add('selected', 'is-selected');
+                el.blur(); // Remove sticky hover on touch devices
 
                 if (DBG()) {
                     console.debug('[PZ.match] same side - reselecting:', {first, second: id, firstSide, secondSide});
@@ -375,10 +381,12 @@ export default class MatchPuzzle extends BasePuzzle {
             if (el1) {
                 el1.classList.remove('selected', 'is-selected');
                 el1.style.background = pairColor; // Keep the same color as preview
+                el1.blur(); // Remove :hover state on touch devices
             }
             if (el2) {
                 el2.classList.remove('selected', 'is-selected');
                 el2.style.background = pairColor;
+                el2.blur(); // Remove :hover state on touch devices
             }
 
             if (DBG()) {

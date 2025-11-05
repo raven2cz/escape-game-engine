@@ -300,8 +300,11 @@
     backdrop-filter: saturate(110%) blur(1px);
 }
 
-.pz-token:hover {
-    box-shadow: var(--pz-hover-boost);
+/* Hover effect - only on devices with actual hover capability (not touch) */
+@media (hover: hover) {
+    .pz-token:hover {
+        box-shadow: var(--pz-hover-boost);
+    }
 }
 
 .pz-token:active {
