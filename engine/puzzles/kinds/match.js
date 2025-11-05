@@ -5,13 +5,58 @@ import {BasePuzzle} from '../base.js';
 
 const DBG = () => (typeof window !== 'undefined' && /\bdebug=1\b/.test(window.location.search));
 
+/**
+ * Pair color palette - 20 distinct, vibrant colors for visual differentiation
+ * Higher opacity (0.35) ensures visibility on dark backgrounds
+ */
+const PAIR_COLORS = [
+    'rgba(100, 160, 255, 0.35)',  // Blue
+    'rgba(255, 100, 150, 0.35)',  // Pink
+    'rgba(100, 220, 160, 0.35)',  // Green
+    'rgba(255, 180, 100, 0.35)',  // Orange
+    'rgba(180, 100, 255, 0.35)',  // Purple
+    'rgba(255, 220, 100, 0.35)',  // Yellow
+    'rgba(100, 200, 255, 0.35)',  // Cyan
+    'rgba(255, 100, 220, 0.35)',  // Magenta
+    'rgba(180, 255, 120, 0.35)',  // Lime
+    'rgba(255, 140, 180, 0.35)',  // Rose
+    'rgba(120, 180, 255, 0.35)',  // Sky Blue
+    'rgba(255, 120, 100, 0.35)',  // Coral
+    'rgba(140, 255, 200, 0.35)',  // Mint
+    'rgba(255, 160, 220, 0.35)',  // Light Pink
+    'rgba(200, 140, 255, 0.35)',  // Lavender
+    'rgba(255, 200, 120, 0.35)',  // Peach
+    'rgba(100, 255, 200, 0.35)',  // Aqua
+    'rgba(255, 180, 160, 0.35)',  // Salmon
+    'rgba(160, 200, 255, 0.35)',  // Periwinkle
+    'rgba(220, 255, 140, 0.35)'   // Chartreuse
+];
+
 export default class MatchPuzzle extends BasePuzzle {
     constructor(args) {
         super(args);
         this._tokenEls = new Map();
+        this._tokenSides = new Map(); // Track which side each token belongs to
         this._pairs = new Map(); // tokenId -> pairedTokenId
         this._selectedForPair = null; // first token of pair in click mode
         this._mode = (args.config?.mode || 'columns').toLowerCase();
+    }
+
+    /**
+     * Get pair color by index with fallback to random color
+     * @param {number} pairIndex - Index of the pair (0-based)
+     * @returns {string} RGBA color string
+     */
+    _getPairColor(pairIndex) {
+        if (pairIndex < PAIR_COLORS.length) {
+            return PAIR_COLORS[pairIndex];
+        }
+
+        // Fallback: generate random vibrant color for pairs beyond 20
+        const r = 100 + Math.floor(Math.random() * 156);
+        const g = 100 + Math.floor(Math.random() * 156);
+        const b = 100 + Math.floor(Math.random() * 156);
+        return `rgba(${r}, ${g}, ${b}, 0.35)`;
     }
 
     mount(container, workRect, backgroundUrl) {
@@ -98,6 +143,7 @@ export default class MatchPuzzle extends BasePuzzle {
             const el = this.createToken(t);
             el.addEventListener('click', () => this._onClickToken(t.id));
             this._tokenEls.set(t.id, el);
+            this._tokenSides.set(t.id, 'left'); // Track side
             leftCol.appendChild(el);
         });
 
@@ -105,6 +151,7 @@ export default class MatchPuzzle extends BasePuzzle {
             const el = this.createToken(t);
             el.addEventListener('click', () => this._onClickToken(t.id));
             this._tokenEls.set(t.id, el);
+            this._tokenSides.set(t.id, 'right'); // Track side
             rightCol.appendChild(el);
         });
 
@@ -259,47 +306,75 @@ export default class MatchPuzzle extends BasePuzzle {
         }
 
         if (!this._selectedForPair) {
-            // First selection
+            // First selection - show preview of pair color
             this._selectedForPair = id;
-            el.classList.add('selected', 'is-selected');
+
+            // Calculate next pair color and show preview
+            const nextPairIndex = Math.floor(this._pairs.size / 2);
+            const previewColor = this._getPairColor(nextPairIndex);
+
+            // Use final pair color instead of yellow/blue selected state
+            el.style.background = previewColor;
+            el.classList.add('selected', 'is-selected'); // Keep class for other effects
 
             if (DBG()) {
-                console.debug('[PZ.match] first selected:', id);
+                console.debug('[PZ.match] first selected with preview color:', {id, color: previewColor});
             }
         } else if (this._selectedForPair === id) {
             // Deselect same token
             this._selectedForPair = null;
             el.classList.remove('selected', 'is-selected');
+            el.style.background = ''; // Remove preview color
 
             if (DBG()) {
                 console.debug('[PZ.match] deselected:', id);
             }
         } else {
-            // Pair with first token
+            // Pair with first token - CHECK SIDES FIRST
             const first = this._selectedForPair;
+            const firstSide = this._tokenSides.get(first);
+            const secondSide = this._tokenSides.get(id);
+
+            // CRITICAL: Only allow pairing between different sides (left <-> right)
+            if (firstSide === secondSide) {
+                // Same side - don't pair, just deselect first and select second
+                const firstEl = this._tokenEls.get(first);
+                if (firstEl) {
+                    firstEl.classList.remove('selected', 'is-selected');
+                    firstEl.style.background = '';
+                }
+
+                // Now select the clicked token as the new first
+                this._selectedForPair = id;
+
+                const nextPairIndex = Math.floor(this._pairs.size / 2);
+                const previewColor = this._getPairColor(nextPairIndex);
+
+                el.style.background = previewColor;
+                el.classList.add('selected', 'is-selected');
+
+                if (DBG()) {
+                    console.debug('[PZ.match] same side - reselecting:', {first, second: id, firstSide, secondSide});
+                }
+                return;
+            }
+
+            // Different sides - create pair
             this._selectedForPair = null;
 
             this._pairs.set(first, id);
             this._pairs.set(id, first);
 
-            // Animate pairing - same color
-            const colorIndex = (this._pairs.size / 2) % 6;
-            const colors = [
-                'rgba(90, 160, 255, 0.25)',
-                'rgba(255, 90, 160, 0.25)',
-                'rgba(90, 255, 160, 0.25)',
-                'rgba(255, 160, 90, 0.25)',
-                'rgba(160, 90, 255, 0.25)',
-                'rgba(255, 255, 90, 0.25)'
-            ];
-            const pairColor = colors[colorIndex];
+            // Get color for this pair
+            const pairIndex = Math.floor(this._pairs.size / 2);
+            const pairColor = this._getPairColor(pairIndex);
 
             const el1 = this._tokenEls.get(first);
             const el2 = this._tokenEls.get(id);
 
             if (el1) {
                 el1.classList.remove('selected', 'is-selected');
-                el1.style.background = pairColor;
+                el1.style.background = pairColor; // Keep the same color as preview
             }
             if (el2) {
                 el2.classList.remove('selected', 'is-selected');
@@ -307,7 +382,7 @@ export default class MatchPuzzle extends BasePuzzle {
             }
 
             if (DBG()) {
-                console.debug('[PZ.match] paired:', {first, second: id});
+                console.debug('[PZ.match] paired:', {first, second: id, color: pairColor});
             }
         }
     }
@@ -413,6 +488,7 @@ export default class MatchPuzzle extends BasePuzzle {
     onOk() {
         const sol = this._solutionPairs();
         let allOk = true;
+        const wrongTokens = []; // Track wrong tokens for auto-reset
 
         for (const [id, el] of this._tokenEls.entries()) {
             const pairedWith = this._pairs.get(id);
@@ -428,6 +504,10 @@ export default class MatchPuzzle extends BasePuzzle {
                     el.classList.add('wrong', 'is-wrong');
                     // Reset color for wrong pairs
                     el.style.background = '';
+                    // Track wrong tokens for auto-reset
+                    if (pairedWith) {
+                        wrongTokens.push(id);
+                    }
                 }
             }
 
@@ -435,6 +515,45 @@ export default class MatchPuzzle extends BasePuzzle {
         }
 
         if (!allOk && this.instanceOptions.blockUntilSolved) {
+            // Auto-reset wrong pairs after a short delay for better UX (especially for children)
+            if (wrongTokens.length > 0) {
+                setTimeout(() => {
+                    // Reset wrong tokens - unpair them automatically
+                    const alreadyReset = new Set();
+
+                    for (const id of wrongTokens) {
+                        if (alreadyReset.has(id)) continue;
+
+                        const el = this._tokenEls.get(id);
+                        const pairedWith = this._pairs.get(id);
+
+                        if (pairedWith && el) {
+                            const otherEl = this._tokenEls.get(pairedWith);
+
+                            // Remove pairing
+                            this._pairs.delete(id);
+                            this._pairs.delete(pairedWith);
+
+                            // Clear styles and classes
+                            el.classList.remove('wrong', 'is-wrong', 'selected', 'is-selected');
+                            el.style.background = '';
+
+                            if (otherEl) {
+                                otherEl.classList.remove('wrong', 'is-wrong', 'selected', 'is-selected');
+                                otherEl.style.background = '';
+                            }
+
+                            alreadyReset.add(id);
+                            alreadyReset.add(pairedWith);
+
+                            if (DBG()) {
+                                console.debug('[PZ.match] auto-reset wrong pair:', {id, pairedWith});
+                            }
+                        }
+                    }
+                }, 800); // 800ms delay - enough to see the error, not too long
+            }
+
             return {hold: true};
         }
 

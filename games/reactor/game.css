@@ -126,6 +126,7 @@ body {
   transition: all 0.25s ease;
 }
 
+/* Hover - but NOT for match tokens (they use pair colors) */
 .pz-token:hover:not(.selected):not(.is-selected):not(.correct):not(.is-correct):not(.wrong):not(.is-wrong) {
   background: rgba(255, 255, 255, 0.12);
   border-color: rgba(100, 180, 255, 0.4);
@@ -134,9 +135,25 @@ body {
   transform: translateY(-2px);
 }
 
-/* Selected token state */
-.pz-token.selected,
-.pz-token.is-selected {
+/* CRITICAL: Completely disable hover styling for match puzzle */
+.pz--kind-match .pz-token:hover:not(.selected):not(.is-selected) {
+  background: transparent !important;
+  border-color: rgba(255, 220, 100, 0.6) !important; /* Yellow border only */
+  box-shadow: 0 0 8px rgba(255, 220, 100, 0.3) !important;
+  transform: none !important;
+}
+
+.pz--kind-match .pz-token.selected,
+.pz--kind-match .pz-token.is-selected {
+  /* Don't override - let JS set the pair color */
+  background: inherit !important;
+  border-color: inherit !important;
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.2) !important;
+}
+
+/* Selected token state - for non-match puzzles */
+.pz:not(.pz--kind-match) .pz-token.selected,
+.pz:not(.pz--kind-match) .pz-token.is-selected {
   background: rgba(100, 180, 255, 0.25) !important;
   border-color: rgba(100, 180, 255, 0.6) !important;
   box-shadow: 0 0 16px rgba(100, 180, 255, 0.4),
