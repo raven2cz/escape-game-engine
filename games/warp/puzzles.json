@@ -1,0 +1,362 @@
+{
+  "puzzle-robot-1": {
+    "id": "puzzle-robot-1",
+    "kind": "choice",
+    "title": "",
+    "prompt": "",
+    "tokens": [
+      {
+        "id": "t1",
+        "text": "",
+        "choices": [],
+        "editable": true,
+        "placeholder": "Napiš pouze číslo [N]..."
+      }
+    ],
+    "solutions": {
+      "t1": "3500"
+    },
+    "errorMessage": "Odpověď není správná. Zkus to znovu!",
+    "elements": {
+      "t1": { "rect": { "x": 20, "y": 54, "w": 50, "h": 30 } },
+      "label:t1": { "rect": { "x": 36.5, "y": 78.29, "w": 0.5, "h": 0 } },
+      "control:t1": { "rect": { "x": 33.5, "y": 72.59, "w": 5.5, "h": 0 } },
+      "input:t1": { "rect": { "x": 35.42, "y": 72.59, "w": 3.25, "h": 2.44 } },
+      "footer": { "rect": { "x": 25, "y": 83, "w": 24, "h": 13 } },
+      "ok": { "rect": { "x": 47.99, "y": 14.99, "w": 32.99, "h": 39.99 } },
+      "cancel": { "rect": { "x": 9, "y": 13.99, "w": 32.99, "h": 40.98 } }
+    },
+    "options": {
+      "aggregateOnly": false,
+      "blockUntilSolved": true,
+      "showErrorToast": true,
+      "layout": { "mode": "auto", "orientation": "vertical" }
+    },
+    "rect": { "x": 18, "y": 60, "w": 36, "h": 28 },
+    "background": "assets/puzzles/puzzle-robot-1-bg.jpg"
+  },
+
+  "puzzle-robot-2": {
+    "id": "puzzle-robot-2",
+    "kind": "quiz",
+    "title": "",
+    "prompt": "",
+    "tokens": [
+      {
+        "id": "c1",
+        "label": "Možnost 1: přímé zvednutí"
+      },
+      {
+        "id": "c2",
+        "label": "Možnost 2: použití šikmé rampy"
+      },
+      {
+        "id": "c3",
+        "label": "Možnost 3: použití kladkostroje"
+      },
+      {
+        "id": "same",
+        "label": "Práce je stejná ve všech případech"
+      }
+    ],
+    "solutionIds": ["same"],
+    "errorMessage": "Odpověď není správná. Zkus přemýšlet o práci!",
+    "options": {
+      "aggregateOnly": false,
+      "blockUntilSolved": true,
+      "multiSelect": false,
+      "showErrorToast": true,
+      "layout": { "mode": "auto", "direction": "vertical" }
+    },
+    "rect": { "x": 1, "y": 42, "w": 37, "h": 55 },
+    "background": "assets/puzzles/puzzle-robot-2-bg.jpg"
+  },
+
+  "puzzle-hammer": {
+    "id": "puzzle-hammer",
+    "kind": "match",
+    "title": "",
+    "prompt": "",
+    "mode": "columns",
+    "tokens": [
+      {
+        "id": "a1",
+        "label": "síla (F)",
+        "side": "left"
+      },
+      {
+        "id": "a2",
+        "label": "dráha (s)",
+        "side": "left"
+      },
+      {
+        "id": "a3",
+        "label": "výkon (P)",
+        "side": "left"
+      },
+      {
+        "id": "a4",
+        "label": "práce (W)",
+        "side": "left"
+      },
+      {
+        "id": "a5",
+        "label": "hmotnost (m)",
+        "side": "left"
+      },
+      {
+        "id": "b1",
+        "label": "metr [m]",
+        "side": "right"
+      },
+      {
+        "id": "b2",
+        "label": "newton [N]",
+        "side": "right"
+      },
+      {
+        "id": "b3",
+        "label": "kilogram [kg]",
+        "side": "right"
+      },
+      {
+        "id": "b4",
+        "label": "watt [W]",
+        "side": "right"
+      },
+      {
+        "id": "b5",
+        "label": "joule [J]",
+        "side": "right"
+      }
+    ],
+    "pairs": [
+      ["a1", "b2"],
+      ["a2", "b1"],
+      ["a3", "b4"],
+      ["a4", "b5"],
+      ["a5", "b3"]
+    ],
+    "errorMessage": "Některé páry nejsou správné. Zkus to znovu!",
+    "options": {
+      "aggregateOnly": false,
+      "blockUntilSolved": true,
+      "showErrorToast": true,
+      "layout": { "mode": "auto", "direction": "vertical" }
+    },
+    "rect": { "x": 2, "y": 26, "w": 34, "h": 71 },
+    "background": "assets/puzzles/puzzle-hammer-bg.jpg"
+  },
+
+  "puzzle-shelf": {
+    "id": "puzzle-shelf",
+    "kind": "choice",
+    "title": "",
+    "prompt": "",
+    "tokens": [
+      {
+        "id": "answer",
+        "text": "Odpověď:",
+        "choices": [],
+        "editable": true,
+        "placeholder": "Zadej číslo [W]..."
+      }
+    ],
+    "solutions": {
+      "answer": "1250"
+    },
+    "errorMessage": "Odpověď není správná. Zkontroluj svůj výpočet!",
+    "options": {
+      "aggregateOnly": false,
+      "blockUntilSolved": true,
+      "showErrorToast": true,
+      "layout": { "mode": "auto", "direction": "vertical" }
+    },
+    "rect": { "x": 0, "y": 38, "w": 30, "h": 30 },
+    "background": "assets/puzzles/puzzle-shelf-bg.jpg"
+  },
+
+  "puzzle-clock": {
+    "id": "puzzle-clock",
+    "kind": "group",
+    "title": "",
+    "prompt": "",
+    "groups": [
+      {
+        "id": "g1",
+        "label": "Koná"
+      },
+      {
+        "id": "g2",
+        "label": "Nekoná"
+      }
+    ],
+    "tokens": [
+      {
+        "id": "t1",
+        "text": "Stlačuji pružinu mezi prsty."
+      },
+      {
+        "id": "t2",
+        "text": "Tlačím lavici, která se pohne."
+      },
+      {
+        "id": "t3",
+        "text": "Držím míč na hlavou."
+      },
+      {
+        "id": "t4",
+        "text": "Tahám kbelík s vodou na provaze."
+      },
+      {
+        "id": "t5",
+        "text": "Sedím a přemýšlím."
+      },
+      {
+        "id": "t6",
+        "text": "Zvedám batoh ze země."
+      },
+      {
+        "id": "t7",
+        "text": "Táhnu saně do kopce."
+      },
+      {
+        "id": "t8",
+        "text": "Pumpuji vzduch do kola."
+      },
+      {
+        "id": "t9",
+        "text": "Snažím se telepaticky pohnout sklenicí."
+      },
+      {
+        "id": "t10",
+        "text": "Tlačím nákupní vozík po obchodě."
+      },
+      {
+        "id": "t11",
+        "text": "Opírám se o strom."
+      },
+      {
+        "id": "t12",
+        "text": "Tlačím na zeď, která se ani nehne."
+      },
+      {
+        "id": "t13",
+        "text": "Ležím v posteli a \"sbírám energii\"."
+      },
+      {
+        "id": "t14",
+        "text": "Zvedám závaží na kladce."
+      },
+      {
+        "id": "t15",
+        "text": "Kopnu do míče."
+      },
+      {
+        "id": "t16",
+        "text": "Mluvím na spolužáka."
+      }
+    ],
+    "solutions": { "t1": "g1", "t2": "g1", "t3": "g2", "t4": "g1", "t5": "g2", "t6": "g1", "t7": "g1", "t8": "g1",
+      "t9": "g2", "t10": "g1", "t11": "g2", "t12": "g2", "t13": "g2", "t14": "g1", "t15": "g1", "t16": "g2"},
+    "errorMessage": "Některé odpovědi nejsou správné. Rozhodni, kdy se skutečně koná práce!",
+    "options": {
+      "aggregateOnly": false,
+      "blockUntilSolved": true,
+      "showErrorToast": true,
+      "layout": { "mode": "auto", "direction": "vertical" }
+    },
+    "rect": { "x": 1, "y": 6, "w": 63, "h": 92 },
+    "background": "assets/puzzles/puzzle-clock-bg.jpg"
+  },
+
+  "puzzle-book": {
+    "id": "puzzle-book",
+    "kind": "list",
+    "title": "",
+    "prompt": "",
+    "items": [
+      {
+        "ref": "puzzle-book-1"
+      },
+      {
+        "ref": "puzzle-book-2"
+      }
+    ],
+    "summary": {
+      "showScore": true,
+      "messageOk": "Výborně! Zvládl jsi oba úkoly o výkonu.",
+      "messageFail": "Něco se nepovedlo. Zkus si to rozmyslet znovu."
+    },
+    "errorMessage": "Některé odpovědi nejsou správné. Přečti si pečlivě, jak funguje výkon!",
+    "options": {
+      "blockUntilSolved": false,
+      "showErrorToast": true
+    }
+  },
+
+  "puzzle-book-1": {
+    "id": "puzzle-book-1",
+    "kind": "quiz",
+    "title": "",
+    "prompt": "",
+    "tokens": [
+      {
+        "id": "c1",
+        "label": "Bertík"
+      },
+      {
+        "id": "c2",
+        "label": "Míša"
+      },
+      {
+        "id": "same",
+        "label": "oba stejnou"
+      }
+    ],
+    "solutionIds": ["same"],
+    "errorMessage": "Zkus to znovu!",
+    "options": {
+      "aggregateOnly": true,
+      "blockUntilSolved": false,
+      "multiSelect": false,
+      "showErrorToast": false,
+      "layout": { "mode": "auto", "direction": "vertical" }
+    },
+    "rect": { "x": 6, "y": 30, "w": 39, "h": 60 },
+    "background": "assets/puzzles/puzzle-book-1-bg.jpg"
+  },
+
+  "puzzle-book-2": {
+    "id": "puzzle-book-2",
+    "kind": "quiz",
+    "title": "",
+    "prompt": "",
+    "tokens": [
+      {
+        "id": "c1",
+        "label": "Bertík"
+      },
+      {
+        "id": "c2",
+        "label": "Míša"
+      },
+      {
+        "id": "same",
+        "label": "oba stejnou"
+      }
+    ],
+    "solutionIds": ["c1"],
+    "errorMessage": "Zkus to znovu!",
+    "options": {
+      "aggregateOnly": true,
+      "blockUntilSolved": false,
+      "multiSelect": false,
+      "showErrorToast": false,
+      "layout": { "mode": "auto", "direction": "vertical" }
+    },
+    "rect": { "x": 6, "y": 29, "w": 37, "h": 66
+    },
+    "background": "assets/puzzles/puzzle-book-2-bg.jpg"
+  }
+}

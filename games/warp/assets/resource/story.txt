@@ -1,0 +1,151 @@
+Tohle je perfektní završení celé hry. Přidání sběratelských předmětů dává hráčům jasný pocit postupu a závěrečná scéna, kde všechno zužitkují, je skvělou tečkou, která propojí historii s futuristickým cílem hry.
+
+Zde je kompletní, finální design dokument, včetně nového sloupce s předměty, bonusové scény a podrobných popisů pro generování grafiky.
+
+-----
+
+# 🚀 Design Dokument: Úniková hra WARP
+
+**Hlavní postava (průvodce):** Mladá Astronautka (styl anime bust, černé vlasy v culíku, skafandr bez helmy).
+**Cíl hry:** Získat klíčové poznatky od historických fyziků, které se zhmotní do podoby předmětů, a ty následně použít k nahození warpového pohonu hvězdné lodi.
+
+## Hlavní herní smyčka (Tabulka scénářů)
+
+| Vědec / Období | Typ puzzle | Puzzle (mechanika) | Situace a úkol (Historický kontext) | Získaný předmět (Vzhled do inventáře) | Dialog (Astronautka - Narrator) |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **1. Isaac Newton**<br>(1687) | **MATCH**<br>(Spojovačka) | Spojit 3 obrázky situací se 3 zákony (Setrvačnost, Akce-Reakce, F=ma). | **Situace:** Newton pod jabloní, přepracovaný, má zmatek v poznámkách ke knize *Principia*.<br>**Úkol:** Udělat pořádek v definicích pohybu. | **Gravitační klíč**<br>*(Těžký mosazný klíč, jehož hlavice má tvar jablka s ozubenými kolečky uvnitř.)* | „Vidíte? Isaac má v hlavě zmatek z přepracování. Neví, který zákon patří k padajícímu jablku a který ke startu rakety. **Spoj správně obrázky situací se zákony**, ať to může poslat do tiskárny\!“ |
+| **2. Alessandro Volta**<br>(1800) | **GROUP**<br>(Třídění) | Třídění předmětů na stole: „Do baterie“ (kovy, elektrolyt) vs. „Odpad“ (izolanty). | **Situace:** Volta staví první baterii (sloup). Na stole má chaos a míchá vodivé věci s nesmysly (dřevo, jídlo).<br>**Úkol:** Vybrat jen materiály pro elektrochemickou reakci. | **Voltova baterie**<br>*(Malý "sloup" z naskládaných zinkových a měděných disků proložených mokrým hadrem, nahoře jiskří.)* | „Volta míchá vodivé kovy s úplnými nesmysly. Když do baterie vloží kus dřeva nebo pizzu, elektřinu nevyrobí. **Pomoz mu uklidit stůl: vyber jen vodivé materiály**, a zbytek hoď do koše.“ |
+| **3. Michael Faraday**<br>(1831) | **ORDER**<br>(Seřazení) | Seřadit 4 kroky experimentu (magnet, pohyb, změna pole, proud). | **Situace:** Faraday zírá na cívku a magnet. Tuší souvislost, ale bojí se sáhnout a chybí mu pohyb.<br>**Úkol:** Ukázat, že klíčem k indukci je změna (pohyb). | **Indukční cívka**<br>*(Cívka z měděného drátu, uvnitř které je částečně zasunutý tyčový magnet, jemně modře září.)* | „Michael je blízko, ale zapomněl na to nejdůležitější – na pohyb\! Jen se na to dívá. **Seřaď kroky experimentu**, abychom mu ukázali, že magnetem musí v cívce *hýbat*.“ |
+| **4. Heinrich Hertz**<br>(1887) | **CLOZE**<br>(Doplňovačka) | Doplňování slov z banky (vysílač, neviditelné, jiskra, přijímač) do deníku. | **Situace:** Temná laboratoř. Hertz v šoku zírá na jiskru, která přeskočila na dálku bez drátů (rádiové vlny).<br>**Úkol:** Pomoci mu formulovat zápis o objevu. | **Rádiová anténa**<br>*(Retro-futuristický mosazný vysílač se dvěma kovovými koulemi, mezi kterými přeskakuje jiskra, a malým talířem.)* | „Právě dokázal, že energie může létat vzduchem\! Je z toho tak paf, že nemůže najít slova do deníku. **Doplň správné pojmy do jeho zápisu**, ať je tento objev jasný.“ |
+| **5. Tesla vs. Edison**<br>(konec 19. stol.) | **GROUP**<br>(Třídění - Mapa) | Třídění prvků sítě na mapě: Edison (DC, lokální) vs. Tesla (AC, dálkové). | **Situace:** Hádka nad mapou. Edison chce malé DC elektrárny všude ve městě. Tesla chce velkou AC elektrárnu daleko a přenos.<br>**Úkol:** Rozdělit technologie podle typu přenosu. | **Transformátor AC**<br>*(Masivní elektrický přístroj se dvěma cívkami a železným jádrem, bzučí energií a má nápis "AC POWER".)* | „Ti dva se nikdy neshodnou. Edisonův stejnosměrný proud 'nedohlédne' daleko, proto chce elektrárny všude. Tesla ví, že střídavý umí cestovat daleko. **Rozděl to za ně:** Co patří k lokální síti a co k dálkové?“ |
+| **6. Albert Einstein**<br>(poč. 20. stol.) | **CLOZE**<br>(Doplňovačka - Vizuální) | Doplňování slov (Zemi, raketě, světla, mladší) přímo do myšlenkové bubliny. | **Situace:** Einstein v křesle, „cestuje v hlavě“. Představuje si paradox dvojčat, ale chybí mu logika.<br>**Úkol:** Doplnit vizualizaci myšlenkového experimentu. | **Relativistické hodiny**<br>*(Kapesní hodinky, jejichž ciferník je surrealisticky pokřivený a roztéká se jako na obraze Salvadora Dalího, ukazují dva různé časy.)* | „Pšt\! Albert nespí, on 'cestuje' ve své hlavě. Promítá si film o čase a rychlosti, ale nějak se mu to motá. **Doplň do jeho myšlenkové představy chybějící slova**, ať ten experiment dává smysl.“ |
+| **7. FINÁLE: Start Motoru**<br>(Bonus) | **USE**<br>(Použití předmětu) | Použití 6 získaných předmětů z inventáře na 6 slotů v konzoli lodi. | **Situace:** Kapitánský můstek hvězdné lodi. Warp motor je offline, konzole svítí červeně a žádá vložení klíčových komponent.<br>**Úkol:** Vložit správné historické předměty do správných futuristických modulů. | **(Žádný - Konec hry)** | **Astronautka (při startu):** „Tohle tam asi nepatří… zkus něco, co s tím víc souvisí.“ (Při chybě)<br><br>„Hotovo\! Díky tobě jsme poskládali vědu od jablka na hlavě až po ohnutý čas. První mezihvězdné plavidlo startuje – děkuju, zachránil/a jsi budoucnost\! 🚀“ (Při úspěchu) |
+
+-----
+
+## 🎨 Podklady pro generování grafiky (Asset List)
+
+Zde jsou popisy pro grafika nebo AI generátor, aby byl vizuální styl jednotný (doporučený styl: čisté anime/komiks, konzistentní s již vytvořenými obrázky).
+
+### 1\. Postava Průvodce (Astronautka)
+
+  * **Styl:** Anime bust (polopostava), visual novel sprite.
+  * **Vzhled:** Mladá žena, černé vlasy v praktickém culíku, bílo-oranžovo-modrý futuristický skafandr, BEZ helmy.
+  * **Pózy (již definované):** Idle (klidná), Happy (mává), Angry (zatnuté pěsti), Thinking (ruka na bradě).
+
+### 2\. Ikony Předmětů do Inventáře (Items)
+
+*Musí vypadat jako sběratelské ikony, jasně rozpoznatelné.*
+
+  * **Gravitační klíč:** Zlatavý mosazný klíč, hlavice ve tvaru jablka, uvnitř viditelná ozubená kolečka.
+  * **Voltova baterie:** Malý sloupec střídajících se stříbrných (zinek) a měděných disků, mezi nimi vlhká látka, nahoře malá elektrická jiskra.
+  * **Indukční cívka:** Cívka měděného drátu, uvnitř zasunutý tyčový magnet (červeno-modrý konec), vyzařuje jemné modré světlo.
+  * **Rádiová anténa:** Steampunk/retro přístroj. Dvě mosazné koule blízko sebe s viditelnou jiskrou mezi nimi, připojené k malému parabolickému talíři.
+  * **Transformátor AC:** Hranatý, těžký elektrický blok se dvěma viditelnými cívkami a lamelovým jádrem, bzučí, nápis "AC/DC CONVERTER" nebo "TESLA COIL CO.".
+  * **Relativistické hodiny:** Surrealistické kapesní hodinky na řetízku. Ciferník je "tekutý" a pokřivený, ručičky jsou ohnuté, ukazují nesmyslný čas.
+
+### 3\. Pozadí a Prvky pro Puzzle (Scény)
+
+**Scéna 1: Newton (Match)**
+
+  * **Pozadí:** Pod velkou jabloní na anglickém venkově. Newton sedí opřený o kmen, všude kolem něj rozházené papíry, knihy, nakousnutá jablka. Atmosféra: "kreativní chaos".
+  * **Herní prvky (karty na spojování):**
+      * *Obrázky:* 1. Dělo na kopci střílející kouli. 2. Startující raketa. 3. Člověk tlačící balvan.
+      * *Texty:* Kartičky s názvy zákonů (Setrvačnost, Akce a reakce, Síla a zrychlení).
+
+**Scéna 2: Volta (Group)**
+
+  * **Pozadí:** Laboratorní stůl roku 1800. Dřevěný stůl, skleněné nádoby, dráty, nepořádek. Uprostřed nedokončený Voltův sloup.
+  * **Herní prvky (draggables):** Zinkový disk, Měděná mince, Mokrý hadr, Kousek pizzy, Dřevěná kostka, Zmullsaný papír.
+
+**Scéna 3: Faraday (Order)**
+
+  * **Pozadí:** Viktoriánská laboratoř. Na stole leží velká cívka připojená ke galvanometru (měřák s ručičkou) a vedle tyčový magnet. Ručička je na nule.
+  * **Herní prvky (karty pro seřazení):** 4 kartičky s ikonami a textem (Vzít magnet, Rychlý pohyb, Změna pole, Výchylka ručičky).
+
+**Scéna 4: Hertz (Cloze)**
+
+  * **Pozadí:** Temná laboratoř v noci. Na jedné straně stolu je jiskřiště (vysílač), na druhé straně drátěná smyčka (přijímač), kde právě přeskočila jiskra. Hertz zírá s otevřenou pusou.
+  * **Herní prvky:** Otevřený deník s textem a prázdnými místy, banka slov pod ním.
+
+**Scéna 5: Tesla vs. Edison (Group - Mapa)**
+
+  * **Pozadí:** (Již vygenerovaný obrázek) Hádka nad mapou. Edison si zacpává uši u kouřícího města, Tesla gestikuluje s modelem přehrady.
+  * **Herní prvky (draggables):**
+      * *Edisonovy:* Ikonka malé kouřící elektrárny, Ikonka tlustého krátkého kabelu.
+      * *Teslovy:* Ikonka velké vodní přehrady, Ikonka stožáru vysokého napětí, Ikonka transformátoru.
+
+**Scéna 6: Einstein (Cloze - Vizuál)**
+
+  * **Pozadí:** (Již vygenerovaný obrázek/styl) Einstein v křesle se zavřenýma očima. Velká myšlenková bublina nad ním s komiksem o dvojčatech a raketě.
+  * **Herní prvky:** Prázdná políčka přímo v komiksové bublině, banka slov pod obrázkem.
+
+**Scéna 7: FINÁLE (Use)**
+
+  * **Pozadí:** Kapitánský můstek futuristické hvězdné lodi. Velký výhled do vesmíru. Uprostřed je hlavní ovládací konzole warpového pohonu. Konzole je tmavá, svítí jen červené varovné kontrolky.
+  * **Herní prvky (Sloty na konzoli):** 6 prázdných, jasně označených slotů (děr/přihrádek) s ikonami a nápisy:
+    1.  Gravitační modul
+    2.  Energetický modul
+    3.  Indukční modul
+    4.  Komunikační modul
+    5.  Napěťový modul
+    6.  Časový modul
+  * *Poznámka:* Po vložení všech předmětů se konzole musí rozzářit modře a na hlavní obrazovce se objeví animace startu lodi do warpu.
+
+# Blizsi popis posledni sceny
+
+8) BONUS – Start mezihvězdného motoru (USE na objekty)
+
+Na konzoli hvězdné lodi jsou „sloty“ / objekty:
+
+Gravitační modul
+
+Energetický modul
+
+Indukční (magnetický) modul
+
+Komunikační modul
+
+Napěťový modul
+
+Časový modul
+
+Hráč má v inventáři:
+
+Gravitační klíč (Newton)
+
+Voltova baterie (Volta)
+
+Indukční cívka (Faraday)
+
+Rádiová anténa (Hertz)
+
+Transformátor AC (Tesla/Edison)
+
+Relativistické hodiny (Einstein)
+
+Mechanika: použití předmětu na správný objekt
+
+Správné kombinace:
+
+Gravitační klíč → Gravitační modul
+
+Voltova baterie → Energetický modul
+
+Indukční cívka → Indukční modul
+
+Rádiová anténa → Komunikační modul
+
+Transformátor AC → Napěťový modul
+
+Relativistické hodiny → Časový modul
+
+Chybné použití → hláška astronautky ve stylu:
+„Tohle tam asi nepatří… zkus něco, co s tím víc souvisí.“
+
+Po všech šesti správných použitích:
+→ zobrazí se obrázek startující mezihvězdné lodi.
+
+Astronautka:
+„Hotovo! Díky tobě jsme poskládali vědu od jablka na hlavě až po ohnutý čas.
+První mezihvězdné plavidlo startuje – děkuju, zachránil/a jsi budoucnost! 🚀“
