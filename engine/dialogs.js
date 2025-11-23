@@ -11,7 +11,7 @@ export class DialogUI {
         // Typewriter configuration - can be overridden per dialog
         this.typewriterConfig = {
             enabled: true,        // Enable/disable typewriter effect
-            speed: 30,            // Milliseconds per character (lower = faster)
+            speed: 15,            // Milliseconds per character (lower = faster)
             skipOnClick: true     // Allow skipping animation by clicking
         };
     }

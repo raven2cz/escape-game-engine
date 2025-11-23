@@ -1,0 +1,281 @@
+{
+  "meta": { "id": "warp-engine", "name": "Dialogs" },
+
+  "characters": [
+    {
+      "id": "astronaut",
+      "name": "Astronautka",
+      "poses": {
+        "idle":     "assets/npc/astronaut/idle.webp",
+        "thinking": "assets/npc/astronaut/thinking.webp",
+        "angry":    "assets/npc/astronaut/angry.webp",
+        "happy":    "assets/npc/astronaut/happy.webp"
+      }
+    },
+    {
+      "id": "newton",
+      "name": "Isaac Newton",
+      "poses": {
+        "idle":     "assets/npc/newton/idle.webp",
+        "thinking": "assets/npc/newton/thinking.webp",
+        "angry":    "assets/npc/newton/angry.webp",
+        "happy":    "assets/npc/newton/happy.webp"
+      }
+    },
+    {
+      "id": "volta",
+      "name": "Alessandro Volta",
+      "poses": {
+        "idle":     "assets/npc/volta/idle.webp",
+        "thinking": "assets/npc/volta/thinking.webp",
+        "angry":    "assets/npc/volta/angry.webp",
+        "happy":    "assets/npc/volta/happy.webp"
+      }
+    },
+    {
+      "id": "faraday",
+      "name": "Michael Faraday",
+      "poses": {
+        "idle":     "assets/npc/faraday/idle.webp",
+        "thinking": "assets/npc/faraday/thinking.webp",
+        "angry":    "assets/npc/faraday/angry.webp",
+        "happy":    "assets/npc/faraday/happy.webp"
+      }
+    },
+    {
+      "id": "hertz",
+      "name": "Heinrich Hertz",
+      "poses": {
+        "idle":     "assets/npc/hertz/idle.webp",
+        "thinking": "assets/npc/hertz/thinking.webp",
+        "angry":    "assets/npc/hertz/angry.webp",
+        "happy":    "assets/npc/hertz/happy.webp"
+      }
+    },
+    {
+      "id": "tesla",
+      "name": "Nikola Tesla",
+      "poses": {
+        "idle":     "assets/npc/tesla/idle.webp",
+        "thinking": "assets/npc/tesla/thinking.webp",
+        "angry":    "assets/npc/tesla/angry.webp",
+        "happy":    "assets/npc/tesla/happy.webp"
+      }
+    },
+    {
+      "id": "edison",
+      "name": "Thomas A. Edison",
+      "poses": {
+        "idle":     "assets/npc/edison/idle.webp",
+        "thinking": "assets/npc/edison/thinking.webp",
+        "angry":    "assets/npc/edison/angry.webp",
+        "happy":    "assets/npc/edison/happy.webp"
+      }
+    },
+    {
+      "id": "einstein",
+      "name": "Albert Einstein",
+      "poses": {
+        "idle":     "assets/npc/einstein/idle.webp",
+        "thinking": "assets/npc/einstein/thinking.webp",
+        "angry":    "assets/npc/einstein/angry.webp",
+        "happy":    "assets/npc/einstein/happy.webp"
+      }
+    }
+  ],
+
+  "dialogs": [
+    {
+      "id": "intro.start",
+      "once": true,
+      "title": "Trhlina v realitě",
+      "left":  { "characterId": "astronaut", "defaultPose": "idle" },
+      "ui": { "tapToNext": true, "allowSkip": false },
+      "sequence": [
+        { "id": "s1", "speaker": "left", "pose": "angry",    "text": "Konečně! Zachytila jsem tvůj signál. Rychle, poslouchej, tenhle průchod dlouho neudržím. Vidíš ten chaos kolem sebe? To není chyba simulace, to se nám před očima rozpadá samotná realita." },
+        { "id": "s2", "speaker": "left", "pose": "thinking", "text": "Píše se rok 2050. Zemi dochází síly. Naše jediná naděje je u jiných hvězd. Lodě už máme, i prototyp warpového pohonu, ale něco zásadního chybí. Zjistili jsme proč: z historie mizí klíčové fyzikální objevy. Jako by je někdo gumoval z časové osy." },
+        { "id": "s3", "speaker": "left", "pose": "idle",     "text": "Když Newton nepochopí gravitaci a Hertz nezachytí vlny, naše budoucnost nikdy nevznikne. Otevřela jsem nestabilní bránu do Řeky času. Musíš vstoupit dovnitř, vyhledat vědce v rozhodujícím okamžiku a pomoct jim dotáhnout jejich nápady. Jsi poslední, kdo to může zachránit. Jdeme na to!" }
+      ],
+      "onEnd": { "setFlags": ["intro_seen"] }
+    },
+
+    {
+      "id": "main.start",
+      "once": true,
+      "title": "Řeka času",
+      "left":  { "characterId": "astronaut", "defaultPose": "idle" },
+      "ui": { "tapToNext": true, "allowSkip": false },
+      "sequence": [
+        { "id": "m1", "speaker": "left", "pose": "idle",    "text": "Uf, ten průchod byl drsnější, než jsem čekala, ale zvládli jsme to. Vítej v Řece času. Tady se dějiny nepíšou inkoustem, ale čistou energií. To, co kolem sebe vidíš, je surový tok lidského poznání." },
+        { "id": "m2", "speaker": "left", "pose": "thinking","text": "Ty plovoucí ostrovy nejsou obyčejné kusy skály. Jsou to časové uzly, klíčové okamžiky, kdy se zrodila myšlenka, která změnila svět. Teď jsou rozbité a zaseknuté v chaosu. Když je nespravíme, cesta k warpovému pohonu se nikdy neposkládá." },
+        { "id": "m3", "speaker": "left", "pose": "happy",   "text": "Musíme postupovat od základů. Fyzika je jako dům, nejde začít střechou. Podívej dolů na začátek proudu. Vidíš tu jabloň? Tam všechno startuje. Klikni na Newtonův ostrov a pojďme znovu nastavit gravitaci." }
+      ],
+      "onEnd": { "setFlags": ["main_seen"] }
+    },
+
+    {
+      "id": "newton.intro",
+      "once": true,
+      "title": "Newton pod jabloní",
+      "left":  { "characterId": "newton",    "defaultPose": "thinking" },
+      "right": { "characterId": "astronaut", "defaultPose": "idle" },
+      "ui": { "tapToNext": true, "allowSkip": true },
+      "sequence": [
+        { "id": "n1", "speaker": "left",  "pose": "thinking", "text": "Hm, když kopnu do míče, letí. Když padá jablko, přitahuje ono Zemi, nebo Země jeho? Z těch sil se mi začíná točit hlava." },
+        { "id": "n2", "speaker": "right", "pose": "idle",     "text": "Isaacu, myslím, že jsi lehce přepracovaný. Poznámky máš úplně pomíchané. Pojďme je společně seřadit: přiřaď náčrtky ke správným zákonům pohybu." }
+      ]
+    },
+    {
+      "id": "newton.outro",
+      "once": true,
+      "title": "Principia zachráněna",
+      "left":  { "characterId": "newton", "defaultPose": "happy" },
+      "ui": { "tapToNext": true, "allowSkip": false },
+      "sequence": [
+        { "id": "nx1", "speaker": "left", "pose": "happy", "text": "Aha, samozřejmě. Setrvačnost, síla, akce a reakce, všechno zapadá dohromady. Děkuji ti, moje Principia jsou v bezpečí." }
+      ]
+    },
+
+    {
+      "id": "volta.intro",
+      "once": true,
+      "title": "Napětí u Volty",
+      "left":  { "characterId": "volta",     "defaultPose": "angry" },
+      "right": { "characterId": "astronaut", "defaultPose": "thinking" },
+      "ui": { "tapToNext": true, "allowSkip": true },
+      "sequence": [
+        { "id": "v1", "speaker": "left",  "pose": "angry",    "text": "Maledizione! Proč moje baterie vůbec nejiskří? Zkoušel jsem prokládat měď tímhle kouskem staré pizzy a pořád nic." },
+        { "id": "v2", "speaker": "right", "pose": "thinking", "text": "Pizza v baterii? To fakt nezachrání. Potřebuješ vodivé kovy a něco mokrého mezi nimi. Uklidíme stůl a vybereme jen to, co opravdu vede proud." }
+      ]
+    },
+    {
+      "id": "volta.outro",
+      "once": true,
+      "title": "První baterie",
+      "left":  { "characterId": "volta", "defaultPose": "happy" },
+      "ui": { "tapToNext": true, "allowSkip": false },
+      "sequence": [
+        { "id": "vx1", "speaker": "left", "pose": "happy", "text": "Jiskra je tady, stálý proud taky. Zinek, měď a slaná voda, tak jednoduché a tak silné. Grazie mille!" }
+      ]
+    },
+
+    {
+      "id": "faraday.intro",
+      "once": true,
+      "title": "Hledání indukce",
+      "left":  { "characterId": "faraday",   "defaultPose": "thinking" },
+      "right": { "characterId": "astronaut", "defaultPose": "idle" },
+      "ui": { "tapToNext": true, "allowSkip": true },
+      "sequence": [
+        { "id": "f1", "speaker": "left",  "pose": "thinking", "text": "Vím, že elektřina nějak souvisí s magnetismem. Mám cívku, mám magnet, ale ručička měřidla se ani nepohne. Co mi pořád uniká?" },
+        { "id": "f2", "speaker": "right", "pose": "idle",     "text": "Chybí ti akce. Magnet nesmí jen ležet, musíš s ním hýbat. Seřadíme kroky pokusu tak, aby bylo jasné, že změna magnetického pole vyrábí proud." }
+      ]
+    },
+    {
+      "id": "faraday.outro",
+      "once": true,
+      "title": "Zrození indukce",
+      "left":  { "characterId": "faraday", "defaultPose": "happy" },
+      "ui": { "tapToNext": true, "allowSkip": false },
+      "sequence": [
+        { "id": "fx1", "speaker": "left", "pose": "happy", "text": "Pohyb, to je ono. Když se magnetické pole mění, rozběhne se proud. To je přece jasné. Podívej, jak se rozsvítila žárovka." }
+      ]
+    },
+
+    {
+      "id": "hertz.intro",
+      "once": true,
+      "title": "Jiskra bez drátů",
+      "left":  { "characterId": "hertz",     "defaultPose": "idle" },
+      "right": { "characterId": "astronaut", "defaultPose": "idle" },
+      "ui": { "tapToNext": true, "allowSkip": true },
+      "sequence": [
+        { "id": "h1", "speaker": "left",  "pose": "idle", "text": "Viděl jsi to? Jiskra přeskočila přes celou místnost bez jediného drátu. Jak tohle mám zapsat do deníku, aby to neznělo úplně bláznivě?" },
+        { "id": "h2", "speaker": "right", "pose": "idle", "text": "Právě jsi zachytil neviditelné vlny. Doplňme do deníku správná slova, ať ti ostatní vědci uvěří." }
+      ]
+    },
+    {
+      "id": "hertz.outro",
+      "once": true,
+      "title": "Rádiové vlny",
+      "left":  { "characterId": "hertz", "defaultPose": "happy" },
+      "ui": { "tapToNext": true, "allowSkip": false },
+      "sequence": [
+        { "id": "hx1", "speaker": "left", "pose": "happy", "text": "Neviditelné vlny zachycené přijímačem, to je přesný popis. Tohle objevení změní způsob, jakým spolu lidé komunikují." }
+      ]
+    },
+
+    {
+      "id": "currents.intro",
+      "once": true,
+      "title": "Válka proudů",
+      "left":  { "characterId": "edison", "defaultPose": "angry" },
+      "right": { "characterId": "tesla",  "defaultPose": "thinking" },
+      "ui": { "tapToNext": true, "allowSkip": true },
+      "sequence": [
+        { "id": "c1", "speaker": "left",  "pose": "angry",    "text": "Poslouchej mě. Lidé chtějí bezpečnou elektřinu hned za rohem. Moje malé stejnosměrné elektrárny v každé ulici jsou jediné rozumné řešení." },
+        { "id": "c2", "speaker": "right", "pose": "thinking", "text": "To je krátkozraké. Potřebujeme střídavý proud z velkých elektráren, abychom mohli levně přenášet energii na velké vzdálenosti." }
+      ]
+    },
+    {
+      "id": "currents.outro",
+      "once": true,
+      "title": "Dohoda (tak napůl)",
+      "left":  { "characterId": "tesla",  "defaultPose": "happy" },
+      "right": { "characterId": "edison", "defaultPose": "thinking" },
+      "ui": { "tapToNext": true, "allowSkip": false },
+      "sequence": [
+        { "id": "cx1", "speaker": "right", "pose": "thinking", "text": "Dobře. Přiznávám, že tvůj střídavý proud je na dálkový přenos lepší. Ale stejnosměrné baterie budou stejně jednou všude." },
+        { "id": "cx2", "speaker": "left",  "pose": "happy",    "text": "Platí. Střídavý proud pro síť na velké vzdálenosti, stejnosměrný pro menší zařízení. Každý má své místo a všichni z toho těží." }
+      ]
+    },
+
+    {
+      "id": "einstein.intro",
+      "once": true,
+      "title": "Dvojčata v raketě",
+      "left":  { "characterId": "einstein",  "defaultPose": "thinking" },
+      "right": { "characterId": "astronaut", "defaultPose": "idle" },
+      "ui": { "tapToNext": true, "allowSkip": true },
+      "sequence": [
+        { "id": "e1", "speaker": "left",  "pose": "thinking", "text": "(Mumlá si) Když jedno dvojče poletí skoro rychlostí světla, čas pro něj musí plynout pomaleji než pro dvojče na Zemi. Jenže můj myšlenkový experiment je pořád nějak rozmazaný." },
+        { "id": "e2", "speaker": "right", "pose": "idle",     "text": "Pšt, pojďme do tvé myšlenkové bubliny doplnit chybějící slova, aby celý příběh relativistických dvojčat dával dokonalý smysl." }
+      ]
+    },
+    {
+      "id": "einstein.outro",
+      "once": true,
+      "title": "Zvláštní relativita",
+      "left":  { "characterId": "einstein", "defaultPose": "happy" },
+      "ui": { "tapToNext": true, "allowSkip": false },
+      "sequence": [
+        { "id": "ex1", "speaker": "left", "pose": "happy", "text": "Takže cestovatel v raketě se vrátí mladší než jeho bratr na Zemi. Čas neměří všem stejně, záleží na rychlosti pohybu. Zvláštní, ale pravdivé." }
+      ]
+    },
+
+    {
+      "id": "warp-core.victory",
+      "once": true,
+      "title": "Warp motor: start",
+      "left":  { "characterId": "astronaut", "defaultPose": "happy" },
+      "ui": { "tapToNext": true, "allowSkip": false },
+      "sequence": [
+        { "id": "w1", "speaker": "left", "pose": "happy", "text": "Máme hotovo. Díky tobě jsme poskládali příběh vědy od padajícího jablka až po ohnutý čas. Warpový pohon se spouští." },
+        { "id": "w2", "speaker": "left", "pose": "happy", "text": "Konzole zezelenala a první mezihvězdná loď startuje. Společně jsme zachránili budoucnost. 🚀" }
+      ],
+      "onEnd": { "setFlags": ["warp_ready_dialog_done"] }
+    },
+
+    {
+      "id": "exit.victory",
+      "once": true,
+      "title": "Odlétáme",
+      "left":  { "characterId": "astronaut", "defaultPose": "happy" },
+      "ui": { "tapToNext": true, "allowSkip": false },
+      "sequence": [
+        { "id": "x1", "speaker": "left", "pose": "happy", "text": "Kurz je nastaven. Opouštíme Zemi a míříme k novým světům. Skvělá práce, kapitáne." }
+      ],
+      "onEnd": { "setFlags": ["game_completed"] }
+    }
+  ]
+}

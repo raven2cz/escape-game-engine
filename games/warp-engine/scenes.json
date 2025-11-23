@@ -1,0 +1,253 @@
+{
+  "meta": {
+    "id": "warp-engine",
+    "name": "Warp motor",
+    "description": "Cestuj časem, pomoz vědcům dokončit klíčové objevy a nastartuj warpový pohon.",
+    "author": "raven2cz",
+    "version": "0.1.0",
+    "tags": ["physics","history","puzzles"],
+    "languages": ["cs"]
+  },
+
+  "settings": {
+    "hints": { "acceptNeed": true },
+    "accessibility": { "useGuard": "hide" }
+  },
+
+  "items": [
+    { "id": "grav-key",            "label": "Gravitační klíč",       "icon": "assets/items/grav-key.jpg" },
+    { "id": "volta-pile",          "label": "Voltova baterie",       "icon": "assets/items/volta-pile.jpg" },
+    { "id": "induction-coil",      "label": "Indukční cívka",        "icon": "assets/items/induction-coil.jpg" },
+    { "id": "radio-antenna",       "label": "Rádiová anténa",        "icon": "assets/items/radio-antenna.jpg" },
+    { "id": "ac-transformer",      "label": "Transformátor AC",      "icon": "assets/items/ac-transformer.jpg" },
+    { "id": "relativistic-clock",  "label": "Relativistické hodiny", "icon": "assets/items/relativistic-clock.jpg" }
+  ],
+
+  "scenes": [
+    {
+      "id": "intro",
+      "title": "Trhlina v realitě",
+      "image": "assets/scenes/intro-glitch.jpg",
+      "hotspots": [
+        { "type": "goTo", "target": "main-room", "rect": {"x":74.64,"y":81.82,"w":19.33,"h":16.74} }
+      ]
+    },
+
+    {
+      "id": "main-room",
+      "title": "Řeka času",
+      "image": "assets/scenes/time-river.jpg",
+      "hotspots": [
+        { "type": "goTo", "target": "scn-newton",   "rect": {"x":82.55,"y":49.49,"w":17.45,"h":46} },
+        { "type": "goTo", "target": "scn-volta",    "rect": {"x":71.34,"y":53,"w":10.73,"h":20.53} },
+        { "type": "goTo", "target": "scn-faraday",  "rect": {"x":56.67,"y":59.86,"w":11.13,"h":23.18} },
+        { "type": "goTo", "target": "scn-hertz",    "rect": {"x":64.39,"y":34.18,"w":8.52,"h":19.96} },
+        { "type": "goTo", "target": "scn-currents", "rect": {"x":44.78,"y":33.61,"w":14.99,"h":24.11} },
+        { "type": "goTo", "target": "scn-einstein", "rect": {"x":77.53,"y":18.09,"w":11.13,"h":21.46} },
+        {
+          "type": "goTo",
+          "target": "warp-core",
+          "rect": {"x":47.59,"y":2.35,"w":23.51,"h":24.39},
+          "requireItems": [ "grav-key","volta-pile","induction-coil","radio-antenna","ac-transformer","relativistic-clock" ],
+          "showNeedHint": true
+        }
+      ]
+    },
+
+    {
+      "id": "scn-newton",
+      "title": "Newton pod jabloní",
+      "image": "assets/scenes/newton.jpg",
+      "hotspots": [
+        {
+          "type": "puzzle",
+          "rect": {"x":14.76,"y":79.25,"w":10.44,"h":18.53},
+          "puzzleRef": "newton-match",
+          "options": { "blockUntilSolved": true },
+          "onSuccess": {
+            "message": "Správně! Newton má v poznámkách pořádek.",
+            "giveItem": "grav-key",
+            "setFlags": ["solved_newton"],
+            "goTo": "main-room"
+          }
+        },
+        { "type": "goTo", "target": "main-room", "rect": {"x":2.38,"y":78.82,"w":9.92,"h":18.67} }
+      ]
+    },
+
+    {
+      "id": "scn-volta",
+      "title": "Volta a první baterie",
+      "image": "assets/scenes/volta.jpg",
+      "hotspots": [
+        {
+          "type": "puzzle",
+          "rect": {"x":14.63,"y":79.54,"w":10.17,"h":17.74},
+          "puzzleRef": "volta-group",
+          "options": { "blockUntilSolved": true },
+          "onSuccess": {
+            "message": "Třídění hotovo – baterie jiskří!",
+            "giveItem": "volta-pile",
+            "setFlags": ["solved_volta"],
+            "goTo": "main-room"
+          }
+        },
+        { "type": "goTo", "target": "main-room", "rect": {"x":2.18,"y":79.03,"w":10.16,"h":18.46} }
+      ]
+    },
+
+    {
+      "id": "scn-faraday",
+      "title": "Faraday a indukce",
+      "image": "assets/scenes/faraday.jpg",
+      "hotspots": [
+        {
+          "type": "puzzle",
+          "rect": {"x":14.48,"y":79.54,"w":10.52,"h":18.24},
+          "puzzleRef": "faraday-order",
+          "options": { "blockUntilSolved": true },
+          "onSuccess": {
+            "message": "Kroky experimentu jsou ve správném pořadí.",
+            "giveItem": "induction-coil",
+            "setFlags": ["solved_faraday"],
+            "goTo": "main-room"
+          }
+        },
+        { "type": "goTo", "target": "main-room", "rect": {"x":2.26,"y":79.25,"w":10.12,"h":18.17} }
+      ]
+    },
+
+    {
+      "id": "scn-hertz",
+      "title": "Hertz a neviditelné vlny",
+      "image": "assets/scenes/hertz.jpg",
+      "hotspots": [
+        {
+          "type": "puzzle",
+          "rect": {"x":14.59,"y":78.96,"w":10.57,"h":19.1},
+          "puzzleRef": "hertz-cloze",
+          "options": { "blockUntilSolved": true },
+          "onSuccess": {
+            "message": "Deníkový zápis je přesný.",
+            "giveItem": "radio-antenna",
+            "setFlags": ["solved_hertz"],
+            "goTo": "main-room"
+          }
+        },
+        { "type": "goTo", "target": "main-room", "rect": {"x":2.5,"y":80.18,"w":9.6,"h":16.88} }
+      ]
+    },
+
+    {
+      "id": "scn-currents",
+      "title": "Válka proudů",
+      "image": "assets/scenes/currents.jpg",
+      "hotspots": [
+        {
+          "type": "puzzle",
+          "rect": {"x":14.76,"y":80.11,"w":10.2,"h":17.45},
+          "puzzleRef": "currents-group",
+          "options": { "blockUntilSolved": true },
+          "onSuccess": {
+            "message": "Technologie jsou správně rozděleny.",
+            "giveItem": "ac-transformer",
+            "setFlags": ["solved_currents"],
+            "goTo": "main-room"
+          }
+        },
+        { "type": "goTo", "target": "main-room", "rect": {"x":1.98,"y":79.68,"w":10.52,"h":17.74} }
+      ]
+    },
+
+    {
+      "id": "scn-einstein",
+      "title": "Paradox dvojčat",
+      "image": "assets/scenes/einstein.jpg",
+      "hotspots": [
+        {
+          "type": "puzzle",
+          "rect": {"x":14.84,"y":79.61,"w":10.08,"h":17.74},
+          "puzzleRef": "einstein-cloze",
+          "options": { "blockUntilSolved": true },
+          "onSuccess": {
+            "message": "Myšlenkový experiment dává smysl.",
+            "giveItem": "relativistic-clock",
+            "setFlags": ["solved_einstein"],
+            "goTo": "main-room"
+          }
+        },
+        { "type": "goTo", "target": "main-room", "rect": {"x":2.38,"y":79.68,"w":9.96,"h":17.95} }
+      ]
+    },
+
+    {
+      "id": "warp-core",
+      "title": "Kapitánský můstek",
+      "image": "assets/scenes/warp-core-off.jpg",
+      "hotspots": [
+        {
+          "type": "goTo",
+          "target": "exit",
+          "rect": {"x":29.75,"y":35.4,"w":42.03,"h":16.38},
+          "acceptItems": [
+            { "id": "grav-key",           "consume": true },
+            { "id": "volta-pile",         "consume": true },
+            { "id": "induction-coil",     "consume": true },
+            { "id": "radio-antenna",      "consume": true },
+            { "id": "ac-transformer",     "consume": true },
+            { "id": "relativistic-clock", "consume": true }
+          ],
+          "showNeedHint": true,
+          "onApply": { "message": "Moduly přijaty. Dokonči všechny sekce konzole." }
+        },
+
+        { "type": "apply", "rect": { "x": 8,  "y": 62, "w": 12, "h": 22 }, "acceptItems": [ { "id": "grav-key", "consume": true } ],          "onApply": { "setFlags": ["slot_gravity_ok"],  "message": "Gravitační uzávěr zajištěn." } },
+        { "type": "apply", "rect": { "x": 22, "y": 62, "w": 12, "h": 22 }, "acceptItems": [ { "id": "volta-pile", "consume": true } ],        "onApply": { "setFlags": ["slot_power_ok"],    "message": "Primární napájení online." } },
+        { "type": "apply", "rect": { "x": 36, "y": 62, "w": 12, "h": 22 }, "acceptItems": [ { "id": "induction-coil", "consume": true } ],    "onApply": { "setFlags": ["slot_induction_ok"],"message": "Indukční regulace připojena." } },
+        { "type": "apply", "rect": { "x": 50, "y": 62, "w": 12, "h": 22 }, "acceptItems": [ { "id": "radio-antenna", "consume": true } ],     "onApply": { "setFlags": ["slot_radio_ok"],    "message": "Komunikační linky v normě." } },
+        { "type": "apply", "rect": { "x": 64, "y": 62, "w": 12, "h": 22 }, "acceptItems": [ { "id": "ac-transformer", "consume": true } ],    "onApply": { "setFlags": ["slot_ac_ok"],       "message": "AC distribuce stabilní." } },
+        { "type": "apply", "rect": { "x": 78, "y": 62, "w": 12, "h": 22 }, "acceptItems": [ { "id": "relativistic-clock", "consume": true } ],"onApply": { "setFlags": ["slot_rel_ok"],       "message": "Relativistická synchronizace v toleranci." } }
+      ]
+    },
+
+    {
+      "id": "exit",
+      "title": "Let k hvězdám",
+      "image": "assets/scenes/warp-flight.jpg",
+      "end": true,
+      "hotspots": []
+    }
+  ],
+
+  "events": [
+    { "id": "dlg-intro-start", "once": true, "when": { "on": "enterScene", "scene": "intro" },      "then": { "openDialog": { "id": "intro.start" } } },
+    { "id": "dlg-main-start",  "once": true, "when": { "on": "enterScene", "scene": "main-room" },  "then": { "openDialog": { "id": "main.start" } } },
+
+    { "id": "dlg-newton-intro",   "once": true, "when": { "on": "enterScene", "scene": "scn-newton" },   "then": { "openDialog": { "id": "newton.intro" } } },
+    { "id": "dlg-volta-intro",    "once": true, "when": { "on": "enterScene", "scene": "scn-volta" },    "then": { "openDialog": { "id": "volta.intro" } } },
+    { "id": "dlg-faraday-intro",  "once": true, "when": { "on": "enterScene", "scene": "scn-faraday" },  "then": { "openDialog": { "id": "faraday.intro" } } },
+    { "id": "dlg-hertz-intro",    "once": true, "when": { "on": "enterScene", "scene": "scn-hertz" },    "then": { "openDialog": { "id": "hertz.intro" } } },
+    { "id": "dlg-currents-intro", "once": true, "when": { "on": "enterScene", "scene": "scn-currents" }, "then": { "openDialog": { "id": "currents.intro" } } },
+    { "id": "dlg-einstein-intro", "once": true, "when": { "on": "enterScene", "scene": "scn-einstein" }, "then": { "openDialog": { "id": "einstein.intro" } } },
+
+    { "id": "dlg-newton-outro",   "once": true, "when": { "on": "stateChange", "requireFlags": ["solved_newton"] },   "then": { "openDialog": { "id": "newton.outro" } } },
+    { "id": "dlg-volta-outro",    "once": true, "when": { "on": "stateChange", "requireFlags": ["solved_volta"] },    "then": { "openDialog": { "id": "volta.outro" } } },
+    { "id": "dlg-faraday-outro",  "once": true, "when": { "on": "stateChange", "requireFlags": ["solved_faraday"] },  "then": { "openDialog": { "id": "faraday.outro" } } },
+    { "id": "dlg-hertz-outro",    "once": true, "when": { "on": "stateChange", "requireFlags": ["solved_hertz"] },    "then": { "openDialog": { "id": "hertz.outro" } } },
+    { "id": "dlg-currents-outro", "once": true, "when": { "on": "stateChange", "requireFlags": ["solved_currents"] }, "then": { "openDialog": { "id": "currents.outro" } } },
+    { "id": "dlg-einstein-outro", "once": true, "when": { "on": "stateChange", "requireFlags": ["solved_einstein"] }, "then": { "openDialog": { "id": "einstein.outro" } } },
+
+    {
+      "id": "warp-ready",
+      "once": true,
+      "when": { "on": "stateChange", "requireFlags": ["slot_gravity_ok","slot_power_ok","slot_induction_ok","slot_radio_ok","slot_ac_ok","slot_rel_ok"] },
+      "then": {
+        "setSceneImage": { "sceneId": "warp-core", "image": "assets/scenes/warp-core-on.jpg" },
+        "openDialog":    { "id": "warp-core.victory" },
+        "highlightHotspot": { "sceneId": "exit", "rect": { "x": 70, "y": 6, "w": 26, "h": 80 }, "ms": 5000 }
+      }
+    },
+
+    { "id": "exit-dlg", "once": true, "when": { "on": "enterScene", "scene": "exit" }, "then": { "openDialog": { "id": "exit.victory" } } }
+  ]
+}

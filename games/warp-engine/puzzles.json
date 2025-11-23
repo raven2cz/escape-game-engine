@@ -1,0 +1,177 @@
+{
+  "newton-match": {
+    "id": "newton-match",
+    "kind": "match",
+    "title": "Newton — Tři zákony v obrazech",
+    "prompt": "Spoj obrázek situace se správným Newtonovým zákonem.",
+    "mode": "columns",
+    "tokens": [
+      { "id": "img-scooter", "label": "Koloběžka narazí do kamene", "side": "left",  "image": "assets/puzzles/newton/scooter.webp" },
+      { "id": "img-kick",    "label": "Kopnutí do míče",            "side": "left",  "image": "assets/puzzles/newton/kick.webp" },
+      { "id": "img-rocket",  "label": "Start rakety",               "side": "left",  "image": "assets/puzzles/newton/rocket.webp" },
+
+      { "id": "law-inertia", "label": "Zákon setrvačnosti: těleso setrvává v klidu či přímočarém rovnoměrném pohybu, není-li nuceno působením sil stav změnit.", "side": "right", "image": "assets/puzzles/newton/law-inertia.webp" },
+      { "id": "law-fma",     "label": "Síla a zrychlení (F = m·a): větší síla → větší zrychlení.", "side": "right", "image": "assets/puzzles/newton/law-fma.webp" },
+      { "id": "law-action",  "label": "Akce–reakce: na každou akci působí stejná a opačná reakce.", "side": "right", "image": "assets/puzzles/newton/law-action.webp" }
+    ],
+    "pairs": [
+      ["img-scooter", "law-inertia"],
+      ["img-kick",    "law-fma"],
+      ["img-rocket",  "law-action"]
+    ],
+    "errorMessage": "Některé dvojice nesedí. Zkus to znovu!",
+    "options": {
+      "aggregateOnly": false,
+      "blockUntilSolved": true,
+      "showErrorToast": true,
+      "layout": { "mode": "auto", "direction": "vertical" }
+    },
+    "background": "assets/puzzles/newton/bg.jpg"
+  },
+
+  "volta-group": {
+    "id": "volta-group",
+    "kind": "group",
+    "title": "Volta — Co patří do baterie?",
+    "prompt": "Roztřiď kartičky: co patří do Voltova sloupu a co je odpad.",
+    "groups": [
+      { "id": "g-ok", "label": "Do Voltova sloupu (Funguje!)" },
+      { "id": "g-no", "label": "Do koše (Nefunguje!)" }
+    ],
+    "tokens": [
+      { "id": "t-zinc",   "text": "Zinkový plíšek" },
+      { "id": "t-copper", "text": "Měděná mince" },
+      { "id": "t-brine",  "text": "Hadřík ve slané vodě" },
+      { "id": "t-lemon",  "text": "Plátek citronu" },
+      { "id": "t-wood",   "text": "Suchá dřevěná tříška" },
+      { "id": "t-glass",  "text": "Skleněná kulička" },
+      { "id": "t-paper",  "text": "Zmuchlaný suchý papír" },
+      { "id": "t-pizza",  "text": "Kousek pizzy" }
+    ],
+    "solutions": {
+      "t-zinc": "g-ok",
+      "t-copper": "g-ok",
+      "t-brine": "g-ok",
+      "t-lemon": "g-ok",
+      "t-wood": "g-no",
+      "t-glass": "g-no",
+      "t-paper": "g-no",
+      "t-pizza": "g-no"
+    },
+    "errorMessage": "Něco je špatně roztříděné. Zvaž, co vede proud / je elektrolyt.",
+    "options": {
+      "aggregateOnly": false,
+      "blockUntilSolved": true,
+      "showErrorToast": true,
+      "layout": { "mode": "auto", "direction": "vertical" }
+    },
+    "background": "assets/puzzles/volta/bg.jpg"
+  },
+
+  "faraday-order": {
+    "id": "faraday-order",
+    "kind": "order",
+    "title": "Faraday — Jak na indukci",
+    "prompt": "Seřaď kroky experimentu ve správném pořadí.",
+    "tokens": [
+      { "id": "s1", "text": "Připravím si cívku drátu a tyčový magnet." },
+      { "id": "s2", "text": "Rychle pohnu magnetem uvnitř cívky." },
+      { "id": "s3", "text": "Změna magnetického pole vyrobí proud v drátu." },
+      { "id": "s4", "text": "Žárovka/ukazatel se rozbliká / vychýlí." }
+    ],
+    "solution": ["s1","s2","s3","s4"],
+    "errorMessage": "Pořadí kroků nesedí. Zkus znovu (nejdřív příprava, pak pohyb...).",
+    "options": {
+      "aggregateOnly": false,
+      "blockUntilSolved": true,
+      "showErrorToast": true,
+      "layout": { "mode": "auto", "direction": "vertical", "dualColumn": true }
+    },
+    "background": "assets/puzzles/faraday/bg.jpg"
+  },
+
+  "hertz-cloze": {
+    "id": "hertz-cloze",
+    "kind": "cloze",
+    "title": "Hertz — Deníkový zápis",
+    "prompt": "Doplň správná slova do Hertzova deníku.",
+    "rect": { "x": 6, "y": 10, "w": 88, "h": 78 },
+    "text": "Sestrojil jsem přístroj — {gap1}. Když na něm přeskočí silný výboj, vyšle do prostoru neviditelné {gap2}. Na druhém konci stolu mám drátěnou smyčku — to je můj {gap3}. A v jeho mezeře najednou přeskočila malá {gap4}, aniž by byly přístroje spojené!",
+    "tokens": [
+      { "id": "t1", "label": "vysílač" },
+      { "id": "t2", "label": "vlny" },
+      { "id": "t3", "label": "přijímač" },
+      { "id": "t4", "label": "jiskra" },
+      { "id": "tX", "label": "křeček" }
+    ],
+    "solution": { "gap1": "t1", "gap2": "t2", "gap3": "t3", "gap4": "t4" },
+    "errorMessage": "Pozor na správné pojmy experimentu (vysílač, vlny, přijímač, jiskra).",
+    "options": {
+      "aggregateOnly": false,
+      "blockUntilSolved": true,
+      "showErrorToast": true,
+      "layout": { "mode": "auto", "direction": "vertical" }
+    },
+    "background": "assets/puzzles/hertz/bg.jpg"
+  },
+
+  "currents-group": {
+    "id": "currents-group",
+    "kind": "group",
+    "title": "Válka proudů — DC vs. AC",
+    "prompt": "Roztřiď prvky sítě: Edisonův DC (blízko) vs. Teslův AC (daleko).",
+    "groups": [
+      { "id": "g-dc", "label": "Edison — DC (musí být blízko)" },
+      { "id": "g-ac", "label": "Tesla — AC (dosáhne daleko)" }
+    ],
+    "tokens": [
+      { "id": "t-cityplant", "text": "Malá elektrárna uprostřed města" },
+      { "id": "t-dam",       "text": "Obří vodní elektrárna u přehrady/Niagary" },
+      { "id": "t-thick",     "text": "Tlusté měděné kabely pro krátké vzdálenosti" },
+      { "id": "t-lines",     "text": "Vysoké stožáry dálkového vedení" },
+      { "id": "t-everyblock","text": "Elektrárna skoro na každém rohu" },
+      { "id": "t-trafo",     "text": "Transformátor (změna napětí pro přenos)" }
+    ],
+    "solutions": {
+      "t-cityplant": "g-dc",
+      "t-thick": "g-dc",
+      "t-everyblock": "g-dc",
+      "t-dam": "g-ac",
+      "t-lines": "g-ac",
+      "t-trafo": "g-ac"
+    },
+    "errorMessage": "Ještě to nesedí. Mysli na dálkový přenos (AC) vs. lokální síť (DC).",
+    "options": {
+      "aggregateOnly": false,
+      "blockUntilSolved": true,
+      "showErrorToast": true,
+      "layout": { "mode": "auto", "direction": "vertical" }
+    },
+    "background": "assets/puzzles/currents/bg.jpg"
+  },
+
+  "einstein-cloze": {
+    "id": "einstein-cloze",
+    "kind": "cloze",
+    "title": "Einstein — Paradox dvojčat",
+    "prompt": "Doplň chybějící slova v myšlenkovém experimentu.",
+    "rect": { "x": 6, "y": 10, "w": 88, "h": 78 },
+    "text": "Představme si dvojčata. Bratr Petr zůstane doma na {gap1}. Bratr Pavel nastoupí do superrychlé {gap2} a poletí vesmírem skoro rychlostí {gap3}. Když se Pavel vrátí domů, bude vypadat {gap4} než jeho bratr Petr.",
+    "tokens": [
+      { "id": "e1", "label": "Zemi" },
+      { "id": "e2", "label": "raketě" },
+      { "id": "e3", "label": "světla" },
+      { "id": "e4", "label": "mladší" },
+      { "id": "eX", "label": "dinosaurus" }
+    ],
+    "solution": { "gap1": "e1", "gap2": "e2", "gap3": "e3", "gap4": "e4" },
+    "errorMessage": "Zkontroluj význam slov (Zemi, raketě, světla, mladší).",
+    "options": {
+      "aggregateOnly": false,
+      "blockUntilSolved": true,
+      "showErrorToast": true,
+      "layout": { "mode": "auto", "direction": "vertical" }
+    },
+    "background": "assets/puzzles/einstein/bg.jpg"
+  }
+}

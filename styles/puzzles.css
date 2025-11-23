@@ -659,6 +659,7 @@
     flex: 1 1 50%;
     padding: 1.5vh 1.5vw;
     background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(2px);
     border: 1px solid rgba(255, 255, 255, 0.2);
     border-radius: var(--pz-token-radius);
     line-height: 1.8;
@@ -729,6 +730,7 @@
     align-content: flex-start;
     padding: 1vh 1vw;
     background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(2px);
     border: 1px solid rgba(255, 255, 255, 0.15);
     border-radius: var(--pz-token-radius);
     overflow-y: auto;

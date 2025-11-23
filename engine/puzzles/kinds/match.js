@@ -1,35 +1,28 @@
 // engine/puzzles/kinds/match.js
-// Kind: match â€“ pair matching (columns click mode or dragdrop mode)
+// Kind: match – pair matching (columns click mode or dragdrop mode)
 
 import {BasePuzzle} from '../base.js';
 
 const DBG = () => (typeof window !== 'undefined' && /\bdebug=1\b/.test(window.location.search));
 
 /**
- * Pair color palette - 20 distinct, vibrant colors for visual differentiation
- * Higher opacity (0.35) ensures visibility on dark backgrounds
+ * Pair color palette - Intelligent selection
+ * REMOVED: Reds (confusion with error), Light Blues (confusion with selection)
+ * KEPT: Distinct, vibrant colors visible on dark backgrounds
  */
 const PAIR_COLORS = [
-    'rgba(100, 160, 255, 0.35)',  // Blue
-    'rgba(255, 100, 150, 0.35)',  // Pink
-    'rgba(100, 220, 160, 0.35)',  // Green
-    'rgba(255, 180, 100, 0.35)',  // Orange
-    'rgba(180, 100, 255, 0.35)',  // Purple
-    'rgba(255, 220, 100, 0.35)',  // Yellow
-    'rgba(100, 200, 255, 0.35)',  // Cyan
-    'rgba(255, 100, 220, 0.35)',  // Magenta
-    'rgba(180, 255, 120, 0.35)',  // Lime
-    'rgba(255, 140, 180, 0.35)',  // Rose
-    'rgba(120, 180, 255, 0.35)',  // Sky Blue
-    'rgba(255, 120, 100, 0.35)',  // Coral
-    'rgba(140, 255, 200, 0.35)',  // Mint
-    'rgba(255, 160, 220, 0.35)',  // Light Pink
-    'rgba(200, 140, 255, 0.35)',  // Lavender
-    'rgba(255, 200, 120, 0.35)',  // Peach
-    'rgba(100, 255, 200, 0.35)',  // Aqua
-    'rgba(255, 180, 160, 0.35)',  // Salmon
-    'rgba(160, 200, 255, 0.35)',  // Periwinkle
-    'rgba(220, 255, 140, 0.35)'   // Chartreuse
+    'rgba(155, 89, 182, 0.35)',  // Amethyst (Purple) - distinct from blue
+    'rgba(26, 188, 156, 0.35)',  // Turquoise/Teal - distinct from selection blue
+    'rgba(230, 126, 34, 0.35)',  // Carrot (Orange)
+    'rgba(241, 196, 15, 0.35)',  // Moon Yellow (Gold)
+    'rgba(219, 10, 172, 0.35)',  // Magenta/Deep Pink
+    'rgba(46, 204, 113, 0.35)',  // Emerald (Green) - distinct from error red
+    'rgba(52, 73, 94, 0.50)',    // Wet Asphalt (Dark Grey-Blue)
+    'rgba(166, 219, 10, 0.35)',  // Lime
+    'rgba(139, 69, 19, 0.40)',   // Saddle Brown
+    'rgba(0, 128, 128, 0.35)',   // Teal
+    'rgba(128, 0, 128, 0.35)',   // Purple
+    'rgba(255, 20, 147, 0.35)'   // Deep Pink
 ];
 
 export default class MatchPuzzle extends BasePuzzle {
@@ -43,6 +36,39 @@ export default class MatchPuzzle extends BasePuzzle {
     }
 
     /**
+     * Override createToken to fix Image paths and layout
+     */
+    createToken(data) {
+        // 1. Let BasePuzzle create the structure (button > img + span)
+        const el = super.createToken(data);
+
+        // 2. FIX IMAGE PATH: BasePuzzle doesn't resolve assets, we must do it here.
+        if (data.image) {
+            let img = el.querySelector('.pz-token-image');
+
+            // Resolve path relative to game root
+            const src = this.engine && this.engine._resolveAsset
+                ? this.engine._resolveAsset(data.image)
+                : data.image;
+
+            if (img) {
+                // Update existing image source created by BasePuzzle
+                img.src = src;
+            } else {
+                // Fallback if BasePuzzle logic changes
+                img = document.createElement('img');
+                img.src = src;
+                img.className = 'pz-token-image';
+                img.draggable = false;
+                el.prepend(img);
+            }
+            el.classList.add('has-image');
+        }
+
+        return el;
+    }
+
+    /**
      * Get pair color by index with fallback to random color
      * @param {number} pairIndex - Index of the pair (0-based)
      * @returns {string} RGBA color string
@@ -52,11 +78,34 @@ export default class MatchPuzzle extends BasePuzzle {
             return PAIR_COLORS[pairIndex];
         }
 
-        // Fallback: generate random vibrant color for pairs beyond 20
-        const r = 100 + Math.floor(Math.random() * 156);
-        const g = 100 + Math.floor(Math.random() * 156);
-        const b = 100 + Math.floor(Math.random() * 156);
+        // Fallback: generate random vibrant color (avoiding reds/blues)
+        // High Green/Red mix (Yellows/Oranges) or High Red/Blue mix (Purples)
+        const r = 50 + Math.floor(Math.random() * 150);
+        const g = 100 + Math.floor(Math.random() * 155);
+        const b = 50 + Math.floor(Math.random() * 100); // Keep blue low to avoid selection confusion
         return `rgba(${r}, ${g}, ${b}, 0.35)`;
+    }
+
+    /**
+     * Finds the lowest available color index not currently used on the board.
+     * Prevents color collisions when pairs are removed and new ones added.
+     */
+    _getNextAvailableColorIndex() {
+        const usedIndices = new Set();
+
+        // Scan all tokens to see which indices are currently active
+        this._tokenEls.forEach(el => {
+            if (el.dataset.pairIndex !== undefined) {
+                usedIndices.add(parseInt(el.dataset.pairIndex, 10));
+            }
+        });
+
+        // Find first gap (0, 1, 2...)
+        let idx = 0;
+        while (usedIndices.has(idx)) {
+            idx++;
+        }
+        return idx;
     }
 
     mount(container, workRect, backgroundUrl) {
@@ -209,40 +258,23 @@ export default class MatchPuzzle extends BasePuzzle {
         }
     }
 
-    /**
-     * Generate well-distributed positions for tokens to minimize overlap.
-     * Uses a grid-based approach with randomization.
-     */
     _generateScatteredPositions(count) {
         if (count === 0) return [];
-
-        // Calculate grid dimensions (roughly square)
         const cols = Math.ceil(Math.sqrt(count));
         const rows = Math.ceil(count / cols);
-
-        // Margins from edges
         const marginX = 12;
         const marginY = 12;
-
-        // Available space
         const availableWidth = 100 - (2 * marginX);
         const availableHeight = 100 - (2 * marginY);
-
-        // Cell dimensions
         const cellWidth = availableWidth / cols;
         const cellHeight = availableHeight / rows;
 
-        // Generate grid positions with randomization within cells
         const positions = [];
         for (let i = 0; i < count; i++) {
             const col = i % cols;
             const row = Math.floor(i / cols);
-
-            // Center of cell
             const centerX = marginX + (col + 0.5) * cellWidth;
             const centerY = marginY + (row + 0.5) * cellHeight;
-
-            // Add random offset within cell (±30% of cell size)
             const offsetX = (Math.random() - 0.5) * cellWidth * 0.6;
             const offsetY = (Math.random() - 0.5) * cellHeight * 0.6;
 
@@ -252,12 +284,10 @@ export default class MatchPuzzle extends BasePuzzle {
             });
         }
 
-        // Shuffle positions for more natural feel
         for (let i = positions.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
             [positions[i], positions[j]] = [positions[j], positions[i]];
         }
-
         return positions;
     }
 
@@ -266,113 +296,88 @@ export default class MatchPuzzle extends BasePuzzle {
         if (!el) return;
 
         // CRITICAL FIX: Remove validation classes to allow re-selection after onOk
-        // This enables clicking on tokens marked as .correct or .wrong
         el.classList.remove('correct', 'wrong', 'is-correct', 'is-wrong');
 
-        // Reset background from validation (keep pairing colors)
         const currentPair = this._pairs.get(id);
         if (!currentPair) {
-            // Only reset if not paired (paired tokens have color coding)
+            // Only reset bg if not paired (paired tokens have permanent color)
             el.style.background = '';
+            delete el.dataset.pairIndex;
         }
 
-        // If already paired, also clear validation from paired token
+        // 1. If already paired -> UNPAIR
         if (currentPair) {
             const otherEl = this._tokenEls.get(currentPair);
-            if (otherEl) {
-                otherEl.classList.remove('correct', 'wrong', 'is-correct', 'is-wrong');
-            }
-        }
 
-        // Check if this token is already paired
-        if (currentPair) {
-            // Unpair: remove pairing and reset colors
             this._pairs.delete(id);
             this._pairs.delete(currentPair);
 
-            el.style.background = ''; // Reset to default
+            el.style.background = '';
+            delete el.dataset.pairIndex;
             el.classList.remove('selected', 'is-selected');
-            el.blur(); // Remove sticky hover
+            el.blur();
 
-            const otherEl = this._tokenEls.get(currentPair);
             if (otherEl) {
-                otherEl.style.background = ''; // Reset to default
-                otherEl.classList.remove('selected', 'is-selected');
-                otherEl.blur(); // Remove sticky hover
+                otherEl.style.background = '';
+                delete otherEl.dataset.pairIndex;
+                otherEl.classList.remove('correct', 'wrong', 'is-correct', 'is-wrong', 'selected', 'is-selected');
+                otherEl.blur();
             }
 
-            if (DBG()) {
-                console.debug('[PZ.match] unpaired:', {id, was: currentPair});
-            }
+            if (DBG()) console.debug('[PZ.match] unpaired:', {id, was: currentPair});
             return;
         }
 
+        // 2. Select First Token
         if (!this._selectedForPair) {
-            // First selection - show preview of pair color
             this._selectedForPair = id;
 
-            // Calculate next pair color and show preview
-            const nextPairIndex = Math.floor(this._pairs.size / 2);
-            const previewColor = this._getPairColor(nextPairIndex);
+            // FIX: Don't set background color yet! Just use CSS selection class.
+            // This prevents the "colors looking like a pair" confusion.
+            el.classList.add('selected', 'is-selected');
+            el.blur();
 
-            // Use final pair color instead of yellow/blue selected state
-            el.style.background = previewColor;
-            el.classList.add('selected', 'is-selected'); // Keep class for other effects
-            el.blur(); // Remove sticky :hover state on touch devices
+            if (DBG()) console.debug('[PZ.match] first selected (waiting for match):', id);
 
-            if (DBG()) {
-                console.debug('[PZ.match] first selected with preview color:', {id, color: previewColor});
-            }
+            // 3. Deselect Self
         } else if (this._selectedForPair === id) {
-            // Deselect same token
             this._selectedForPair = null;
             el.classList.remove('selected', 'is-selected');
-            el.style.background = ''; // Remove preview color
-            el.blur(); // Remove sticky hover on touch devices
+            el.style.background = '';
+            el.blur();
 
-            if (DBG()) {
-                console.debug('[PZ.match] deselected:', id);
-            }
+            if (DBG()) console.debug('[PZ.match] deselected:', id);
+
+            // 4. Form Pair
         } else {
-            // Pair with first token - CHECK SIDES FIRST
             const first = this._selectedForPair;
             const firstSide = this._tokenSides.get(first);
             const secondSide = this._tokenSides.get(id);
 
-            // CRITICAL: Only allow pairing between different sides (left <-> right)
+            // Constraint: Different sides only
             if (firstSide === secondSide) {
-                // Same side - don't pair, just deselect first and select second
+                // Switch selection to this new one
                 const firstEl = this._tokenEls.get(first);
                 if (firstEl) {
                     firstEl.classList.remove('selected', 'is-selected');
                     firstEl.style.background = '';
-                    firstEl.blur(); // Remove sticky hover
                 }
 
-                // Now select the clicked token as the new first
                 this._selectedForPair = id;
-
-                const nextPairIndex = Math.floor(this._pairs.size / 2);
-                const previewColor = this._getPairColor(nextPairIndex);
-
-                el.style.background = previewColor;
                 el.classList.add('selected', 'is-selected');
-                el.blur(); // Remove sticky hover on touch devices
+                el.blur();
 
-                if (DBG()) {
-                    console.debug('[PZ.match] same side - reselecting:', {first, second: id, firstSide, secondSide});
-                }
+                if (DBG()) console.debug('[PZ.match] same side - reselecting:', {first, second: id});
                 return;
             }
 
-            // Different sides - create pair
+            // Create Pair
             this._selectedForPair = null;
-
             this._pairs.set(first, id);
             this._pairs.set(id, first);
 
-            // Get color for this pair
-            const pairIndex = Math.floor(this._pairs.size / 2);
+            // FIX: Calculate unique color index to avoid collisions with existing pairs
+            const pairIndex = this._getNextAvailableColorIndex();
             const pairColor = this._getPairColor(pairIndex);
 
             const el1 = this._tokenEls.get(first);
@@ -380,18 +385,18 @@ export default class MatchPuzzle extends BasePuzzle {
 
             if (el1) {
                 el1.classList.remove('selected', 'is-selected');
-                el1.style.background = pairColor; // Keep the same color as preview
-                el1.blur(); // Remove :hover state on touch devices
+                el1.style.background = pairColor;
+                el1.dataset.pairIndex = pairIndex; // Store index for collision check
+                el1.blur();
             }
             if (el2) {
                 el2.classList.remove('selected', 'is-selected');
                 el2.style.background = pairColor;
-                el2.blur(); // Remove :hover state on touch devices
+                el2.dataset.pairIndex = pairIndex;
+                el2.blur();
             }
 
-            if (DBG()) {
-                console.debug('[PZ.match] paired:', {first, second: id, color: pairColor});
-            }
+            if (DBG()) console.debug('[PZ.match] paired:', {first, second: id, color: pairColor, index: pairIndex});
         }
     }
 
@@ -404,6 +409,7 @@ export default class MatchPuzzle extends BasePuzzle {
             dragging = true;
             el.style.cursor = 'grabbing';
             el.style.zIndex = '10';
+            el.classList.add('is-dragging');
 
             const rect = board.getBoundingClientRect();
             const ev = e.touches ? e.touches[0] : e;
@@ -441,8 +447,8 @@ export default class MatchPuzzle extends BasePuzzle {
             dragging = false;
             el.style.cursor = 'grab';
             el.style.zIndex = '5';
+            el.classList.remove('is-dragging');
 
-            // Check collision with other tokens for pairing
             const rect1 = el.getBoundingClientRect();
             const cx = (rect1.left + rect1.right) / 2;
             const cy = (rect1.top + rect1.bottom) / 2;
@@ -453,18 +459,20 @@ export default class MatchPuzzle extends BasePuzzle {
                 const rect2 = otherEl.getBoundingClientRect();
                 if (cx >= rect2.left && cx <= rect2.right &&
                     cy >= rect2.top && cy <= rect2.bottom) {
-                    // Pair them!
+
                     this._pairs.set(id, otherId);
                     this._pairs.set(otherId, id);
 
-                    // Same color for pair
-                    const pairColor = `rgba(${100 + Math.random() * 155}, ${100 + Math.random() * 155}, ${100 + Math.random() * 155}, 0.25)`;
-                    el.style.background = pairColor;
-                    otherEl.style.background = pairColor;
+                    const idx = this._getNextAvailableColorIndex();
+                    const pairColor = this._getPairColor(idx);
 
-                    if (DBG()) {
-                        console.debug('[PZ.match] drag paired:', {id, otherId});
-                    }
+                    el.style.background = pairColor;
+                    el.dataset.pairIndex = idx;
+
+                    otherEl.style.background = pairColor;
+                    otherEl.dataset.pairIndex = idx;
+
+                    if (DBG()) console.debug('[PZ.match] drag paired:', {id, otherId});
                     break;
                 }
             }
@@ -472,42 +480,27 @@ export default class MatchPuzzle extends BasePuzzle {
 
         el.addEventListener('mousedown', onDown);
         el.addEventListener('touchstart', onDown, {passive: false});
-
         document.addEventListener('mousemove', onMove);
         document.addEventListener('touchmove', onMove, {passive: false});
-
         document.addEventListener('mouseup', onUp);
         document.addEventListener('touchend', onUp);
     }
 
     _solutionPairs() {
-        // Expected: pairs: [["id1", "id2"], ...] or solutionPairs: [...]
         const raw = this.config.pairs || this.config.solutionPairs || [];
         const pairMap = new Map();
-
         raw.forEach(([a, b]) => {
             pairMap.set(String(a), String(b));
             pairMap.set(String(b), String(a));
         });
-
         return pairMap;
     }
 
-    /**
-     * OK/Confirm handler.
-     * - Highlights wrong tokens.
-     * - If blockUntilSolved is enabled, briefly shows errors, then:
-     *   - unlinks wrong pairs,
-     *   - clears transient red highlight from ALL wrong tokens (paired + unpaired).
-     * @returns {{ ok: boolean, detail: { pairs: Record<string,string> } } | { hold: true }}
-     */
     onOk() {
         const sol = this._solutionPairs();
         let allOk = true;
 
-        /** @type {string[]} paired wrong endpoints to unlink */
         const wrongTokens = [];
-        /** @type {string[]} ALL wrong tokens (paired or unpaired) to clear red after flash */
         const wrongAll = [];
 
         for (const [id, el] of this._tokenEls.entries()) {
@@ -521,9 +514,8 @@ export default class MatchPuzzle extends BasePuzzle {
                 if (good && pairedWith) {
                     el.classList.add('correct', 'is-correct');
                 } else if (!good) {
-                    // show red flash
                     el.classList.add('wrong', 'is-wrong');
-                    // ensure the red CSS is visible (no leftover pair color)
+                    // Reset pair color visually so red is clearly visible
                     el.style.background = '';
                     wrongAll.push(id);
                     if (pairedWith) {
@@ -531,15 +523,12 @@ export default class MatchPuzzle extends BasePuzzle {
                     }
                 }
             }
-
             if (!good) allOk = false;
         }
 
         if (!allOk && this.instanceOptions.blockUntilSolved) {
-            // Auto-reset after a short delay so the user briefly sees mistakes
             if (wrongTokens.length > 0 || wrongAll.length > 0) {
                 setTimeout(() => {
-                    // 1) Unlink wrong pairs + clear their visuals on BOTH ends
                     const alreadyReset = new Set();
                     for (const id of wrongTokens) {
                         if (alreadyReset.has(id)) continue;
@@ -550,46 +539,45 @@ export default class MatchPuzzle extends BasePuzzle {
 
                         const otherEl = this._tokenEls.get(pairedWith);
 
-                        // remove the pair both ways
                         this._pairs.delete(id);
                         this._pairs.delete(pairedWith);
 
-                        // clear styles & classes (both ends)
+                        // Clear styles
                         el.classList.remove('wrong', 'is-wrong', 'selected', 'is-selected');
                         el.style.background = '';
-                        if (typeof el.blur === 'function') el.blur();
+                        delete el.dataset.pairIndex; // Free up the color index!
 
                         if (otherEl) {
                             otherEl.classList.remove('wrong', 'is-wrong', 'selected', 'is-selected');
                             otherEl.style.background = '';
-                            if (typeof otherEl.blur === 'function') otherEl.blur();
+                            delete otherEl.dataset.pairIndex;
                         }
 
                         alreadyReset.add(id);
                         alreadyReset.add(pairedWith);
                     }
 
-                    // 2) Clear the transient red highlight from ANY still-marked wrong token (unpaired mistakes)
+                    // Clear remaining red flashes
                     for (const [tid, tel] of this._tokenEls.entries()) {
-                        if (tel && tel.classList && tel.classList.contains('is-wrong')) {
+                        if (tel && tel.classList.contains('is-wrong')) {
                             tel.classList.remove('wrong', 'is-wrong');
-                            if (typeof tel.blur === 'function') tel.blur();
+                            // Only reset bg if it wasn't a correct pair that somehow got flagged
+                            // (logic above ensures strictly pairs logic)
+                            if (!this._pairs.has(tid)) {
+                                tel.style.background = '';
+                                delete tel.dataset.pairIndex;
+                            }
                         }
                     }
-                }, 800); // enough to notice, not too long
+                }, 800);
             }
-
-            // Keep the user in the puzzle until solved.
             return {hold: true};
         }
 
-        // Build detail map for the engine
         const detail = {};
         for (const [id, pairedWith] of this._pairs.entries()) {
             detail[id] = pairedWith;
         }
-
-        if (DBG()) console.debug('[PZ.match] onOk result:', {ok: allOk, pairs: detail});
 
         return {ok: allOk, detail: {pairs: detail}};
     }

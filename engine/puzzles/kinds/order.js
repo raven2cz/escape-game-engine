@@ -47,7 +47,8 @@ export default class OrderPuzzle extends BasePuzzle {
             padding: '1vh 1vw',
             border: '1px solid rgba(255, 255, 255, 0.15)',
             borderRadius: 'var(--pz-token-radius)',
-            background: 'rgba(255, 255, 255, 0.03)'
+            background: 'rgba(255, 255, 255, 0.03)',
+            backdropFilter: 'blur(2px)'
         });
 
         // Ordered area
@@ -63,7 +64,8 @@ export default class OrderPuzzle extends BasePuzzle {
             padding: '1vh 1vw',
             border: '1px solid rgba(255, 255, 255, 0.15)',
             borderRadius: 'var(--pz-token-radius)',
-            background: 'rgba(255, 255, 255, 0.03)'
+            background: 'rgba(255, 255, 255, 0.03)',
+            backdropFilter: 'blur(2px)'
         });
 
         container2.appendChild(shuffledArea);

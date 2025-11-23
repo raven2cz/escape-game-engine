@@ -127,6 +127,7 @@ export default class GroupPuzzle extends BasePuzzle {
             alignItems: 'center',
             justifyContent: 'center',
             background: group.style?.bg || 'rgba(255, 255, 255, 0.04)',
+            backdropFilter: 'blur(2px)',
             position: 'relative'
         });
 
