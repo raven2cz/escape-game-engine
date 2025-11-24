@@ -304,7 +304,7 @@
         "playVideo": {
           "src": "assets/video/outro.mp4",
           "mode": "fullscreen",
-          "delay": 2000,
+          "delay": 800,
           "allowSkip": true,
           "onEnd": {
             "toast": { "text": "DĚKUJEME ZA HRANÍ!", "ms": 10000 }
