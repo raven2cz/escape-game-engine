@@ -186,12 +186,12 @@
       "id": "hertz.intro",
       "once": true,
       "title": "Jiskra bez drátů",
-      "left":  { "characterId": "hertz",     "defaultPose": "idle" },
+      "left":  { "characterId": "hertz",     "defaultPose": "idle", "mirror": true },
       "right": { "characterId": "astronaut", "defaultPose": "idle" },
       "ui": { "tapToNext": true, "allowSkip": true },
       "sequence": [
         { "id": "h1", "speaker": "left",  "pose": "idle", "mirror": true, "text": "Maxwellovy rovnice předpovídají neviditelné vlny, ale nikdo je neviděl. Můj jiskrový oscilátor prská, ale co se děje v prostoru? Potřebuji důkaz." },
-        { "id": "h2", "speaker": "right", "pose": "idle", "text": "Důkaz se objeví na druhém konci stolu, Heinrichu. Pokud se ti podaří přenést energii bez drátů do té druhé smyčky, potvrdíš existenci rádiových vln." }
+        { "id": "h2", "speaker": "right", "pose": "idle", "mirror": true, "text": "Důkaz se objeví na druhém konci stolu, Heinrichu. Pokud se ti podaří přenést energii bez drátů do té druhé smyčky, potvrdíš existenci rádiových vln." }
       ]
     },
     {
