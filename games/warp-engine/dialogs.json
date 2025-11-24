@@ -122,7 +122,7 @@
       "ui": { "tapToNext": true, "allowSkip": true },
       "sequence": [
         { "id": "n1", "speaker": "left",  "pose": "thinking", "text": "U všech nebeských sfér... Proč to jablko padá kolmo k zemi? Proč neletí do strany nebo vzhůru? Musí v tom být nějaká univerzální síla." },
-        { "id": "n2", "speaker": "right", "pose": "idle",     "text": "Isaacu, jsi na správné stopě. Stejná síla, co táhne jablko, drží i Měsíc. Ale máš v poznámkách zmatek. Pojďme si ujasnit tvé tři zákony pohybu." }
+        { "id": "n2", "speaker": "right", "pose": "idle",     "text": "Isaacu, jsi na správné stopě. Stejná síla, co táhne jablko, drží i Měsíc. Ale máš v poznámkách zmatek. Pojďme si ujasnit tvé tři zákony pohybu. Stiskni tlačítko s puzzle na obrázku." }
       ]
     },
     {
