@@ -249,7 +249,7 @@
       "left":  { "characterId": "einstein", "defaultPose": "happy" },
       "ui": { "tapToNext": true, "allowSkip": false },
       "sequence": [
-        { "id": "ex1", "speaker": "left", "pose": "happy", "text": "Je to tak. Rychlost světla je konstanta, ale čas ne. Cestovatel v raketě zestárne méně než jeho bratr na Zemi. Cesta ke hvězdám je teoreticky možná!" }
+        { "id": "ex1", "speaker": "left", "pose": "happy", "text": "Je to tak. Rychlost světla je konstanta, ale čas ne. Cestovatel v raketě zestárne pomaleji než jeho bratr na Zemi. Cesta ke hvězdám je teoreticky možná!" }
       ]
     },
 

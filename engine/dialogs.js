@@ -205,12 +205,19 @@ export class DialogUI {
      * @param {string} dialogId
      * @returns {Promise<void>}
      */
+    /**
+     * Opens a dialog sequence.
+     * Preloads initial character assets to prevent "flash of old content".
+     * Returns a Promise that resolves when the dialog is closed.
+     * @param {string} dialogId
+     * @returns {Promise<void>}
+     */
     async open(dialogId) {
         this._dbg('open() →', dialogId);
 
         const list = Array.isArray(this.game.dialogsData?.dialogs) ? this.game.dialogsData.dialogs : [];
 
-        // Resolve ID (support for dotted notation fallback)
+        // Resolve ID
         let dlg = list.find(d => d?.id === dialogId);
         if (!dlg && typeof dialogId === 'string' && dialogId.includes('.')) {
             const tail = dialogId.split('.').pop();
@@ -221,10 +228,48 @@ export class DialogUI {
             return;
         }
 
+        // --- PRELOAD PHASE START ---
+        const leftCharDef = dlg.left;
+        const rightCharDef = dlg.right;
+
+        const assetsToLoad = [];
+
+        if (leftCharDef) {
+            const char = this._findCharacter(leftCharDef.characterId);
+            const pose = leftCharDef.defaultPose || 'idle';
+            if (char && char.poses && char.poses[pose]) {
+                assetsToLoad.push(this.game._resolveAsset(char.poses[pose]));
+            }
+        }
+        if (rightCharDef) {
+            const char = this._findCharacter(rightCharDef.characterId);
+            const pose = rightCharDef.defaultPose || 'idle';
+            if (char && char.poses && char.poses[pose]) {
+                assetsToLoad.push(this.game._resolveAsset(char.poses[pose]));
+            }
+        }
+
+        if (assetsToLoad.length > 0) {
+            await Promise.all(assetsToLoad.map(src => {
+                return new Promise(resolve => {
+                    const img = new Image();
+                    img.onload = resolve;
+                    img.onerror = resolve; // Nechceme zaseknout hru, když obrázek chybí
+                    img.src = src;
+                });
+            }));
+        }
+        // --- PRELOAD PHASE END ---
+
         this._ensureMounted();
         this._show();
 
-        // Initialize state including default mirror settings
+        const lImg = this.overlay.querySelector('.dlg-char.left .dlg-char-img');
+        const rImg = this.overlay.querySelector('.dlg-char.right .dlg-char-img');
+        if (lImg) lImg.src = '';
+        if (rImg) rImg.src = '';
+
+        // Initialize state
         this.active = {
             id: dialogId,
             dlg,
@@ -233,12 +278,10 @@ export class DialogUI {
             rightChar: dlg.right ? this._findCharacter(dlg.right.characterId) : null,
             leftPose: dlg.left?.defaultPose || null,
             rightPose: dlg.right?.defaultPose || null,
-            // Capture default mirror settings from config
             leftDefaultMirror: !!dlg.left?.mirror,
             rightDefaultMirror: !!dlg.right?.mirror
         };
 
-        // Merge local typewriter config
         if (dlg.typewriter !== undefined) {
             if (typeof dlg.typewriter === 'boolean') {
                 this.typewriterConfig.enabled = dlg.typewriter;
@@ -249,7 +292,6 @@ export class DialogUI {
 
         this._renderStep();
 
-        // Return promise to block engine execution until closed
         return new Promise(resolve => {
             this._closeResolver = resolve;
         });
