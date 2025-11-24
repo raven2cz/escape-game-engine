@@ -12,6 +12,7 @@ import MatchPuzzle from '../../engine/puzzles/kinds/match.js';
 import GroupPuzzle from '../../engine/puzzles/kinds/group.js';
 import ChoicePuzzle from '../../engine/puzzles/kinds/choice.js';
 import ListPuzzle from '../../engine/puzzles/kinds/list.js';
+import ClozePuzzle from '../../engine/puzzles/kinds/cloze.js';
 
 // --- DOM Setup ---
 function mountDom() {
@@ -549,16 +550,15 @@ describe('Puzzles 2.0 - match kind (columns mode)', () => {
         const tokens = document.querySelectorAll('.pz-token');
         tokens[0].click(); // select first
 
-        // After first click, should have 'selected' class
-        expect(tokens[0].classList.contains('selected')).toBe(true);
+        // After first click, should have 'is-selected' class
+        expect(tokens[0].classList.contains('is-selected')).toBe(true);
 
         tokens[1].click(); // pair with second
 
-        // After pairing, both should have background color (not selected class)
-        expect(tokens[0].style.background).toBeTruthy();
-        expect(tokens[1].style.background).toBeTruthy();
-        // Same background color
-        expect(tokens[0].style.background).toBe(tokens[1].style.background);
+        // After pairing, selection removed, dataset pairIndex set
+        expect(tokens[0].dataset.pairIndex).toBeDefined();
+        expect(tokens[1].dataset.pairIndex).toBeDefined();
+        expect(tokens[0].classList.contains('is-selected')).toBe(false);
     });
 });
 
@@ -822,11 +822,11 @@ describe('Puzzles 2.0 - Layout & Theming', () => {
         runner.mountInto(engine.hotspotLayer);
 
         // Window element has the rect positioning
-        const pz = document.querySelector('.pz');
-        expect(pz.style.left).toBe('20%');
-        expect(pz.style.top).toBe('30%');
-        expect(pz.style.width).toBe('50%');
-        expect(pz.style.height).toBe('40%');
+        const win = document.querySelector('.pz__window');
+        expect(win.style.left).toBe('20%');
+        expect(win.style.top).toBe('30%');
+        expect(win.style.width).toBe('50%');
+        expect(win.style.height).toBe('40%');
     });
 
     it('supports custom background image', () => {
@@ -912,6 +912,52 @@ describe('Puzzles 2.0 - List (Sequential)', () => {
         // List puzzle should render first step
         await new Promise(r => setTimeout(r, 20));
         expect(document.querySelector('input')).toBeTruthy();
+    });
+});
+
+describe('Puzzles 2.0 - Cloze Interaction', () => {
+    beforeEach(mountDom);
+    afterEach(() => { document.body.innerHTML = ''; });
+
+    it('returns token to bank on gap click', async () => {
+        const engine = makeMockEngine();
+        const runner = createPuzzleRunner({
+            config: {
+                kind: 'cloze',
+                text: 'Hello {gap1}',
+                tokens: [{ id: 't1', text: 'World' }],
+                solution: { 'gap1': 't1' }
+            },
+            engine,
+            onResolve: () => {}
+        });
+
+        runner.mountInto(engine.hotspotLayer);
+
+        const puzzle = runner.puzzle;
+        const tokenEl = document.querySelector('[data-token-id="t1"]');
+        const gapEl = document.querySelector('[data-gap-id="gap1"]');
+        const tokensArea = document.querySelector('.pz-cloze-tokens-area');
+
+        // FIX: Manually simulate the "dropped" state
+        // We set the internal map and move the DOM element into the gap
+        puzzle._placements.set('gap1', 't1');
+        gapEl.appendChild(tokenEl);
+        gapEl.classList.add('filled');
+
+        // Verify it's in gap
+        expect(gapEl.contains(tokenEl)).toBe(true);
+        expect(tokensArea.contains(tokenEl)).toBe(false);
+
+        // CLICK on gap -> Should return to bank
+        gapEl.click();
+
+        await new Promise(r => setTimeout(r, 10));
+
+        // Verify return
+        expect(puzzle._placements.has('gap1')).toBe(false);
+        expect(gapEl.classList.contains('filled')).toBe(false);
+        expect(tokensArea.contains(tokenEl)).toBe(true);
     });
 });
 

@@ -1,77 +1,84 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { Game } from '../../engine/engine.js';
-import { openPhraseModal, openCodeModal } from '../../engine/puzzles.js';
+import { createPuzzleRunner } from '../../engine/puzzles/index.js';
 
 function mountDom() {
   document.body.innerHTML = `
-    <div id="modal" class="hidden">
-      <div id="modalTitle"></div>
-      <div id="modalBody"></div>
-      <button id="modalCancel">X</button>
-      <button id="modalOk">OK</button>
+    <div id="gameRoot" style="position:relative;width:1000px;height:600px;">
+        <div id="hotspotLayer" style="position:absolute;inset:0;"></div>
     </div>`;
 }
 
-describe('Puzzles: phrase + code', () => {
+describe('Puzzles 2.0: phrase + code specific logic', () => {
   beforeEach(() => mountDom());
 
   function makeGame() {
     return new Game({
       baseUrl: './games/test/',
       scenesUrl: './games/test/scenes.json',
-      dialogsUrl: './games/test/dialogs.json',
       lang: 'cs',
       i18n: { engine:{}, game:{} },
-      // Only modal refs are needed for this unit
+      hotspotLayer: document.getElementById('hotspotLayer'),
+      // Dummies
       sceneImage: document.createElement('img'),
-      hotspotLayer: document.createElement('div'),
       inventoryRoot: document.createElement('div'),
       messageBox: document.createElement('div'),
-      modalRoot: document.getElementById('modal'),
-      modalTitle: document.getElementById('modalTitle'),
-      modalBody: document.getElementById('modalBody'),
-      modalCancel: document.getElementById('modalCancel'),
-      modalOk: document.getElementById('modalOk'),
+      modalRoot: document.createElement('div'),
+      modalTitle: document.createElement('div'),
+      modalBody: document.createElement('div'),
+      modalCancel: document.createElement('button'),
+      modalOk: document.createElement('button'),
     });
   }
 
-  it('phrase puzzle normalizes input (diacritics/case) and honors background wrapper', async () => {
+  it('phrase puzzle normalizes input (diacritics/case)', async () => {
     const game = makeGame();
-    const promise = openPhraseModal(game, {
-      title: '@x@Phrase',
-      prompt: '@x@Enter the phrase:',
-      solution: 'eureka',
-      background: 'assets/ui/bg-lab.png'
+    let result = null;
+
+    const runner = createPuzzleRunner({
+      config: {
+        kind: 'phrase',
+        title: 'Phrase',
+        solution: 'eureka'
+      },
+      engine: game,
+      onResolve: (res) => { result = res; }
     });
 
-    // Modal is open; background wrapper applied
-    const body = document.getElementById('modalBody');
-    // Find background layer via style attribute
-    const hasBgLayer = !!Array.from(body.querySelectorAll('div')).find(d => String(d.style.background || '').includes('url("assets/ui/bg-lab.png")'));
-    expect(hasBgLayer).toBe(true);
+    runner.mountInto(document.getElementById('hotspotLayer'));
 
     // Fill input with variant (accents + case) and confirm
-    const input = body.querySelector('input');
+    const input = document.querySelector('input');
     input.value = 'ÉuréKa';
-    document.getElementById('modalOk').click();
+    document.querySelector('.pz-btn--ok').click();
 
-    const ok = await promise;
-    expect(ok).toBe(true);
+    await new Promise(r => setTimeout(r, 10));
+    expect(result.ok).toBe(true);
   });
 
   it('code puzzle supports masked input', async () => {
     const game = makeGame();
-    const p = openCodeModal(game, {
-      title: 'Code',
-      prompt: 'Enter code:',
-      solution: '4815162342',
-      mask: 'password'
+    let result = null;
+
+    const runner = createPuzzleRunner({
+      config: {
+        kind: 'code',
+        title: 'Code',
+        solution: '4815'
+      },
+      engine: game,
+      onResolve: (res) => { result = res; }
     });
-    const input = document.querySelector('#modalBody input');
+
+    runner.mountInto(document.getElementById('hotspotLayer'));
+
+    const input = document.querySelector('input');
     expect(input.getAttribute('type')).toBe('password'); // masked
-    input.value = '4815162342';
-    document.getElementById('modalOk').click();
-    const ok = await p;
-    expect(ok).toBe(true);
+
+    input.value = '4815';
+    document.querySelector('.pz-btn--ok').click();
+
+    await new Promise(r => setTimeout(r, 10));
+    expect(result.ok).toBe(true);
   });
 });

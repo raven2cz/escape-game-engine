@@ -1,14 +1,11 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { Game } from '../../engine/engine.js';
-import { openOrderModal, openMatchModal } from '../../engine/puzzles.js';
+import { createPuzzleRunner } from '../../engine/puzzles/index.js';
 
 function mountDom() {
   document.body.innerHTML = `
-    <div id="modal" class="hidden">
-      <div id="modalTitle"></div>
-      <div id="modalBody"></div>
-      <button id="modalCancel">X</button>
-      <button id="modalOk">OK</button>
+    <div id="gameRoot" style="position:relative;width:1000px;height:600px;">
+        <div id="hotspotLayer" style="position:absolute;inset:0;"></div>
     </div>`;
 }
 
@@ -20,70 +17,102 @@ function makeGame() {
     lang: 'cs',
     i18n: { engine:{}, game:{} },
     sceneImage: document.createElement('img'),
-    hotspotLayer: document.createElement('div'),
+    hotspotLayer: document.getElementById('hotspotLayer'),
     inventoryRoot: document.createElement('div'),
     messageBox: document.createElement('div'),
-    modalRoot: document.getElementById('modal'),
-    modalTitle: document.getElementById('modalTitle'),
-    modalBody: document.getElementById('modalBody'),
-    modalCancel: document.getElementById('modalCancel'),
-    modalOk: document.getElementById('modalOk'),
+    modalRoot: document.createElement('div'),
+    modalTitle: document.createElement('div'),
+    modalBody: document.createElement('div'),
+    modalCancel: document.createElement('button'),
+    modalOk: document.createElement('button'),
   });
 }
 
-describe('Puzzles: order + match', () => {
+describe('Puzzles 2.0: order + match specific logic', () => {
   beforeEach(() => mountDom());
 
-  it('order puzzle solves when chosen sequence equals solution (supports object tokens)', async () => {
+  it('order puzzle solves when chosen sequence equals solution', async () => {
     const game = makeGame();
-    const p = openOrderModal(game, {
-      title: 'Order',
-      prompt: 'Arrange:',
-      tokens: [
-        { text:'Na', key:'chem.na', matchKey:'Na' },
-        { text:'K',  key:'chem.k',  matchKey:'K'  },
-        { text:'Cl', key:'chem.cl', matchKey:'Cl' },
-      ],
-      solution: ['Na','Cl','K']
+    let result = null;
+
+    const runner = createPuzzleRunner({
+      config: {
+        kind: 'order',
+        title: 'Order',
+        tokens: [
+          { id: 'na', text: 'Na' },
+          { id: 'k', text: 'K' },
+          { id: 'cl', text: 'Cl' }
+        ],
+        solution: ['na','cl','k']
+      },
+      engine: game,
+      onResolve: (res) => { result = res; }
     });
 
-    const body = document.getElementById('modalBody');
-    // Click tokens in order: Na, Cl, K
-    function clickToken(txt) {
-      const btn = Array.from(body.querySelectorAll('button')).find(b => b.textContent.trim() === txt);
-      btn.click();
-    }
-    clickToken('Na'); clickToken('Cl'); clickToken('K');
+    runner.mountInto(document.getElementById('hotspotLayer'));
+
+    // Simulate clicks
+    const shuffled = document.querySelector('.pz-area-shuffled');
+
+    // Helper to click token by ID
+    const clickId = (id) => shuffled.querySelector(`[data-id="${id}"]`)?.click();
+
+    clickId('na');
+    clickId('cl');
+    clickId('k');
 
     // Confirm
-    document.getElementById('modalOk').click();
-    const ok = await p;
-    expect(ok).toBe(true);
+    document.querySelector('.pz-btn--ok').click();
+
+    await new Promise(r => setTimeout(r, 10));
+    expect(result).toBeTruthy();
+    expect(result.ok).toBe(true);
   });
 
-  it('match puzzle requires all pairs to be matched; partial matches are not enough', async () => {
+  it('match puzzle requires all pairs to be matched', async () => {
     const game = makeGame();
-    const p = openMatchModal(game, {
-      title: 'Match',
-      prompt: 'Pairs:',
-      pairs: [
-        [ { text:'Na', matchKey:'Na' }, { text:'Sodium', matchKey:'Na' } ],
-        [ { text:'K',  matchKey:'K'  }, { text:'Potassium', matchKey:'K' } ],
-      ]
+    let result = null;
+
+    const runner = createPuzzleRunner({
+      config: {
+        kind: 'match',
+        mode: 'columns',
+        tokens: [
+          { id: 'a', text: 'A', side: 'left' },
+          { id: 'aa', text: 'AA', side: 'right' },
+          { id: 'b', text: 'B', side: 'left' },
+          { id: 'bb', text: 'BB', side: 'right' }
+        ],
+        pairs: [ ['a', 'aa'], ['b', 'bb'] ]
+      },
+      // FIX: Explicitly set blockUntilSolved to true to test blocking behavior
+      instanceOptions: {
+        blockUntilSolved: true
+      },
+      engine: game,
+      onResolve: (res) => { result = res; }
     });
 
-    const body = document.getElementById('modalBody');
+    runner.mountInto(document.getElementById('hotspotLayer'));
 
-    function clickBtnByText(txt) {
-      const btn = Array.from(body.querySelectorAll('button')).find(b => b.textContent.trim() === txt);
-      btn.click();
-    }
+    // Find tokens
+    const tokens = Array.from(document.querySelectorAll('.pz-token'));
+    const getById = (id) => tokens.find(t => t.getAttribute('data-id') === id);
 
-    // Make exactly one correct pair and leave the other unmatched
-    clickBtnByText('Na'); clickBtnByText('Sodium');
+    // Match pair A-AA
+    getById('a').click();
+    getById('aa').click();
 
-    document.getElementById('modalOk').click();
-    const ok = await p;
-    expect(ok).toBe(false); // not all pairs matched
+    // Leave B-BB unmatched and submit
+    document.querySelector('.pz-btn--ok').click();
+
+    await new Promise(r => setTimeout(r, 10));
+
+    // Should fail and BLOCK (result stays null) because blockUntilSolved is true
+    expect(result).toBeNull();
+
+    // The puzzle container should still be there
+    expect(document.querySelector('.pz-container')).toBeTruthy();
   });
 });

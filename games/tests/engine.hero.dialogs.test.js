@@ -59,7 +59,7 @@ describe('Hero mapping in dialogs + refresh on hero change', () => {
           name: '@character.hero@Hero',
           poses: {
             idle: 'assets/npc/{heroId}/idle.png',
-            alt:  'assets/npc/hero/happy.png', // segment replacement /hero/ → /<id>/
+            alt:  'assets/npc/hero/happy.png',
           }
         }
       ],
@@ -87,9 +87,12 @@ describe('Hero mapping in dialogs + refresh on hero change', () => {
     };
     game.state = { hero: { id:'eva', assetsBase:'assets/npc/eva/' } };
 
-    // Open dialog
+    // Open dialog (Store promise, do not await yet as it blocks)
     const ui = new DialogUI(game);
-    await ui.open('sample');
+    const openPromise = ui.open('sample');
+
+    // Wait a tick for render
+    await new Promise(r => setTimeout(r, 10));
 
     // Should render hero image with eva in path
     const imgBefore = document.querySelector('.dlg-char.left .dlg-char-img');
@@ -100,10 +103,19 @@ describe('Hero mapping in dialogs + refresh on hero change', () => {
     game.dialogUI = ui;
     game.setHero('adam');
 
-    // Current engine re-resolves hero mapping on open; reopen dialog to reflect change
-    await ui.open('sample');
+    // Close previous to resolve the promise
+    await ui.close();
+    await openPromise;
+
+    // Reopen with new hero
+    const openPromise2 = ui.open('sample');
+    await new Promise(r => setTimeout(r, 10));
 
     const imgAfter = document.querySelector('.dlg-char.left .dlg-char-img');
     expect(imgAfter.getAttribute('src')).toContain('/adam/');
+
+    // Clean up
+    await ui.close();
+    await openPromise2;
   });
 });

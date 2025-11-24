@@ -1,6 +1,6 @@
 // engine/puzzles/kinds/cloze.js
 // Kind: cloze – doplňovačka
-// FIX 5: Ignorování 'click' eventu bezprostředně po 'drop' eventu.
+// FIX 6: Oprava vizuálu (dashed) a oprava vracení tokenů do banku (bezpečný DOM move).
 
 import {BasePuzzle} from '../base.js';
 
@@ -14,7 +14,6 @@ export default class ClozePuzzle extends BasePuzzle {
         this._placements = new Map();
         this._tokensArea = null;
 
-        // Drag state
         this._dragState = {
             active: false,
             tokenId: null,
@@ -27,7 +26,6 @@ export default class ClozePuzzle extends BasePuzzle {
             hoveredGapId: null
         };
 
-        // Flag to prevent 'click' triggering immediately after drop
         this._ignoreNextClick = false;
 
         this._onPointerMove = this._onPointerMove.bind(this);
@@ -96,21 +94,16 @@ export default class ClozePuzzle extends BasePuzzle {
         gap.className = 'pz-cloze-gap';
         gap.setAttribute('data-gap-id', gapId);
 
-        // Click to return token to bank
         gap.addEventListener('click', (e) => {
-            // FIX: Pokud jsme právě dokončili drag&drop, tento klik ignorujeme
             if (this._ignoreNextClick) {
-                if (DBG()) console.debug('[CLOZE] Click ignored (just dropped)');
                 this._ignoreNextClick = false;
                 return;
             }
 
+            // Kliknutím na gap vrátíme token do banku
             if (this._placements.has(gapId)) {
                 this._returnTokenToArea(this._placements.get(gapId));
-                this._placements.delete(gapId);
-                gap.classList.remove('filled');
-                gap.innerHTML = '';
-                if (DBG()) console.debug('[CLOZE] Token removed by click:', gapId);
+                // Poznámka: _returnTokenToArea se postará o vyčištění placements i gap class
             }
         });
         return gap;
@@ -156,7 +149,6 @@ export default class ClozePuzzle extends BasePuzzle {
 
     _startDrag(e, el, tokenId) {
         if (this._dragState.active) return;
-        if (DBG()) console.log('[CLOZE-DEBUG] Start Drag:', tokenId);
 
         const rect = el.getBoundingClientRect();
         const computed = window.getComputedStyle(el);
@@ -243,6 +235,8 @@ export default class ClozePuzzle extends BasePuzzle {
             this._dragState.hoveredGapId = foundGapId;
             const gap = this._gapEls.get(foundGapId);
             if (gap) gap.classList.add('drag-over');
+        } else {
+            this._dragState.hoveredGapId = null;
         }
     }
 
@@ -253,14 +247,11 @@ export default class ClozePuzzle extends BasePuzzle {
         document.removeEventListener('pointerup', this._onPointerUp);
         document.removeEventListener('pointercancel', this._onPointerUp);
 
-        if (DBG()) console.log('[CLOZE-DEBUG] PointerUp');
-
-        // 1. Hide ghost first
         if (this._dragState.ghostEl) {
             this._dragState.ghostEl.style.display = 'none';
         }
 
-        // 2. Detect target (Live check)
+        // Detekce cíle (Hybridní: Live + Cache fallback)
         let targetGapId = null;
         const freshElements = document.elementsFromPoint(e.clientX, e.clientY);
         for (const el of freshElements) {
@@ -271,7 +262,6 @@ export default class ClozePuzzle extends BasePuzzle {
             }
         }
 
-        // 3. Fallback to cache
         if (!targetGapId && this._dragState.hoveredGapId) {
             targetGapId = this._dragState.hoveredGapId;
         }
@@ -294,21 +284,18 @@ export default class ClozePuzzle extends BasePuzzle {
         this._dragState = { active: false, tokenId: null, originalEl: null, ghostEl: null, hoveredGapId: null };
     }
 
-    _dropIntoGap(gapId) {
-        if (DBG()) console.log('[CLOZE-DEBUG] Dropping into:', gapId);
+    // --- LOGIC HELPERS (OPRAVENÉ) ---
 
+    _dropIntoGap(gapId) {
         const tokenId = this._dragState.tokenId;
         const gap = this._gapEls.get(gapId);
 
         if (!gap) return;
 
-        // Set flag to ignore the immediate subsequent click event
         this._ignoreNextClick = true;
-        // Reset flag safely after short delay (browser click fires typically within ~10-50ms)
-        setTimeout(() => {
-            this._ignoreNextClick = false;
-        }, 100);
+        setTimeout(() => { this._ignoreNextClick = false; }, 100);
 
+        // 1. Pokud je v gapu JINÝ token, vrátíme ho do banku
         if (this._placements.has(gapId)) {
             const existingTokenId = this._placements.get(gapId);
             if (existingTokenId !== tokenId) {
@@ -316,29 +303,31 @@ export default class ClozePuzzle extends BasePuzzle {
             }
         }
 
+        // 2. Pokud byl tento token v jiném gapu, uvolníme ten starý gap
         for (const [otherGap, placedToken] of this._placements.entries()) {
             if (placedToken === tokenId && otherGap !== gapId) {
                 this._placements.delete(otherGap);
                 const oldGapEl = this._gapEls.get(otherGap);
                 if (oldGapEl) {
                     oldGapEl.classList.remove('filled');
-                    oldGapEl.innerHTML = '';
+                    // POZOR: Nemazat innerHTML, pokud tam token stále je (on se přesune appendChildem)
                 }
             }
         }
 
+        // 3. Zaregistrujeme novou pozici
         this._placements.set(gapId, tokenId);
 
-        const tokenEl = this._dragState.originalEl;
-        if (tokenEl.parentNode === this._tokensArea) {
-            this._tokensArea.removeChild(tokenEl);
-        }
+        // 4. Fyzický přesun v DOMu
+        const tokenEl = this._dragState.originalEl; // Použijeme originalEl z drag state
 
-        gap.innerHTML = '';
+        // Append přesune element, není třeba volat removeChild
         gap.appendChild(tokenEl);
+
         gap.classList.add('filled');
         gap.classList.remove('drag-over');
 
+        // Styly pro "connected" stav
         tokenEl.style.background = 'var(--pz-selected-bg)';
         tokenEl.style.borderColor = 'var(--pz-selected-border)';
         tokenEl.classList.remove('correct', 'wrong', 'is-correct', 'is-wrong');
@@ -346,16 +335,6 @@ export default class ClozePuzzle extends BasePuzzle {
 
     _returnToBank() {
         const tokenId = this._dragState.tokenId;
-        for (const [gapId, placedToken] of this._placements.entries()) {
-            if (placedToken === tokenId) {
-                this._placements.delete(gapId);
-                const gap = this._gapEls.get(gapId);
-                if (gap) {
-                    gap.classList.remove('filled');
-                    gap.innerHTML = '';
-                }
-            }
-        }
         this._returnTokenToArea(tokenId);
     }
 
@@ -363,11 +342,30 @@ export default class ClozePuzzle extends BasePuzzle {
         const tokenEl = this._tokenEls.get(tokenId);
         if (!tokenEl || !this._tokensArea) return;
 
+        // 1. Najít, zda byl v nějakém gapu, a vyčistit ten gap
+        for (const [gapId, placedToken] of this._placements.entries()) {
+            if (placedToken === tokenId) {
+                this._placements.delete(gapId);
+                const gap = this._gapEls.get(gapId);
+                if (gap) {
+                    gap.classList.remove('filled');
+                    // Nemusíme dělat gap.innerHTML = '', protože appendChild níže ten element vyjme
+                }
+            }
+        }
+
+        // 2. Reset stylů
         tokenEl.style.background = '';
         tokenEl.style.borderColor = '';
         tokenEl.classList.remove('correct', 'wrong', 'is-correct', 'is-wrong');
+
+        // 3. Přesunout fyzicky do banku
         this._tokensArea.appendChild(tokenEl);
     }
+
+    // ========================================================================
+    // EVALUATION
+    // ========================================================================
 
     onOk() {
         const solution = this.config.solution || {};
@@ -410,12 +408,7 @@ export default class ClozePuzzle extends BasePuzzle {
                 }
                 wrongPlacements.forEach(({gapId, tokenId}) => {
                     this._returnTokenToArea(tokenId);
-                    this._placements.delete(gapId);
-                    const gap = this._gapEls.get(gapId);
-                    if (gap) {
-                        gap.classList.remove('filled');
-                        gap.innerHTML = '';
-                    }
+                    // _returnTokenToArea už řeší smazání z _placements a update gap class
                 });
             }, 800);
             return {hold: true};

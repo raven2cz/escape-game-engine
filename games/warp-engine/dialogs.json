@@ -92,9 +92,9 @@
       "left":  { "characterId": "astronaut", "defaultPose": "idle" },
       "ui": { "tapToNext": true, "allowSkip": false },
       "sequence": [
-        { "id": "s1", "speaker": "left", "pose": "angry",    "text": "Konečně! Zachytila jsem tvůj signál. Rychle, poslouchej, tenhle průchod dlouho neudržím. Vidíš ten chaos kolem sebe? To není chyba simulace, to se nám před očima rozpadá samotná realita." },
-        { "id": "s2", "speaker": "left", "pose": "thinking", "text": "Píše se rok 2050. Zemi dochází síly. Naše jediná naděje je u jiných hvězd. Lodě už máme, i prototyp warpového pohonu, ale něco zásadního chybí. Zjistili jsme proč: z historie mizí klíčové fyzikální objevy. Jako by je někdo gumoval z časové osy." },
-        { "id": "s3", "speaker": "left", "pose": "idle",     "text": "Když Newton nepochopí gravitaci a Hertz nezachytí vlny, naše budoucnost nikdy nevznikne. Otevřela jsem nestabilní bránu do Řeky času. Musíš vstoupit dovnitř, vyhledat vědce v rozhodujícím okamžiku a pomoct jim dotáhnout jejich nápady. Jsi poslední, kdo to může zachránit. Jdeme na to!" }
+        { "id": "s1", "speaker": "left", "pose": "angry",    "text": "Konečně! Zachytila jsem tvůj signál. Poslouchej, tenhle průchod dlouho neudržím. Vidíš ten chaos? To není chyba simulace, to se nám před očima rozpadá samotná realita." },
+        { "id": "s2", "speaker": "left", "pose": "thinking", "text": "Píše se rok 2050. Naše jediná naděje je u jiných hvězd. Máme lodě, máme prototyp warpového motoru, ale... přestal fungovat. Zjistili jsme proč: z historie mizí klíčové fyzikální objevy. Někdo gumuje vědu z časové osy." },
+        { "id": "s3", "speaker": "left", "pose": "idle",     "text": "Pokud Newton nepochopí sílu a Hertz nezachytí vlnu, naše technologie nikdy nevznikne. Otevřela jsem bránu do Řeky času. Musíš najít vědce v jejich rozhodujícím okamžiku a postrčit je správným směrem. Jsi naše poslední šance!" }
       ],
       "onEnd": { "setFlags": ["intro_seen"] }
     },
@@ -106,9 +106,9 @@
       "left":  { "characterId": "astronaut", "defaultPose": "idle" },
       "ui": { "tapToNext": true, "allowSkip": false },
       "sequence": [
-        { "id": "m1", "speaker": "left", "pose": "idle",    "text": "Uf, ten průchod byl drsnější, než jsem čekala, ale zvládli jsme to. Vítej v Řece času. Tady se dějiny nepíšou inkoustem, ale čistou energií. To, co kolem sebe vidíš, je surový tok lidského poznání." },
-        { "id": "m2", "speaker": "left", "pose": "thinking","text": "Ty plovoucí ostrovy nejsou obyčejné kusy skály. Jsou to časové uzly, klíčové okamžiky, kdy se zrodila myšlenka, která změnila svět. Teď jsou rozbité a zaseknuté v chaosu. Když je nespravíme, cesta k warpovému pohonu se nikdy neposkládá." },
-        { "id": "m3", "speaker": "left", "pose": "happy",   "text": "Musíme postupovat od základů. Fyzika je jako dům, nejde začít střechou. Podívej dolů na začátek proudu. Vidíš tu jabloň? Tam všechno startuje. Klikni na Newtonův ostrov a pojďme znovu nastavit gravitaci." }
+        { "id": "m1", "speaker": "left", "pose": "idle",    "text": "Jsme uvnitř. Vítej v Řece času. Tady se dějiny nepíšou inkoustem, ale čistou energií. Všechno, co vidíš, je surový tok lidského poznání." },
+        { "id": "m2", "speaker": "left", "pose": "thinking","text": "Ty plovoucí ostrovy jsou zlomové body historie. Okamžiky, kdy se zrodila myšlenka, která změnila svět. Teď jsou ale rozbité. Vědci jsou zmatení a jejich experimenty nedávají smysl." },
+        { "id": "m3", "speaker": "left", "pose": "happy",   "text": "Musíme to opravit od základů. Fyzika je jako pyramida, nejde začít špičkou. Podívej se dolů. Vidíš tu jabloň? Tam to všechno začíná. Klikni na Newtonův ostrov a pojďme zachránit gravitaci." }
       ],
       "onEnd": { "setFlags": ["main_seen"] }
     },
@@ -121,8 +121,8 @@
       "right": { "characterId": "astronaut", "defaultPose": "idle" },
       "ui": { "tapToNext": true, "allowSkip": true },
       "sequence": [
-        { "id": "n1", "speaker": "left",  "pose": "thinking", "text": "Hm, když kopnu do míče, letí. Když padá jablko, přitahuje ono Zemi, nebo Země jeho? Z těch sil se mi začíná točit hlava." },
-        { "id": "n2", "speaker": "right", "pose": "idle",     "text": "Isaacu, myslím, že jsi lehce přepracovaný. Poznámky máš úplně pomíchané. Pojďme je společně seřadit: přiřaď náčrtky ke správným zákonům pohybu." }
+        { "id": "n1", "speaker": "left",  "pose": "thinking", "text": "U všech nebeských sfér... Proč to jablko padá kolmo k zemi? Proč neletí do strany nebo vzhůru? Musí v tom být nějaká univerzální síla." },
+        { "id": "n2", "speaker": "right", "pose": "idle",     "text": "Isaacu, jsi na správné stopě. Stejná síla, co táhne jablko, drží i Měsíc. Ale máš v poznámkách zmatek. Pojďme si ujasnit tvé tři zákony pohybu." }
       ]
     },
     {
@@ -132,7 +132,7 @@
       "left":  { "characterId": "newton", "defaultPose": "happy" },
       "ui": { "tapToNext": true, "allowSkip": false },
       "sequence": [
-        { "id": "nx1", "speaker": "left", "pose": "happy", "text": "Aha, samozřejmě. Setrvačnost, síla, akce a reakce, všechno zapadá dohromady. Děkuji ti, moje Principia jsou v bezpečí." }
+        { "id": "nx1", "speaker": "left", "pose": "happy", "text": "Ano! Setrvačnost, síla a reakce. Vesmír je jako obří hodinový stroj poháněný gravitací. Děkuji, cizinče, má Principia Mathematica je nyní kompletní." }
       ]
     },
 
@@ -141,11 +141,11 @@
       "once": true,
       "title": "Napětí u Volty",
       "left":  { "characterId": "volta",     "defaultPose": "angry" },
-      "right": { "characterId": "astronaut", "defaultPose": "thinking" },
+      "right": { "characterId": "astronaut", "defaultPose": "thinking", "mirror": true },
       "ui": { "tapToNext": true, "allowSkip": true },
       "sequence": [
-        { "id": "v1", "speaker": "left",  "pose": "angry",    "text": "Maledizione! Proč moje baterie vůbec nejiskří? Zkoušel jsem prokládat měď tímhle kouskem staré pizzy a pořád nic." },
-        { "id": "v2", "speaker": "right", "pose": "thinking", "text": "Pizza v baterii? To fakt nezachrání. Potřebuješ vodivé kovy a něco mokrého mezi nimi. Uklidíme stůl a vybereme jen to, co opravdu vede proud." }
+        { "id": "v1", "speaker": "left",  "pose": "angry", "text": "Maledizione! Galvani a ty jeho žabí stehýnka... Já vím, že elektřina vzniká dotykem kovů, ne ve svalech! Ale tenhle sloup nefunguje. Zkoušel jsem suchý papír, dřevo... a nic!" },
+        { "id": "v2", "speaker": "right", "pose": "thinking", "mirror": true, "text": "Alessandro, aby kovy reagovaly, musíš je něčím propojit. Suchý papír nevede proud. Potřebuješ elektrolyt – slanou vodu. Pojďme vybrat správné materiály pro tvůj sloup." }
       ]
     },
     {
@@ -155,7 +155,7 @@
       "left":  { "characterId": "volta", "defaultPose": "happy" },
       "ui": { "tapToNext": true, "allowSkip": false },
       "sequence": [
-        { "id": "vx1", "speaker": "left", "pose": "happy", "text": "Jiskra je tady, stálý proud taky. Zinek, měď a slaná voda, tak jednoduché a tak silné. Grazie mille!" }
+        { "id": "vx1", "speaker": "left", "pose": "happy", "text": "Funguje to! Zinek, stříbro a papír nasáklý solným roztokem. Cítím to brnění na jazyku! Stálý elektrický proud je na světě." }
       ]
     },
 
@@ -167,8 +167,8 @@
       "right": { "characterId": "astronaut", "defaultPose": "idle" },
       "ui": { "tapToNext": true, "allowSkip": true },
       "sequence": [
-        { "id": "f1", "speaker": "left",  "pose": "thinking", "text": "Vím, že elektřina nějak souvisí s magnetismem. Mám cívku, mám magnet, ale ručička měřidla se ani nepohne. Co mi pořád uniká?" },
-        { "id": "f2", "speaker": "right", "pose": "idle",     "text": "Chybí ti akce. Magnet nesmí jen ležet, musíš s ním hýbat. Seřadíme kroky pokusu tak, aby bylo jasné, že změna magnetického pole vyrábí proud." }
+        { "id": "f1", "speaker": "left",  "pose": "thinking", "text": "Vím, že elektřina a magnetismus k sobě patří. Mám cívku, mám magnet, ale ručička galvanometru se ani nepohne. Kde dělám chybu?" },
+        { "id": "f2", "speaker": "right", "pose": "idle",     "text": "Chybí ti změna, Michaele. Magnetické pole musí pracovat. Zkusíme ten experiment znovu, ale tentokrát s magnetem pohneme." }
       ]
     },
     {
@@ -178,7 +178,7 @@
       "left":  { "characterId": "faraday", "defaultPose": "happy" },
       "ui": { "tapToNext": true, "allowSkip": false },
       "sequence": [
-        { "id": "fx1", "speaker": "left", "pose": "happy", "text": "Pohyb, to je ono. Když se magnetické pole mění, rozběhne se proud. To je přece jasné. Podívej, jak se rozsvítila žárovka." }
+        { "id": "fx1", "speaker": "left", "pose": "happy", "text": "Pohyb! Když zasunu magnet do cívky, vznikne proud. Elektřinu lze vyrobit pohybem. Tomu budu říkat elektromagnetická indukce!" }
       ]
     },
 
@@ -190,8 +190,8 @@
       "right": { "characterId": "astronaut", "defaultPose": "idle" },
       "ui": { "tapToNext": true, "allowSkip": true },
       "sequence": [
-        { "id": "h1", "speaker": "left",  "pose": "idle", "text": "Viděl jsi to? Jiskra přeskočila přes celou místnost bez jediného drátu. Jak tohle mám zapsat do deníku, aby to neznělo úplně bláznivě?" },
-        { "id": "h2", "speaker": "right", "pose": "idle", "text": "Právě jsi zachytil neviditelné vlny. Doplňme do deníku správná slova, ať ti ostatní vědci uvěří." }
+        { "id": "h1", "speaker": "left",  "pose": "idle", "mirror": true, "text": "Maxwellovy rovnice předpovídají neviditelné vlny, ale nikdo je neviděl. Můj jiskrový oscilátor prská, ale co se děje v prostoru? Potřebuji důkaz." },
+        { "id": "h2", "speaker": "right", "pose": "idle", "text": "Důkaz se objeví na druhém konci stolu, Heinrichu. Pokud se ti podaří přenést energii bez drátů do té druhé smyčky, potvrdíš existenci rádiových vln." }
       ]
     },
     {
@@ -201,7 +201,7 @@
       "left":  { "characterId": "hertz", "defaultPose": "happy" },
       "ui": { "tapToNext": true, "allowSkip": false },
       "sequence": [
-        { "id": "hx1", "speaker": "left", "pose": "happy", "text": "Neviditelné vlny zachycené přijímačem, to je přesný popis. Tohle objevení změní způsob, jakým spolu lidé komunikují." }
+        { "id": "hx1", "speaker": "left", "pose": "happy", "mirror": true, "text": "Je to tam! Přeskočila jiskra i na přijímači. Energie se šíří prostorem jako neviditelné vlnění. Sice nevím, k čemu to bude dobré, ale fyzikálně je to fascinující!" }
       ]
     },
 
@@ -210,23 +210,23 @@
       "once": true,
       "title": "Válka proudů",
       "left":  { "characterId": "edison", "defaultPose": "angry" },
-      "right": { "characterId": "tesla",  "defaultPose": "thinking" },
+      "right": { "characterId": "tesla",  "defaultPose": "angry" },
       "ui": { "tapToNext": true, "allowSkip": true },
       "sequence": [
-        { "id": "c1", "speaker": "left",  "pose": "angry",    "text": "Poslouchej mě. Lidé chtějí bezpečnou elektřinu hned za rohem. Moje malé stejnosměrné elektrárny v každé ulici jsou jediné rozumné řešení." },
-        { "id": "c2", "speaker": "right", "pose": "thinking", "text": "To je krátkozraké. Potřebujeme střídavý proud z velkých elektráren, abychom mohli levně přenášet energii na velké vzdálenosti." }
+        { "id": "c1", "speaker": "left",  "pose": "angry", "mirror": true, "text": "Nikolo, buďme realisté. Můj stejnosměrný proud je bezpečný. Lidé nechtějí doma vysoké napětí. Postavíme malé dynamo v každé ulici a bude klid." },
+        { "id": "c2", "speaker": "right", "pose": "angry", "text": "Pane Edisone, to je neefektivní. Stejnosměrný proud nepřeneseš daleko, dráty by musely být tlusté jako paže. Můj střídavý systém rozsvítí celá města z jediné elektrárny." }
       ]
     },
     {
       "id": "currents.outro",
       "once": true,
-      "title": "Dohoda (tak napůl)",
+      "title": "Dohoda",
       "left":  { "characterId": "tesla",  "defaultPose": "happy" },
       "right": { "characterId": "edison", "defaultPose": "thinking" },
       "ui": { "tapToNext": true, "allowSkip": false },
       "sequence": [
-        { "id": "cx1", "speaker": "right", "pose": "thinking", "text": "Dobře. Přiznávám, že tvůj střídavý proud je na dálkový přenos lepší. Ale stejnosměrné baterie budou stejně jednou všude." },
-        { "id": "cx2", "speaker": "left",  "pose": "happy",    "text": "Platí. Střídavý proud pro síť na velké vzdálenosti, stejnosměrný pro menší zařízení. Každý má své místo a všichni z toho těží." }
+        { "id": "cx1", "speaker": "right", "pose": "thinking", "text": "Dobrá, transformátory mají smysl. Pro dálkový přenos je tvoje AC lepší. Ale pamatuj, baterie a elektronika budou vždy potřebovat moje DC." },
+        { "id": "cx2", "speaker": "left",  "pose": "happy",    "text": "Dohodnuto. Střídavý proud propojí svět, stejnosměrný ho bude napájet lokálně. Společně jsme právě zahájili věk elektřiny." }
       ]
     },
 
@@ -238,8 +238,8 @@
       "right": { "characterId": "astronaut", "defaultPose": "idle" },
       "ui": { "tapToNext": true, "allowSkip": true },
       "sequence": [
-        { "id": "e1", "speaker": "left",  "pose": "thinking", "text": "(Mumlá si) Když jedno dvojče poletí skoro rychlostí světla, čas pro něj musí plynout pomaleji než pro dvojče na Zemi. Jenže můj myšlenkový experiment je pořád nějak rozmazaný." },
-        { "id": "e2", "speaker": "right", "pose": "idle",     "text": "Pšt, pojďme do tvé myšlenkové bubliny doplnit chybějící slova, aby celý příběh relativistických dvojčat dával dokonalý smysl." }
+        { "id": "e1", "speaker": "left",  "pose": "thinking", "text": "Čas... intuice nám říká, že tiká všude stejně. Ale mé rovnice tvrdí opak. Pokud se někdo pohybuje rychle, čas pro něj musí zpomalit. Představuji si dvojčata..." },
+        { "id": "e2", "speaker": "right", "pose": "idle",     "text": "Dilatace času. To je klíč k našemu warpu. Alberte, tenhle myšlenkový experiment musíme dotáhnout. Doplň chybějící proměnné do své teorie relativity." }
       ]
     },
     {
@@ -249,7 +249,7 @@
       "left":  { "characterId": "einstein", "defaultPose": "happy" },
       "ui": { "tapToNext": true, "allowSkip": false },
       "sequence": [
-        { "id": "ex1", "speaker": "left", "pose": "happy", "text": "Takže cestovatel v raketě se vrátí mladší než jeho bratr na Zemi. Čas neměří všem stejně, záleží na rychlosti pohybu. Zvláštní, ale pravdivé." }
+        { "id": "ex1", "speaker": "left", "pose": "happy", "text": "Je to tak. Rychlost světla je konstanta, ale čas ne. Cestovatel v raketě zestárne méně než jeho bratr na Zemi. Cesta ke hvězdám je teoreticky možná!" }
       ]
     },
 
@@ -260,8 +260,8 @@
       "left":  { "characterId": "astronaut", "defaultPose": "happy" },
       "ui": { "tapToNext": true, "allowSkip": false },
       "sequence": [
-        { "id": "w1", "speaker": "left", "pose": "happy", "text": "Máme hotovo. Díky tobě jsme poskládali příběh vědy od padajícího jablka až po ohnutý čas. Warpový pohon se spouští." },
-        { "id": "w2", "speaker": "left", "pose": "happy", "text": "Konzole zezelenala a první mezihvězdná loď startuje. Společně jsme zachránili budoucnost. 🚀" }
+        { "id": "w1", "speaker": "left", "pose": "happy", "text": "Máme hotovo. Díky tobě jsme poskládali příběh vědy od Newtonova jablka až po Einsteinovu dilataci času. Warpový pohon se spouští." },
+        { "id": "w2", "speaker": "left", "pose": "happy", "text": "Konzole svítí zeleně. Dějiny jsou opraveny a lidstvo může vyrazit k jiným světům. Jsi hrdina, zachránil jsi vědu i naši budoucnost. Připrav se na hyperprostorový skok!" }
       ],
       "onEnd": { "setFlags": ["warp_ready_dialog_done"] }
     },
@@ -273,7 +273,7 @@
       "left":  { "characterId": "astronaut", "defaultPose": "happy" },
       "ui": { "tapToNext": true, "allowSkip": false },
       "sequence": [
-        { "id": "x1", "speaker": "left", "pose": "happy", "text": "Kurz je nastaven. Opouštíme Zemi a míříme k novým světům. Skvělá práce, kapitáne." }
+        { "id": "x1", "speaker": "left", "pose": "happy", "text": "Souřadnice zadány. Opouštíme sluneční soustavu. Díky za pomoc, parťáku. Bez tebe bychom uvízli v době temna." }
       ],
       "onEnd": { "setFlags": ["game_completed"] }
     }

@@ -10,109 +10,109 @@
       { "id": "img-kick",    "label": "Kopnutí do míče",            "side": "left",  "image": "assets/puzzles/newton/kick.webp" },
       { "id": "img-rocket",  "label": "Start rakety",               "side": "left",  "image": "assets/puzzles/newton/rocket.webp" },
 
-      { "id": "law-inertia", "label": "Zákon setrvačnosti: těleso setrvává v klidu či přímočarém rovnoměrném pohybu, není-li nuceno působením sil stav změnit.", "side": "right", "image": "assets/puzzles/newton/law-inertia.webp" },
-      { "id": "law-fma",     "label": "Síla a zrychlení (F = m·a): větší síla → větší zrychlení.", "side": "right", "image": "assets/puzzles/newton/law-fma.webp" },
-      { "id": "law-action",  "label": "Akce–reakce: na každou akci působí stejná a opačná reakce.", "side": "right", "image": "assets/puzzles/newton/law-action.webp" }
+      { "id": "law-inertia", "label": "1. Zákon setrvačnosti: Těleso setrvává ve svém stavu (klidu nebo pohybu), dokud ho vnější vliv nedonutí tento stav změnit.", "side": "right", "image": "assets/puzzles/newton/law-inertia.webp" },
+      { "id": "law-fma",     "label": "2. Zákon síly (F=m·a): Změna pohybu tělesa je přímo úměrná působící síle a má s ní stejný směr.", "side": "right", "image": "assets/puzzles/newton/law-fma.webp" },
+      { "id": "law-action",  "label": "3. Zákon akce a reakce: Každá síla vyvolává stejně velkou sílu opačného směru. Vzájemné působení dvou těles.", "side": "right", "image": "assets/puzzles/newton/law-action.webp" }
     ],
     "pairs": [
       ["img-scooter", "law-inertia"],
       ["img-kick",    "law-fma"],
       ["img-rocket",  "law-action"]
     ],
-    "errorMessage": "Některé dvojice nesedí. Zkus to znovu!",
+    "errorMessage": "Některé dvojice nesedí. Zkus se zamyslet nad příčinou a následkem.",
     "options": {
       "aggregateOnly": false,
       "blockUntilSolved": true,
       "showErrorToast": true,
       "layout": { "mode": "auto", "direction": "vertical" }
     },
-    "background": "assets/puzzles/newton/bg.jpg"
+    "rect": { "x": 3, "y": 3, "w": 94, "h": 95 }
   },
 
   "volta-group": {
     "id": "volta-group",
     "kind": "group",
     "title": "Volta — Co patří do baterie?",
-    "prompt": "Roztřiď kartičky: co patří do Voltova sloupu a co je odpad.",
+    "prompt": "Roztřiď materiály: co vytvoří funkční Voltův sloup a co je izolant.",
     "groups": [
-      { "id": "g-ok", "label": "Do Voltova sloupu (Funguje!)" },
-      { "id": "g-no", "label": "Do koše (Nefunguje!)" }
+      { "id": "g-ok", "label": "Kovy a Elektrolyt (Funguje!)" },
+      { "id": "g-no", "label": "Izolant (Nefunguje!)" }
     ],
     "tokens": [
-      { "id": "t-zinc",   "text": "Zinkový plíšek" },
-      { "id": "t-copper", "text": "Měděná mince" },
-      { "id": "t-brine",  "text": "Hadřík ve slané vodě" },
-      { "id": "t-lemon",  "text": "Plátek citronu" },
-      { "id": "t-wood",   "text": "Suchá dřevěná tříška" },
-      { "id": "t-glass",  "text": "Skleněná kulička" },
-      { "id": "t-paper",  "text": "Zmuchlaný suchý papír" },
-      { "id": "t-pizza",  "text": "Kousek pizzy" }
+      { "id": "t-glass",  "text": "Kus skla" },
+      { "id": "t-zinc",   "text": "Zinkový kotouč" },
+      { "id": "t-brine",  "text": "Papír ve slané vodě" },
+      { "id": "t-silver", "text": "Stříbrná mince" },
+      { "id": "t-drywood","text": "Suché dřevo" },
+      { "id": "t-acid",   "text": "Hadřík v kyselině" },
+      { "id": "t-drypaper","text": "Suchý papír" },
+      { "id": "t-leather","text": "Suchá kůže" }
     ],
     "solutions": {
       "t-zinc": "g-ok",
-      "t-copper": "g-ok",
+      "t-silver": "g-ok",
       "t-brine": "g-ok",
-      "t-lemon": "g-ok",
-      "t-wood": "g-no",
+      "t-acid": "g-ok",
+      "t-drywood": "g-no",
       "t-glass": "g-no",
-      "t-paper": "g-no",
-      "t-pizza": "g-no"
+      "t-drypaper": "g-no",
+      "t-leather": "g-no"
     },
-    "errorMessage": "Něco je špatně roztříděné. Zvaž, co vede proud / je elektrolyt.",
+    "errorMessage": "Něco je špatně. Hledej kovy a vlhké věci (elektrolyty). Suché věci izolují.",
     "options": {
       "aggregateOnly": false,
       "blockUntilSolved": true,
       "showErrorToast": true,
       "layout": { "mode": "auto", "direction": "vertical" }
-    },
-    "background": "assets/puzzles/volta/bg.jpg"
+    }
   },
 
   "faraday-order": {
     "id": "faraday-order",
     "kind": "order",
     "title": "Faraday — Jak na indukci",
-    "prompt": "Seřaď kroky experimentu ve správném pořadí.",
+    "prompt": "Seřaď kroky experimentu tak, aby vznikl elektrický proud.",
     "tokens": [
-      { "id": "s1", "text": "Připravím si cívku drátu a tyčový magnet." },
-      { "id": "s2", "text": "Rychle pohnu magnetem uvnitř cívky." },
-      { "id": "s3", "text": "Změna magnetického pole vyrobí proud v drátu." },
-      { "id": "s4", "text": "Žárovka/ukazatel se rozbliká / vychýlí." }
+      { "id": "s1", "text": "Připravím cívku (namotaný drát) a magnet." },
+      { "id": "s2", "text": "Připojím cívku k měřáku (galvanometru)." },
+      { "id": "s3", "text": "Rychle pohnu magnetem dovnitř cívky." },
+      { "id": "s4", "text": "Ručička měřáku se vychýlí – proud teče!" }
     ],
     "solution": ["s1","s2","s3","s4"],
-    "errorMessage": "Pořadí kroků nesedí. Zkus znovu (nejdřív příprava, pak pohyb...).",
+    "errorMessage": "Pořadí nesedí. Nejdřív zapojení, pak pohyb, nakonec výsledek.",
     "options": {
       "aggregateOnly": false,
       "blockUntilSolved": true,
       "showErrorToast": true,
       "layout": { "mode": "auto", "direction": "vertical", "dualColumn": true }
-    },
-    "background": "assets/puzzles/faraday/bg.jpg"
+    }
   },
 
   "hertz-cloze": {
     "id": "hertz-cloze",
     "kind": "cloze",
     "title": "Hertz — Deníkový zápis",
-    "prompt": "Doplň správná slova do Hertzova deníku.",
+    "prompt": "Doplň správná slova do Hertzova deníku o neviditelných vlnách.",
     "rect": { "x": 6, "y": 10, "w": 88, "h": 78 },
-    "text": "Sestrojil jsem přístroj — {gap1}. Když na něm přeskočí silný výboj, vyšle do prostoru neviditelné {gap2}. Na druhém konci stolu mám drátěnou smyčku — to je můj {gap3}. A v jeho mezeře najednou přeskočila malá {gap4}, aniž by byly přístroje spojené!",
+    "text": "Sestrojil jsem přístroj — {gap1}. Když na něm přeskočí silný výboj, vyšle do prostoru neviditelné {gap2}. Na druhém konci stolu mám drátěnou smyčku — to je můj {gap3}. A v jeho mezeře najednou přeskočila malá {gap4}, aniž by byly přístroje spojené drátem!",
     "tokens": [
       { "id": "t1", "label": "vysílač" },
       { "id": "t2", "label": "vlny" },
       { "id": "t3", "label": "přijímač" },
       { "id": "t4", "label": "jiskra" },
-      { "id": "tX", "label": "křeček" }
+      { "id": "tZ", "label": "křeček" },
+      { "id": "tX", "label": "baterie" },
+      { "id": "tY", "label": "galvanometr" }
     ],
     "solution": { "gap1": "t1", "gap2": "t2", "gap3": "t3", "gap4": "t4" },
-    "errorMessage": "Pozor na správné pojmy experimentu (vysílač, vlny, přijímač, jiskra).",
+    "errorMessage": "Zkontroluj pojmy. Co vysílá? Co přijímá? Co přeskočilo?",
     "options": {
       "aggregateOnly": false,
       "blockUntilSolved": true,
       "showErrorToast": true,
       "layout": { "mode": "auto", "direction": "vertical" }
     },
-    "background": "assets/puzzles/hertz/bg.jpg"
+    "rect": { "x": 4, "y": 5, "w": 92, "h": 89 }
   },
 
   "currents-group": {
@@ -121,57 +121,63 @@
     "title": "Válka proudů — DC vs. AC",
     "prompt": "Roztřiď prvky sítě: Edisonův DC (blízko) vs. Teslův AC (daleko).",
     "groups": [
-      { "id": "g-dc", "label": "Edison — DC (musí být blízko)" },
-      { "id": "g-ac", "label": "Tesla — AC (dosáhne daleko)" }
+      { "id": "g-dc", "label": "Edison — Stejnosměrný (DC)" },
+      { "id": "g-ac", "label": "Tesla — Střídavý (AC)" }
     ],
     "tokens": [
-      { "id": "t-cityplant", "text": "Malá elektrárna uprostřed města" },
-      { "id": "t-dam",       "text": "Obří vodní elektrárna u přehrady/Niagary" },
-      { "id": "t-thick",     "text": "Tlusté měděné kabely pro krátké vzdálenosti" },
-      { "id": "t-lines",     "text": "Vysoké stožáry dálkového vedení" },
-      { "id": "t-everyblock","text": "Elektrárna skoro na každém rohu" },
-      { "id": "t-trafo",     "text": "Transformátor (změna napětí pro přenos)" }
+      { "id": "t-local",     "text": "Lokální dynamo v ulici" },
+      { "id": "t-central",   "text": "Centrální elektrárna za městem" },
+      { "id": "t-thick",     "text": "Tlusté kabely (velké ztráty)" },
+      { "id": "t-lines",     "text": "Dálkové vedení (vysoké napětí)" },
+      { "id": "t-battery",   "text": "Baterie (fungují na DC)" },
+      { "id": "t-trafo",     "text": "Transformátor (mění napětí)" }
     ],
     "solutions": {
-      "t-cityplant": "g-dc",
+      "t-local": "g-dc",
       "t-thick": "g-dc",
-      "t-everyblock": "g-dc",
-      "t-dam": "g-ac",
+      "t-battery": "g-dc",
+      "t-central": "g-ac",
       "t-lines": "g-ac",
       "t-trafo": "g-ac"
     },
-    "errorMessage": "Ještě to nesedí. Mysli na dálkový přenos (AC) vs. lokální síť (DC).",
+    "errorMessage": "Edison to chce lokálně (tlusté dráty, baterie). Tesla to chce posílat daleko (transformátor).",
     "options": {
       "aggregateOnly": false,
       "blockUntilSolved": true,
       "showErrorToast": true,
       "layout": { "mode": "auto", "direction": "vertical" }
-    },
-    "background": "assets/puzzles/currents/bg.jpg"
+    }
   },
 
   "einstein-cloze": {
     "id": "einstein-cloze",
     "kind": "cloze",
     "title": "Einstein — Paradox dvojčat",
-    "prompt": "Doplň chybějící slova v myšlenkovém experimentu.",
+    "prompt": "Doplň chybějící slova v myšlenkovém experimentu o dilataci času.",
     "rect": { "x": 6, "y": 10, "w": 88, "h": 78 },
-    "text": "Představme si dvojčata. Bratr Petr zůstane doma na {gap1}. Bratr Pavel nastoupí do superrychlé {gap2} a poletí vesmírem skoro rychlostí {gap3}. Když se Pavel vrátí domů, bude vypadat {gap4} než jeho bratr Petr.",
+    "text": "Představme si dvojčata. Bratr Petr zůstane doma na {gap1}. Bratr Pavel nastoupí do superrychlé {gap2} a poletí vesmírem skoro rychlostí {gap3}. Když se Pavel vrátí domů, bude {gap4} než jeho bratr Petr, protože čas pro něj plynul pomaleji.",
     "tokens": [
       { "id": "e1", "label": "Zemi" },
-      { "id": "e2", "label": "raketě" },
+      { "id": "e2", "label": "rakety" },
       { "id": "e3", "label": "světla" },
+      { "id": "eZ", "label": "dinosaurus" },
       { "id": "e4", "label": "mladší" },
-      { "id": "eX", "label": "dinosaurus" }
+      { "id": "eX", "label": "těžší" },
+      { "id": "eY", "label": "starší" }
     ],
     "solution": { "gap1": "e1", "gap2": "e2", "gap3": "e3", "gap4": "e4" },
-    "errorMessage": "Zkontroluj význam slov (Zemi, raketě, světla, mladší).",
+    "errorMessage": "Zkus to znovu. Kdo letěl? Jak rychle? Kdo méně zestárnul?",
+    "rect": {
+      "x": 4,
+      "y": 2,
+      "w": 91,
+      "h": 93
+    },
     "options": {
       "aggregateOnly": false,
       "blockUntilSolved": true,
       "showErrorToast": true,
       "layout": { "mode": "auto", "direction": "vertical" }
-    },
-    "background": "assets/puzzles/einstein/bg.jpg"
+    }
   }
 }

@@ -1,37 +1,57 @@
-// engine/dialogs.js
-// Dialog UI — portraits are anchored to the dialog panel via .dlg-stage (bottom: 0)
+/**
+ * engine/dialogs.js
+ * Handles the Dialog UI, character portraits, typewriter text effects,
+ * and branching conversation flow.
+ * * Architecture Note:
+ * Portraits are anchored to the dialog panel via .dlg-stage (bottom: 0).
+ * The open() method returns a Promise that resolves only when the dialog closes,
+ * allowing the main Engine to await the conversation.
+ */
 
 export class DialogUI {
+    /**
+     * @param {import('./engine.js').Game} game
+     */
     constructor(game) {
         this.game = game;
-        this.overlay = null; // root .dlg-overlay
-        this.active = null; // { id, dlg, idx, leftChar, rightChar, leftPose, rightPose }
-        this._typewriterRunning = false; // Track if typewriter animation is running
+        this.overlay = null; // Root DOM element (.dlg-overlay)
 
-        // Typewriter configuration - can be overridden per dialog
+        /** @type {object|null} Current dialog state { id, dlg, idx, leftChar, rightChar, leftMirror, rightMirror ... } */
+        this.active = null;
+
+        this._typewriterRunning = false;
+        this._typewriterSkipped = false;
+
+        /** @type {Function|null} Resolver for the Promise returned by open() */
+        this._closeResolver = null;
+
+        /** * Input lock to prevent race conditions during async transitions.
+         * Prevents "double-click" skipping issues.
+         * @type {boolean}
+         */
+        this._busy = false;
+
         this.typewriterConfig = {
-            enabled: true,        // Enable/disable typewriter effect
-            speed: 15,            // Milliseconds per character (lower = faster)
-            skipOnClick: true     // Allow skipping animation by clicking
+            enabled: true,
+            speed: 15,        // ms per char
+            skipOnClick: true // clicking skips animation to end
         };
     }
 
-    // --- helpers ------------------------------------------------------------
-
     /**
      * Non-blocking sleep helper.
-     * @param {number} ms - Milliseconds to wait.
-     * @returns {Promise<void>}
+     * @param {number} ms
      */
     _sleep(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
 
+    // --- Visual Effects ---
+
     /**
-     * Typewriter effect - displays text character by character.
-     * @param {HTMLElement} element - The element to display text in
-     * @param {string} text - The text to display
-     * @returns {Promise<void>}
+     * Renders text character by character.
+     * @param {HTMLElement} element
+     * @param {string} text
      */
     async _typewriterText(element, text) {
         if (!element || !text || !this.typewriterConfig.enabled) {
@@ -46,11 +66,9 @@ export class DialogUI {
         const chars = text.split('');
         for (let i = 0; i < chars.length; i++) {
             if (this._typewriterSkipped) {
-                // Skip animation - show all remaining text
                 element.textContent = text;
                 break;
             }
-
             element.textContent += chars[i];
             await this._sleep(this.typewriterConfig.speed);
         }
@@ -58,9 +76,6 @@ export class DialogUI {
         this._typewriterRunning = false;
     }
 
-    /**
-     * Skip the currently running typewriter animation.
-     */
     _skipTypewriter() {
         if (this._typewriterRunning) {
             this._typewriterSkipped = true;
@@ -68,11 +83,8 @@ export class DialogUI {
     }
 
     /**
-     * Briefly highlights a chosen dialog option using the same "OK" green look.
-     * - Adds .dlg-choice--selected (CSS drives color + pulse)
-     * - Disables the button to prevent double-clicks
-     * - Keeps timing short so UX stays snappy
-     * @param {HTMLButtonElement} btn
+     * Visually highlights the selected choice button briefly before proceeding.
+     * @param {HTMLElement} btn
      */
     async _flashChoice(btn) {
         if (!btn || btn.__flashing) return;
@@ -80,30 +92,25 @@ export class DialogUI {
         btn.classList.add('dlg-choice--selected');
         btn.setAttribute('disabled', 'disabled');
         try {
-            await this._sleep(220); // long enough to see the pulse animation
+            await this._sleep(220);
         } finally {
-            // Usually the choice list re-renders on next step; keep tidy anyway.
             btn.classList.remove('dlg-choice--selected');
             btn.removeAttribute('disabled');
             btn.__flashing = false;
         }
     }
 
-    // --- debug --------------------------------------------------------------
+    // --- Debugging ---
 
     _dbgOn() {
-        try {
-            return new URLSearchParams(location.search).get('debug') === '1';
-        } catch {
-            return false;
-        }
+        try { return new URLSearchParams(location.search).get('debug') === '1'; } catch { return false; }
     }
 
     _dbg(...a) {
         if (this._dbgOn()) console.debug('[DLG]', ...a);
     }
 
-    // --- mount --------------------------------------------------------------
+    // --- DOM Mounting ---
 
     _ensureMounted() {
         if (this.overlay) return;
@@ -111,74 +118,74 @@ export class DialogUI {
         const root = document.createElement('div');
         root.className = 'dlg-overlay hidden';
         root.innerHTML = `
-      <div class="dlg-blocker"></div>
-      <div class="dlg-stage">
-        <div class="dlg-char left"><img class="dlg-char-img" alt=""></div>
-        <div class="dlg-char right"><img class="dlg-char-img" alt=""></div>
-      </div>
-      <div class="dlg-panel">
-        <div class="dlg-nameplate"></div>
-        <div class="dlg-text"></div>
-        <div class="dlg-choices"></div>
-        <div class="dlg-continue"></div>
-      </div>
-    `;
+            <div class="dlg-blocker"></div>
+            <div class="dlg-stage">
+                <div class="dlg-char left"><img class="dlg-char-img" alt=""></div>
+                <div class="dlg-char right"><img class="dlg-char-img" alt=""></div>
+            </div>
+            <div class="dlg-panel">
+                <div class="dlg-nameplate"></div>
+                <div class="dlg-text"></div>
+                <div class="dlg-choices"></div>
+                <div class="dlg-continue"></div>
+            </div>
+        `;
 
-        // i18n for "tap to continue"
+        // I18n for "tap to continue" hint
         const cont = root.querySelector('.dlg-continue');
         if (cont) cont.textContent = this.game._text('@ui.tapToNext@Klepni pro pokračování');
 
-        // Blocker layer to prevent clicks on hotspots underneath
+        // Blocker layer to capture clicks outside the panel
         const blocker = root.querySelector('.dlg-blocker');
         if (blocker) {
             Object.assign(blocker.style, {
                 position: 'absolute',
                 inset: '0',
-                zIndex: '1050', // Below dialog panel but above hotspots
-                pointerEvents: 'auto', // Capture all clicks
+                zIndex: '1050',
+                pointerEvents: 'auto',
                 background: 'transparent'
             });
 
-            // Click on blocker handles typewriter skip or advances dialog
             blocker.addEventListener('click', (e) => {
-                if (this._typewriterRunning && this.typewriterConfig.skipOnClick) {
-                    this._skipTypewriter();
-                } else {
-                    void this.next();
-                }
                 e.stopPropagation();
                 e.preventDefault();
+                this._handleInput();
             });
         }
 
-
-        // Click anywhere (except on choices) â†’ next()
+        // Global click handler for advancement
         root.addEventListener('click', (e) => {
             if (e.target?.closest('.dlg-choices')) return;
-            if (this._typewriterRunning && this.typewriterConfig.skipOnClick) {
-                this._skipTypewriter();
-            } else {
-                void this.next();
-            }
+            this._handleInput();
         });
 
-        // Mount inside scene container (absolute overlay)
-        const host =
-            this.game?.sceneImage?.closest('#sceneContainer') ||
+        // Mount into scene container or body
+        const host = this.game?.sceneImage?.closest('#sceneContainer') ||
             this.game?.sceneImage?.parentElement ||
             document.body;
         host.appendChild(root);
         this.overlay = root;
 
-        // Compact mode toggle
+        // Responsive handling
         const onResize = () => {
             const compact = window.innerHeight < 560;
             this.overlay.classList.toggle('dlg-compact', compact);
         };
         window.addEventListener('resize', onResize);
         onResize();
+    }
 
-        this._dbg('mount overlay', {zIndex: getComputedStyle(root).zIndex});
+    /**
+     * Centralized input handler. Skips typewriter or advances dialog.
+     */
+    _handleInput() {
+        if (this._busy) return;
+
+        if (this._typewriterRunning && this.typewriterConfig.skipOnClick) {
+            this._skipTypewriter();
+        } else {
+            void this.next();
+        }
     }
 
     _show() {
@@ -190,19 +197,24 @@ export class DialogUI {
         if (this.overlay) this.overlay.classList.add('hidden');
     }
 
-    // --- open / close --------------------------------------------------------
+    // --- Core Lifecycle ---
 
+    /**
+     * Opens a dialog sequence.
+     * Returns a Promise that resolves when the dialog is closed.
+     * @param {string} dialogId
+     * @returns {Promise<void>}
+     */
     async open(dialogId) {
         this._dbg('open() →', dialogId);
 
         const list = Array.isArray(this.game.dialogsData?.dialogs) ? this.game.dialogsData.dialogs : [];
 
-        // 1) exact id, 2) fallback to last segment "a.b.c" -> "c"
+        // Resolve ID (support for dotted notation fallback)
         let dlg = list.find(d => d?.id === dialogId);
         if (!dlg && typeof dialogId === 'string' && dialogId.includes('.')) {
             const tail = dialogId.split('.').pop();
             dlg = list.find(d => d?.id === tail);
-            this._dbg('open() fallback tail', tail, '→', !!dlg);
         }
         if (!dlg) {
             this._dbg('open() abort: not found', dialogId);
@@ -212,6 +224,7 @@ export class DialogUI {
         this._ensureMounted();
         this._show();
 
+        // Initialize state including default mirror settings
         this.active = {
             id: dialogId,
             dlg,
@@ -219,81 +232,78 @@ export class DialogUI {
             leftChar: dlg.left ? this._findCharacter(dlg.left.characterId) : null,
             rightChar: dlg.right ? this._findCharacter(dlg.right.characterId) : null,
             leftPose: dlg.left?.defaultPose || null,
-            rightPose: dlg.right?.defaultPose || null
+            rightPose: dlg.right?.defaultPose || null,
+            // Capture default mirror settings from config
+            leftDefaultMirror: !!dlg.left?.mirror,
+            rightDefaultMirror: !!dlg.right?.mirror
         };
 
-        // Load typewriter configuration from dialog if specified
+        // Merge local typewriter config
         if (dlg.typewriter !== undefined) {
             if (typeof dlg.typewriter === 'boolean') {
                 this.typewriterConfig.enabled = dlg.typewriter;
             } else if (typeof dlg.typewriter === 'object') {
-                this.typewriterConfig = {
-                    ...this.typewriterConfig,
-                    ...dlg.typewriter
-                };
+                this.typewriterConfig = { ...this.typewriterConfig, ...dlg.typewriter };
             }
         }
 
         this._renderStep();
+
+        // Return promise to block engine execution until closed
+        return new Promise(resolve => {
+            this._closeResolver = resolve;
+        });
     }
 
+    /**
+     * Force close the dialog (e.g. on game restart).
+     * In normal flow, _end() handles the closing logic.
+     */
     async close() {
         this.active = null;
         this._hide();
+
+        if (this._closeResolver) {
+            this._closeResolver();
+            this._closeResolver = null;
+        }
     }
 
-    /**
-     * Re-render current step (useful after game.setHero(...)).
-     */
     refresh() {
         if (!this.active) return;
-        this._dbg('refresh()');
         this._renderStep();
     }
 
-    // --- helpers -------------------------------------------------------------
+    // --- Character & Asset Resolution ---
 
-    /**
-     * Resolve character by id with special handling for the "hero" alias.
-     * - If dialogs.json defines a concrete hero profile (eva/adam) → use it.
-     * - Else clone the 'hero' template and remap {heroId}/{heroBase} tokens and '/hero/' path segment.
-     */
     _findCharacter(charId) {
         const chars = Array.isArray(this.game.dialogsData?.characters) ? this.game.dialogsData.characters : [];
 
+        // Special handling for 'hero' placeholder
         if (charId === 'hero') {
             const hero = this.game.getHero();
-
-            // concrete profile available?
             const byId = chars.find(c => c?.id === hero.id);
             if (byId) return byId;
 
-            // fallback: clone 'hero' template and remap asset paths
             const tpl = chars.find(c => c?.id === 'hero');
             if (!tpl) return null;
 
+            // Clone and replace placeholders
             const clone = JSON.parse(JSON.stringify(tpl));
             clone.name = this.game._text(hero.name) || hero.name || clone.name;
-
             const poses = clone.poses || {};
             for (const [k, v] of Object.entries(poses)) {
                 let p = String(v || '');
-
-                // token replacement
                 p = p.replaceAll('{heroId}', hero.id);
                 p = p.replaceAll('{heroBase}', hero.assetsBase || '');
-
-                // robust path segment replacement: /hero[/|$] → /<id>...
                 p = p.replace(/\/hero\//g, `/${hero.id}/`);
                 p = p.replace(/\/hero(?=\/|$)/g, `/${hero.id}`);
-
                 poses[k] = p;
             }
             clone.poses = poses;
             return clone;
         }
 
-        // non-hero: direct match
         return chars.find(c => c?.id === charId) || null;
     }
 
@@ -319,7 +329,13 @@ export class DialogUI {
         }
     }
 
-    _applyPortrait(side, poseOverride = null) {
+    /**
+     * Updates character image.
+     * @param {string} side - 'left' or 'right'
+     * @param {string|null} poseOverride - specific pose to use, or null for default
+     * @param {boolean} mirror - whether to flip the image horizontally
+     */
+    _applyPortrait(side, poseOverride = null, mirror = false) {
         const {img} = this._els(side);
         const actor = (side === 'left') ? this.active?.leftChar : this.active?.rightChar;
         const basePose = (side === 'left') ? this.active?.leftPose : this.active?.rightPose;
@@ -334,28 +350,59 @@ export class DialogUI {
         const src0 = (pose && poses[pose]) || poses.neutral || Object.values(poses)[0] || '';
         img.src = this.game._resolveAsset(src0);
         img.alt = this.game._text(actor.name) || '';
+
+        // Apply mirror class if requested (Framework level feature)
+        if (mirror) {
+            img.classList.add('is-mirrored');
+        } else {
+            img.classList.remove('is-mirrored');
+        }
     }
 
-    // --- render / flow --------------------------------------------------------
+    // --- Rendering ---
 
     _renderStep() {
         const step = this.active?.dlg?.sequence?.[this.active?.idx ?? -1];
         if (!step) {
+            // If index is out of bounds, we are done.
             void this._end();
             return;
         }
 
-        // default pose updates on step
+        // Update poses
         if (step.leftPose) this.active.leftPose = step.leftPose;
         if (step.rightPose) this.active.rightPose = step.rightPose;
 
-        // speaker + possible pose override
+        // Determine mirroring based on Defaults + Step Override
+        // 1. Start with defaults defined in dialog config
+        let mirrorLeft = this.active.leftDefaultMirror;
+        let mirrorRight = this.active.rightDefaultMirror;
+
+        // 2. If step specifies mirror, apply it ONLY to the active speaker
+        // (This allows transient flipping or overriding defaults)
+        if (typeof step.mirror === 'boolean') {
+            if (step.speaker === 'left') mirrorLeft = step.mirror;
+            if (step.speaker === 'right') mirrorRight = step.mirror;
+        }
+
+        // Visuals
         const sp = step.speaker === 'left' ? 'left' : (step.speaker === 'right' ? 'right' : null);
         this._setSpeaking(sp);
-        this._applyPortrait('left', (step.pose && step.speaker === 'left') ? step.pose : null);
-        this._applyPortrait('right', (step.pose && step.speaker === 'right') ? step.pose : null);
 
-        // panel content
+        // Apply portraits with resolved mirror settings
+        this._applyPortrait(
+            'left',
+            (step.pose && step.speaker === 'left') ? step.pose : null,
+            mirrorLeft
+        );
+
+        this._applyPortrait(
+            'right',
+            (step.pose && step.speaker === 'right') ? step.pose : null,
+            mirrorRight
+        );
+
+        // UI Elements
         const nameEl = this.overlay?.querySelector('.dlg-nameplate');
         const textEl = this.overlay?.querySelector('.dlg-text');
         const choicesEl = this.overlay?.querySelector('.dlg-choices');
@@ -368,23 +415,20 @@ export class DialogUI {
         }
         if (textEl) {
             const text = this.game._text(step.text || '');
-            // Use typewriter effect for text display
             void this._typewriterText(textEl, text);
         }
 
+        // Choices
         if (choicesEl) {
             choicesEl.innerHTML = '';
             if (Array.isArray(step.choices) && step.choices.length) {
                 step.choices.forEach(ch => {
-                    /** @type {HTMLButtonElement} */
                     const b = document.createElement('button');
                     b.type = 'button';
-                    // Base dialog choice using puzzle-like button look (CSS supplies the theme).
                     b.className = 'dlg-choice';
                     b.textContent = this.game._text(ch?.label || '');
                     b.addEventListener('click', async (e) => {
                         e.stopPropagation();
-                        // Visual confirmation before advancing.
                         await this._flashChoice(b);
                         await this._applyChoice(step, ch || {});
                     }, {passive: false});
@@ -394,28 +438,48 @@ export class DialogUI {
         }
     }
 
-    async _applyChoice(step, ch) {
-        const act = ch?.onChoose || {};
-        if (act.setFlags) await this._applyFlags(act.setFlags);
+    // --- Logic & Flow ---
 
-        if (act.jump) {
-            const to = (this.active?.dlg?.sequence || []).findIndex(n => n?.id === act.jump);
-            if (to >= 0) {
-                this.active.idx = to;
-                this._renderStep();
+    async _applyChoice(step, ch) {
+        if (this._busy) return;
+        this._busy = true;
+
+        try {
+            const act = ch?.onChoose || {};
+            if (act.setFlags) await this._applyFlags(act.setFlags);
+
+            if (act.jump) {
+                const to = (this.active?.dlg?.sequence || []).findIndex(n => n?.id === act.jump);
+                if (to >= 0) {
+                    this.active.idx = to;
+                    this._renderStep();
+                    return;
+                }
+            }
+            if (act.end) {
+                await this._end(act.onEnd || null);
                 return;
             }
+            await this._nextInternal();
+        } finally {
+            this._busy = false;
         }
-        if (act.end) {
-            await this._end(act.onEnd || null);
-            return;
-        }
-
-        await this.next();
     }
 
+    /**
+     * Advances to the next step in the sequence.
+     */
     async next() {
-        if (!this.active) return;
+        if (!this.active || this._busy) return;
+        this._busy = true;
+        try {
+            await this._nextInternal();
+        } finally {
+            this._busy = false;
+        }
+    }
+
+    async _nextInternal() {
         const step = this.active?.dlg?.sequence?.[this.active?.idx ?? -1];
         if (!step) {
             await this._end();
@@ -453,16 +517,42 @@ export class DialogUI {
                 }
             }
         }
-        if (changed) g._saveState();
+
+        if (changed) {
+            await g._stateChanged();
+        }
     }
 
+    /**
+     * Ends the dialog sequence correctly.
+     * * CRITICAL ORDER:
+     * 1. Hide UI (Visual close)
+     * 2. Apply Logic/Flags (Triggers Engine Events)
+     * 3. Resolve Promise (Unblock Engine)
+     */
     async _end(onEnd = null) {
         const g = this.game;
+
+        // 1. Visual close
+        // We hide the overlay but do NOT resolve the promise yet.
+        this._hide();
+        this.active = null;
+
+        // 2. Apply logic
         if (onEnd) {
             if (onEnd.message) g._msg(g._text(onEnd.message));
+
+            // Triggers engine events. Since UI is hidden, highlights will be visible.
             if (onEnd.setFlags) await this._applyFlags(onEnd.setFlags);
+
             if (onEnd.goTo) await g.goto(onEnd.goTo);
         }
-        await this.close();
+
+        // 3. Unblock Engine
+        // Now we tell the engine "dialog is fully done".
+        if (this._closeResolver) {
+            this._closeResolver();
+            this._closeResolver = null;
+        }
     }
 }

@@ -248,7 +248,7 @@ export class Game {
         document.body.classList.add('use-on');
         this._renderInventory();
         const name = this._itemLabel(itemId);
-        this.toast(this._t('engine.use.selected', 'Vybráno k použití: {name}. Klepni na cíl.', {name}), 4000);
+        this.toast(this._t('engine.use.selected', 'Vybráno k použití: {name}. Klepni na cíl.', {name}), 800);
     }
 
     exitUseMode() {
@@ -256,7 +256,6 @@ export class Game {
         this.state.useItemId = null;
         document.body.classList.remove('use-on');
         this._renderInventory();
-        this.toast(this._t('engine.use.cleared', 'Režim použití vypnut.'), 1800);
     }
 
     _removeItemFromInventory(id) {
@@ -295,28 +294,85 @@ export class Game {
 
     _renderHotspots() {
         this.hotspotLayer.innerHTML = '';
-        (this.currentScene.hotspots || []).forEach((h, idx) => {
+        const hotspots = this.currentScene.hotspots || [];
+
+        hotspots.forEach((h, idx) => {
             const el = document.createElement('button');
             el.className = 'hotspot';
-            el.setAttribute('data-index', String(idx));
-            el.style.left = h.rect.x + '%';
-            el.style.top = h.rect.y + '%';
-            el.style.width = h.rect.w + '%';
-            el.style.height = h.rect.h + '%';
 
-            const reqItemsFail = h.requireItems && !this._hasAll(h.requireItems);
-            const reqFlagsFail = h.requireFlags && !this._hasAllFlags(h.requireFlags);
-            if (reqItemsFail || reqFlagsFail) el.classList.add('require');
+            // Default render rectangle (can be overridden by state)
+            let visualRect = h.rect;
 
-            el.addEventListener('click', (e) => {
-                if (document.body.classList.contains('editor-on')) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    return;
+            // STATE LOGIC: Find the first matching state (Priority List)
+            // The engine checks states from top to bottom. The first one with satisfied requireFlags wins.
+            let activeState = null;
+            if (h.states && Array.isArray(h.states)) {
+                activeState = h.states.find(s => {
+                    // If no flags required, it's a default/fallback state
+                    if (!s.requireFlags) return true;
+                    // Otherwise check if all flags are present
+                    return this._hasAllFlags(s.requireFlags);
+                });
+            }
+
+            // APPLY ACTIVE STATE
+            if (activeState) {
+                // 1. CSS Class (e.g., "state-success", "state-locked")
+                if (activeState.cssClass) {
+                    el.classList.add(activeState.cssClass);
                 }
-                e.preventDefault();
-                this._activateHotspot(h).catch(err => this._msg(String(err)));
-            });
+
+                // 2. Content (text label, icon, symbol)
+                if (activeState.content) {
+                    const span = document.createElement('span');
+                    span.className = 'hs-content';
+                    span.textContent = this._text(activeState.content);
+                    el.appendChild(span);
+                }
+
+                // 3. Image Overlay (e.g., specific item graphic)
+                if (activeState.image) {
+                    const img = document.createElement('img');
+                    img.src = this._resolveAsset(activeState.image);
+                    img.className = 'hs-image';
+                    el.appendChild(img);
+                }
+
+                // 4. Rect Override (if the visual state has different dimensions than the hit area)
+                if (activeState.rect) {
+                    visualRect = activeState.rect;
+                }
+
+                // 5. Interactivity (disable clicking if the state is final/passive)
+                if (activeState.clickable === false) {
+                    el.style.pointerEvents = 'none';
+                    el.tabIndex = -1;
+                }
+            }
+
+            // Apply calculated geometry
+            el.style.left = visualRect.x + '%';
+            el.style.top = visualRect.y + '%';
+            el.style.width = visualRect.w + '%';
+            el.style.height = visualRect.h + '%';
+
+            // Bind interactions (only if not disabled by state)
+            if (!activeState || activeState.clickable !== false) {
+                el.setAttribute('data-index', String(idx));
+
+                // Tooltip: prefer state label, fallback to hotspot label
+                const label = (activeState && activeState.label) || h.label;
+                if (label) el.title = this._text(label);
+
+                el.addEventListener('click', (e) => {
+                    // Editor guard
+                    if (document.body.classList.contains('editor-on')) {
+                        e.preventDefault(); e.stopPropagation(); return;
+                    }
+                    e.preventDefault();
+                    this._activateHotspot(h).catch(err => this._msg(String(err)));
+                });
+            }
 
             this.hotspotLayer.appendChild(el);
         });
@@ -538,10 +594,39 @@ export class Game {
 
     // --- apply action bundles (success/fail/shared) -----------------------------
 
+    /**
+     * Executes a bundle of actions (used by Hotspots, Puzzles onSuccess/onFail, Video onEnd).
+     * Supports: toast, message, openDialog, highlightHotspot, giveItem, setFlags, clearFlags, goTo.
+     */
     async _applyActions(actions) {
         if (!actions) return;
-        if (actions.message) this._msg(this._text(actions.message));
 
+        // 1. Visual Feedback (Toast / Message)
+        if (actions.toast?.text) {
+            this.toast(this._text(actions.toast.text), actions.toast.ms ?? 5000);
+        }
+        if (actions.message) {
+            this._msg(this._text(actions.message));
+        }
+
+        // 2. Dialogs (Blocking)
+        if (actions.openDialog) {
+            await this.openDialog(actions.openDialog);
+        }
+
+        // 3. Highlight Hotspot
+        if (actions.highlightHotspot?.rect) {
+            const h = actions.highlightHotspot;
+            // Note: We use current scene ID as default if not specified
+            this._enqueueOrShowHighlight({
+                sceneId: h.sceneId || this.currentScene?.id,
+                rect: h.rect,
+                ms: h.ms ?? 3500,
+                outline: !!h.outline
+            });
+        }
+
+        // 4. Logic (Items / Flags)
         let changed = false;
 
         if (actions.giveItem) {
@@ -584,13 +669,19 @@ export class Game {
             }
         }
 
+        // 5. State & Navigation
         if (changed) {
             this._renderHotspots();
             await this._stateChanged();
-            this._drainHighlightsForScene(this.currentScene.id);
+            // Re-check highlights for current scene in case flags changed logic
+            if (this.currentScene) {
+                this._drainHighlightsForScene(this.currentScene.id);
+            }
         }
 
-        if (actions.goTo) await this.goto(actions.goTo);
+        if (actions.goTo) {
+            await this.goto(actions.goTo);
+        }
     }
 
     // backward compatibility
@@ -881,29 +972,63 @@ export class Game {
 
     // --- events -----------------------------------------------------------------
 
+    /**
+     * Process game events based on a trigger.
+     * @param {{on: string, scene?: string}} trigger - The event trigger context.
+     */
     async _processEvents(trigger) {
         const events = this.data.events || [];
         for (const ev of events) {
             if (!ev || !ev.id) continue;
+
+            // 1. Check if already fired (for one-time events)
             if (ev.once && this.state.eventsFired?.[ev.id]) continue;
 
             const w = ev.when || {};
+
+            // 2. Check Conditions
+            // a) Trigger type match
             if (w.on && w.on !== trigger.on) continue;
+
+            // b) Scene match (current scene or specified scene)
             if (w.scene && w.scene !== (trigger.scene || this.state.scene)) continue;
+
+            // c) Inventory requirements
             if (w.requireItems && !this._hasAll(w.requireItems)) continue;
+
+            // d) Flag requirements
             if (w.requireFlags && !this._hasAllFlags(w.requireFlags)) continue;
+
+            // e) Missing items check
             if (w.missingItems && (w.missingItems.some(x => this.state.inventory.includes(x)))) continue;
+
+            // --- MATCH FOUND ---
+
+            // Mark event as fired IMMEDIATELY before executing actions.
+            // This prevents recursion loops if an action (like a dialog) triggers
+            // a state change that would otherwise re-evaluate and re-trigger this
+            // same event while it is still pending/awaiting.
+            if (ev.once) {
+                this.state.eventsFired = this.state.eventsFired || {};
+                this.state.eventsFired[ev.id] = true;
+                this._saveState();
+            }
 
             const act = ev.then || {};
 
-            // toast
-            if (act.toast?.text) this.toast(this._text(act.toast.text), act.toast.ms ?? 5000);
+            // 3. Execute Actions
 
-            // scene image swap
+            // Show Toast
+            if (act.toast?.text) {
+                this.toast(this._text(act.toast.text), act.toast.ms ?? 5000);
+            }
+
+            // Change Scene Image
             if (act.setSceneImage?.sceneId && act.setSceneImage?.image) {
                 const sc = this.data.scenes.find(s => s.id === act.setSceneImage.sceneId);
                 if (sc) {
                     sc.image = this._resolveAsset(act.setSceneImage.image);
+                    // If we are currently in this scene, update the DOM immediately
                     if (this.currentScene?.id === sc.id) {
                         this.sceneImage.src = sc.image;
                         await new Promise(res => {
@@ -914,7 +1039,14 @@ export class Game {
                 }
             }
 
-            // glow hint
+            // Open Dialog (Blocking)
+            // The engine waits here until the dialog is fully closed by the user.
+            if (act.openDialog) {
+                await this.openDialog(act.openDialog);
+            }
+
+            // Highlight Hotspot
+            // Executed after the dialog closes (if any).
             if (act.highlightHotspot?.rect) {
                 const h = act.highlightHotspot;
                 this._enqueueOrShowHighlight({
@@ -925,16 +1057,18 @@ export class Game {
                 });
             }
 
-            // dialogs
-            if (act.openDialog) {
-                this._dbg('events.then.openDialog →', act.openDialog, 'trigger=', trigger, 'scene=', this.state.scene);
-                await this.openDialog(act.openDialog);
+            // Play Video (Blocking)
+            // Engine waits until the video ends or is skipped
+            if (act.playVideo?.src) {
+                await this._playVideo(act.playVideo);
+                if (act.playVideo.onEnd) {
+                    await this._applyActions(act.playVideo.onEnd);
+                }
             }
 
-            // puzzles (Puzzles 2.0)
+            // Open Puzzle
             if (act.openPuzzle) {
                 const ap = act.openPuzzle;
-                this._dbg('open puzzle via action', {ref: ap.ref, rect: ap.rect || {x: 0, y: 0, w: 100, h: 100}});
                 const res = await this._openPuzzleByRef({
                     ref: ap.ref,
                     rect: ap.rect || {x: 0, y: 0, w: 100, h: 100},
@@ -953,7 +1087,7 @@ export class Game {
                 }
             }
 
-            // puzzle sequence (list)
+            // Open Puzzle List
             if (act.openPuzzleList) {
                 const apl = act.openPuzzleList;
                 const ok = await openListModal(this, {
@@ -971,7 +1105,7 @@ export class Game {
                 }
             }
 
-            // flags
+            // Set Flags
             if (act.setFlags) {
                 let changed = false;
                 if (Array.isArray(act.setFlags)) {
@@ -991,14 +1125,103 @@ export class Game {
                 }
                 if (changed) this._saveState();
             }
-
-            // mark once
-            if (ev.once) {
-                this.state.eventsFired = this.state.eventsFired || {};
-                this.state.eventsFired[ev.id] = true;
-                this._saveState();
-            }
         }
+    }
+
+    // --- video ---------------------------------------------------------------
+
+    /**
+     * Plays a video overlay or embedded video.
+     * Returns a Promise that resolves when the video ends or is skipped.
+     * @param {object} cfg - { src, mode, rect, delay, allowSkip, onEnd }
+     */
+    async _playVideo(cfg) {
+        const src = this._resolveAsset(cfg.src);
+
+        // 1. Delay logic (optional wait before showing video)
+        if (cfg.delay && cfg.delay > 0) {
+            await new Promise(resolve => setTimeout(resolve, cfg.delay));
+        }
+
+        return new Promise((resolve) => {
+            // Container setup
+            const wrapper = document.createElement('div');
+            wrapper.className = 'video-overlay';
+
+            // Mode handling (fullscreen vs rect)
+            if (cfg.mode === 'rect' && cfg.rect) {
+                wrapper.classList.add('mode-rect');
+                Object.assign(wrapper.style, {
+                    left: cfg.rect.x + '%',
+                    top: cfg.rect.y + '%',
+                    width: cfg.rect.w + '%',
+                    height: cfg.rect.h + '%'
+                });
+            } else {
+                wrapper.classList.add('mode-fullscreen');
+            }
+
+            // Video element
+            const video = document.createElement('video');
+            video.src = src;
+            video.autoplay = true;
+            video.playsInline = true; // Critical for iOS/Tablets to prevent native fullscreen force
+            video.controls = false;   // We handle interaction manually
+
+            wrapper.appendChild(video);
+
+            // Skip button (optional)
+            if (cfg.allowSkip !== false) {
+                const skipBtn = document.createElement('button');
+                skipBtn.className = 'video-skip';
+                skipBtn.innerHTML = '&times;'; // Close icon
+                skipBtn.title = 'Skip Video';
+
+                // Skip handler
+                skipBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    finish();
+                });
+                wrapper.appendChild(skipBtn);
+
+                // Allow clicking outside/on wrapper to skip (only in fullscreen mode)
+                if (cfg.mode !== 'rect') {
+                    wrapper.addEventListener('click', finish);
+                }
+            }
+
+            // Mount to DOM (highest layer)
+            document.body.appendChild(wrapper);
+
+            // Lifecycle end handler
+            let finished = false;
+            function finish() {
+                if (finished) return;
+                finished = true;
+
+                video.pause();
+                if (wrapper.parentNode) wrapper.parentNode.removeChild(wrapper);
+
+                // Execute follow-up actions (onEnd) if defined
+                // Note: We resolve first to unblock the engine, logic happens outside
+                resolve();
+            }
+
+            // Event listeners
+            video.addEventListener('ended', finish);
+
+            video.addEventListener('error', (e) => {
+                console.error('[VIDEO] Error playing:', src, e);
+                finish(); // Don't block the game on error
+            });
+
+            // Start playback with error handling (autoplay policy)
+            video.play().catch(err => {
+                console.warn('[VIDEO] Autoplay blocked or failed:', err);
+                // If autoplay is blocked, we might need a "Click to Play" UI here.
+                // For now, we assume user interaction has already happened (dialog click).
+            });
+        });
     }
 
     // --- dialogs ---------------------------------------------------------------
@@ -1029,7 +1252,7 @@ export class Game {
             this._msg('Dialogy nejsou k dispozici.');
             return;
         }
-        await this.dialogUI.open(id);
+        return await this.dialogUI.open(id);
     }
 
     // --- persistence ------------------------------------------------------------

@@ -13,7 +13,6 @@ export const ENGINE_I18N = {
         'engine.modal.ok': 'OK',
         'engine.modal.cancel': 'Zavřít',
         'engine.use.selected': 'Vybráno k použití: {name}. Klepni na cíl.',
-        'engine.use.cleared': 'Režim použití vypnut.',
         'engine.use.needItem': 'Potřebuješ použít: {need}.',
         'engine.use.applied': 'Předmět byl použit.',
         'engine.use.button': 'Použít',
