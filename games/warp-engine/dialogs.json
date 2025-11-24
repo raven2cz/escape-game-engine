@@ -261,7 +261,7 @@
       "ui": { "tapToNext": true, "allowSkip": false },
       "sequence": [
         { "id": "w1", "speaker": "left", "pose": "happy", "text": "Máme hotovo. Díky tobě jsme poskládali příběh vědy od Newtonova jablka až po Einsteinovu dilataci času. Warpový pohon se spouští." },
-        { "id": "w2", "speaker": "left", "pose": "happy", "text": "Konzole svítí zeleně. Dějiny jsou opraveny a lidstvo může vyrazit k jiným světům. Jsi hrdina, zachránil jsi vědu i naši budoucnost. Připrav se na hyperprostorový skok!" }
+        { "id": "w2", "speaker": "left", "pose": "happy", "text": "Konzole svítí zeleně. Dějiny jsou opraveny a lidstvo může vyrazit k jiným světům. Jsi hrdina, zachránil jsi vědu i naši budoucnost. Připrav se na hyperprostorový skok! Stiskni hlavní pult pro start!" }
       ],
       "onEnd": { "setFlags": ["warp_ready_dialog_done"] }
     },
