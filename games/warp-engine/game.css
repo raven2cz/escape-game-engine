@@ -47,11 +47,31 @@
   --pz-wrong-border:  rgba(220, 40, 40, 0.8);
 }
 
-html, body {
+/* GLOBAL LAYOUT & VIEWPORT FIXES */
+html {
+  overflow-y: auto; /* Povolit scroll pro odstrčení lišt na tabletu */
+  height: 100%;
+  overscroll-behavior-y: none;
+}
+
+body {
   font-family: 'Inconsolata', monospace, system-ui;
   background-color: var(--we-bg);
   color: var(--we-text);
-  overflow: hidden; /* Prevent scroll bounce */
+
+  margin: 0;
+  min-height: 100%; /* Umožní obsahu roztáhnout se */
+  overflow-y: auto; /* CRITICAL pro tablety */
+  -webkit-tap-highlight-color: transparent;
+}
+
+#gameRoot {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Headers */
@@ -127,9 +147,37 @@ html, body {
   text-transform: uppercase;
 }
 
+/* DIALOG CHARACTER VISUALS */
+.dlg-char {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  height: 100%;
+  bottom: 0;
+
+  /* Původní logika šířky - klíčové pro správné zobrazení */
+  width: min(42vw, 380px);
+
+  transition: transform 0.3s ease, filter 0.3s ease;
+  z-index: 1;
+}
+
+.dlg-compact .dlg-char {
+  width: min(36vw, 300px);
+}
+
+@media (max-width: 720px) {
+  .dlg-char {
+    width: min(46vw, 300px);
+  }
+}
+
 .dlg-char-img {
-  width: 100%;      /* Vyplň šířku kontejneru */
-  height: auto;     /* Výška se dopočítá */
+  /* NÁVRAT K ORIGINÁLU: Šířka musí poslouchat rodiče */
+  width: 100%;
+  height: auto;
+
+  /* FIX HLAVA: Zarážka pro výšku */
   max-height: calc(100% - 20px);
 
   object-fit: contain;
@@ -139,6 +187,7 @@ html, body {
   color: transparent;
   text-indent: -10000px;
 }
+
 .dlg-choice {
   border-radius: 20px;
   background: rgba(255,255,255,0.05);
@@ -156,29 +205,6 @@ html, body {
 }
 
 /* --- SPEAKER HIGHLIGHT (Pulsing Glow) --- */
-
-/* 1. Kontejner postavy (vráceno k původní logice) */
-.dlg-char {
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  height: 100%;
-  bottom: 0;
-  width: min(42vw, 380px);
-
-  transition: transform 0.3s ease, filter 0.3s ease;
-  z-index: 1;
-}
-
-.dlg-compact .dlg-char {
-  width: min(36vw, 300px);
-}
-
-@media (max-width: 720px) {
-  .dlg-char {
-    width: min(46vw, 300px);
-  }
-}
 
 /* Aktivní mluvčí - Zvýraznění */
 .dlg-char.speaking {
@@ -317,10 +343,13 @@ html, body {
   border-color: var(--we-accent);
 }
 
-/* Drop Zones */
+/* Drop Zones (Gaps) */
 .pz-cloze-gap {
   background: rgba(0,0,0,0.3);
+
+  /* FIX: Sjednocení rámečku - 1px dashed po celém obvodu v barvě tématu */
   border: 1px dashed rgba(184, 149, 106, 0.5);
+
   border-radius: 4px;
   min-width: 80px;
   display: inline-block;
@@ -354,49 +383,6 @@ html, body {
   color: var(--we-accent);
   font-family: 'Handelsonsix', sans-serif;
   letter-spacing: 1px;
-}
-
-/* FIX: Vynucení barvy tokenů pro Group a Order puzzle */
-.pz-kind-group .pz-token,
-.pz-kind-order .pz-token {
-  background: var(--pz-token-bg) !important; /* Tady to vynutíme */
-  border: 1px solid var(--pz-token-border) !important;
-  color: var(--we-text) !important;
-  backdrop-filter: blur(4px);
-}
-
-/* Hover efekt pro tyto tokeny */
-.pz-kind-group .pz-token:hover,
-.pz-kind-order .pz-token:hover {
-  border-color: var(--we-focus) !important;
-  box-shadow: 0 0 8px rgba(141, 200, 255, 0.3) !important;
-}
-
-/* --- 7. SCENE SPECIFIC: WARP CORE --- */
-
-/* Overrides handled in style.css via states */
-
-/* --- 8. ANIMATIONS & FX --- */
-
-@keyframes titleScan {
-  0%   { transform: translateX(-120%); }
-  100% { transform: translateX(120%); }
-}
-
-.title-scan::after {
-  content: "";
-  position: absolute; inset: 0;
-  background: linear-gradient(120deg, transparent 0%, rgba(184, 149, 106, 0.1) 50%, transparent 100%);
-  animation: titleScan 3s ease-in-out infinite;
-  pointer-events: none;
-}
-
-.toast {
-  background: var(--we-panel);
-  border: 1px solid var(--we-accent);
-  color: var(--we-text);
-  box-shadow: 0 10px 30px rgba(0,0,0,0.8);
-  font-family: 'Inconsolata', monospace;
 }
 
 /* --- FIX: Vynucení barvy tokenů pro Group a Order puzzle --- */
@@ -437,6 +423,33 @@ html, body {
   0%, 100% { transform: translateX(0); }
   25% { transform: translateX(-5px); }
   75% { transform: translateX(5px); }
+}
+
+/* --- 7. SCENE SPECIFIC: WARP CORE --- */
+
+/* Overrides handled in style.css via states */
+
+/* --- 8. ANIMATIONS & FX --- */
+
+@keyframes titleScan {
+  0%   { transform: translateX(-120%); }
+  100% { transform: translateX(120%); }
+}
+
+.title-scan::after {
+  content: "";
+  position: absolute; inset: 0;
+  background: linear-gradient(120deg, transparent 0%, rgba(184, 149, 106, 0.1) 50%, transparent 100%);
+  animation: titleScan 3s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.toast {
+  background: var(--we-panel);
+  border: 1px solid var(--we-accent);
+  color: var(--we-text);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+  font-family: 'Inconsolata', monospace;
 }
 
 /* --- EPIC HIGHLIGHT GLOW (Pro hotspoty) --- */
