@@ -38,12 +38,42 @@
       "title": "Řeka času",
       "image": "assets/scenes/time-river.jpg",
       "hotspots": [
-        { "type": "goTo", "target": "scn-newton",   "rect": {"x":82.55,"y":49.49,"w":17.45,"h":46} },
-        { "type": "goTo", "target": "scn-volta",    "rect": {"x":71.34,"y":53,"w":10.73,"h":20.53} },
-        { "type": "goTo", "target": "scn-faraday",  "rect": {"x":56.67,"y":59.86,"w":11.13,"h":23.18} },
-        { "type": "goTo", "target": "scn-hertz",    "rect": {"x":64.39,"y":34.18,"w":8.52,"h":19.96} },
-        { "type": "goTo", "target": "scn-currents", "rect": {"x":44.78,"y":33.61,"w":14.99,"h":24.11} },
-        { "type": "goTo", "target": "scn-einstein", "rect": {"x":77.53,"y":18.09,"w":11.13,"h":21.46} },
+        {
+          "type": "goTo", "target": "scn-newton", "rect": {"x":82.55,"y":49.49,"w":17.45,"h":46},
+          "states": [
+            { "requireFlags": ["solved_newton"], "cssClass": "state-success", "content": "✓" }
+          ]
+        },
+        {
+          "type": "goTo", "target": "scn-volta", "rect": {"x":71.34,"y":53,"w":10.73,"h":20.53},
+          "states": [
+            { "requireFlags": ["solved_volta"], "cssClass": "state-success", "content": "✓" }
+          ]
+        },
+        {
+          "type": "goTo", "target": "scn-faraday", "rect": {"x":56.67,"y":59.86,"w":11.13,"h":23.18},
+          "states": [
+            { "requireFlags": ["solved_faraday"], "cssClass": "state-success", "content": "✓" }
+          ]
+        },
+        {
+          "type": "goTo", "target": "scn-hertz", "rect": {"x":64.39,"y":34.18,"w":8.52,"h":19.96},
+          "states": [
+            { "requireFlags": ["solved_hertz"], "cssClass": "state-success", "content": "✓" }
+          ]
+        },
+        {
+          "type": "goTo", "target": "scn-currents", "rect": {"x":44.78,"y":33.61,"w":14.99,"h":24.11},
+          "states": [
+            { "requireFlags": ["solved_currents"], "cssClass": "state-success", "content": "✓" }
+          ]
+        },
+        {
+          "type": "goTo", "target": "scn-einstein", "rect": {"x":77.53,"y":18.09,"w":11.13,"h":21.46},
+          "states": [
+            { "requireFlags": ["solved_einstein"], "cssClass": "state-success", "content": "✓" }
+          ]
+        },
         {
           "type": "goTo",
           "target": "warp-core",
