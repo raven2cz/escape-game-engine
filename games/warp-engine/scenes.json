@@ -29,10 +29,23 @@
       "title": "Trhlina v realitě",
       "image": "assets/scenes/intro-glitch.jpg",
       "hotspots": [
-        { "type": "goTo", "target": "main-room", "rect": {"x":74.64,"y":81.82,"w":19.33,"h":16.74} }
+        {
+          "type": "apply",
+          "rect": {"x":74.64,"y":81.82,"w":19.33,"h":16.74},
+          "onApply": {
+            "playVideo": {
+              "src": "assets/video/intro.mp4",
+              "mode": "fullscreen",
+              "delay": 0,
+              "allowSkip": false,
+              "onEnd": {
+                "goTo": "main-room"
+              }
+            }
+          }
+        }
       ]
     },
-
     {
       "id": "main-room",
       "title": "Řeka času",

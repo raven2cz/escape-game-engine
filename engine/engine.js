@@ -379,33 +379,45 @@ export class Game {
     }
 
     async _activateHotspot(h) {
-        // use-mode guard
+        console.log('[HOTSPOT] Activation triggered:', h.type, h);
+
+        // 1. Use-mode guard (pokud držíme předmět a hotspot ho neumí přijmout)
+        // Pokud hráč drží předmět, ale klikne na něco, co předměty nebere -> chyba.
         if (this.state.useItemId && !h.acceptItems) {
             this.toast(this._t('engine.use.notApplicable', 'Tento předmět tady nelze použít.'), 2500);
             this.exitUseMode();
             return;
         }
+
+        // 2. Requirements check (Prerekvizity)
+        // Kontrola, zda má hráč potřebné předměty v inventáři (pokud jsou vyžadovány)
         if (h.requireItems && !this._hasAll(h.requireItems)) {
             this._msg(this._t('engine.missingItems', 'Něco ti chybí…'));
             return;
         }
+        // Kontrola, zda jsou splněny herní flagy (např. odemčeno)
         if (h.requireFlags && !this._hasAllFlags(h.requireFlags)) {
             this._msg(this._t('engine.needUnlock', 'Nejprve musíš něco odemknout…'));
             return;
         }
 
-        // explicit item usage
+        // 3. Item Usage (Accept items) - Pokud hotspot přijímá předměty
         if (h.acceptItems && Array.isArray(h.acceptItems)) {
             const selected = this.state.useItemId;
+            // Normalizace acceptItems (může to být string nebo objekt)
             const accepts = h.acceptItems.map(x => (typeof x === 'string' ? {id: x, consume: false} : x));
+
+            // Zkusíme najít, zda vybraný předmět je v seznamu povolených
             const match = selected ? accepts.find(a => a.id === selected) : null;
 
             if (!match) {
+                // Hráč drží předmět, ale ten sem nepatří
                 if (selected) {
                     this.toast(this._t('engine.use.notApplicable', 'Tento předmět tady nelze použít.'), 2500);
                     this.exitUseMode();
                     return;
                 }
+                // Hráč nic nedrží, ale hotspot vyžaduje předmět -> zobrazíme hint?
                 const allowHint = (h.showNeedHint !== false) && (this.data?.settings?.hints?.acceptNeed !== false);
                 if (allowHint) {
                     const need = accepts.map(a => this._itemLabel(a.id)).filter(Boolean).join(', ');
@@ -414,6 +426,7 @@ export class Game {
                 return;
             }
 
+            // SHODA: Hráč použil správný předmět
             if (match.consume) this._removeItemFromInventory(match.id);
             this.exitUseMode();
 
@@ -422,11 +435,24 @@ export class Game {
             return;
         }
 
-        // actions
+        // 4. Specific Actions (Rozcestník typů hotspotů)
+
+        // --- NOVÁ ČÁST: Obecná akce Apply (bez předmětu) ---
+        // Toto je to, co potřebujeme pro spuštění videa kliknutím na šipku
+        if (h.type === 'apply') {
+            console.log('[HOTSPOT] Executing Apply actions:', h.onApply);
+            if (h.onApply) {
+                await this._applyActions(h.onApply);
+            }
+            return;
+        }
+        // ---------------------------------------------------
+
         if (h.type === 'goTo') {
             await this.goto(h.target);
             return;
         }
+
         if (h.type === 'pickup') {
             if (!this.state.inventory.includes(h.itemId)) {
                 this.state.inventory.push(h.itemId);
@@ -438,17 +464,16 @@ export class Game {
             }
             return;
         }
+
         if (h.type === 'puzzle') {
-            // Puzzles 2.0 integration
             const ref = h.puzzleRef || h.puzzle?.ref;
             if (!ref) {
-                throw new Error('Puzzle hotspot missing puzzleRef');
+                console.error('Puzzle hotspot missing puzzleRef');
+                return;
             }
 
             const options = h.options || h.puzzle?.options || {};
             const background = h.puzzleBackground || h.puzzle?.background || null;
-
-            // solved-key na based ref
             const solvedKey = 'solved:pz:' + ref;
 
             if (this.state.solved[solvedKey]) {
@@ -456,12 +481,6 @@ export class Game {
                 return;
             }
 
-            this._dbg('open puzzle via hotspot', {
-                ref,
-                rect: h.rect || {x: 0, y: 0, w: 100, h: 100},
-                options,
-                background
-            });
             const res = await this._openPuzzleByRef({
                 ref,
                 rect: h.rect || {x: 0, y: 0, w: 100, h: 100},
@@ -482,12 +501,12 @@ export class Game {
                 this._saveState();
                 await this._applyActions(h.onSuccess);
             } else {
-                // Cancel/no → onFail pokud je definován, jinak jen hláška
                 if (h.onFail) await this._applyActions(h.onFail);
                 else this._msg(this._t('engine.puzzleFailed', 'Puzzle nevyřešeno.'));
             }
             return;
         }
+
         if (h.type === 'puzzleList') {
             const ok = await openListModal(this, {
                 items: h.items || h.puzzleList?.items || [],
@@ -497,21 +516,22 @@ export class Game {
                 blockUntilSolved: !!(h.options?.blockUntilSolved),
                 puzzlesById: this.data.puzzles
             });
-            if (ok) await this._applyActions(h.onSuccess);
-            else if (h.onFail) await this._applyActions(h.onFail);
+            if (ok) {
+                if (h.onSuccess) await this._applyActions(h.onSuccess);
+            } else {
+                if (h.onFail) await this._applyActions(h.onFail);
+            }
             return;
         }
+
         if (h.type === 'dialog') {
-            if (!h.dialogId) {
-                this._msg('Chybí dialogId u hotspotu.');
-                return;
-            }
-            this._dbg('hotspot.dialog click →', h.dialogId);
             await this.openDialog(h.dialogId);
             return;
         }
 
+        // Fallback pro neznámé typy
         this._msg('Unknown hotspot type: ' + h.type);
+        console.warn('Unknown hotspot type:', h);
     }
 
     // --- puzzles 2.0 helpers ----------------------------------------------------
@@ -596,12 +616,12 @@ export class Game {
 
     /**
      * Executes a bundle of actions (used by Hotspots, Puzzles onSuccess/onFail, Video onEnd).
-     * Supports: toast, message, openDialog, highlightHotspot, giveItem, setFlags, clearFlags, goTo.
+     * Supports: toast, message, openDialog, highlightHotspot, playVideo, giveItem, setFlags, clearFlags, goTo.
      */
     async _applyActions(actions) {
         if (!actions) return;
 
-        // 1. Visual Feedback (Toast / Message)
+        // 1. Visual Feedback
         if (actions.toast?.text) {
             this.toast(this._text(actions.toast.text), actions.toast.ms ?? 5000);
         }
@@ -617,7 +637,6 @@ export class Game {
         // 3. Highlight Hotspot
         if (actions.highlightHotspot?.rect) {
             const h = actions.highlightHotspot;
-            // Note: We use current scene ID as default if not specified
             this._enqueueOrShowHighlight({
                 sceneId: h.sceneId || this.currentScene?.id,
                 rect: h.rect,
@@ -626,7 +645,16 @@ export class Game {
             });
         }
 
-        // 4. Logic (Items / Flags)
+        // 4. Play Video (Blocking)
+        if (actions.playVideo?.src) {
+            await this._playVideo(actions.playVideo);
+
+            if (actions.playVideo.onEnd) {
+                await this._applyActions(actions.playVideo.onEnd);
+            }
+        }
+
+        // 5. Logic (Items / Flags)
         let changed = false;
 
         if (actions.giveItem) {
@@ -669,11 +697,10 @@ export class Game {
             }
         }
 
-        // 5. State & Navigation
+        // 6. State & Navigation
         if (changed) {
             this._renderHotspots();
             await this._stateChanged();
-            // Re-check highlights for current scene in case flags changed logic
             if (this.currentScene) {
                 this._drainHighlightsForScene(this.currentScene.id);
             }
