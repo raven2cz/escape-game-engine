@@ -175,6 +175,11 @@ body {
 
   transition: transform 0.3s ease, filter 0.3s ease;
   z-index: 1;
+  /* FIX PERFORMANCE: Přesun do vlastní vrstvy pro GPU */
+  will-change: transform;
+  /* FIX SAFARI GLITCHES: */
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
 }
 
 .dlg-compact .dlg-char {
@@ -201,6 +206,9 @@ body {
   /* Skrytí alt textu */
   color: transparent;
   text-indent: -10000px;
+  /* FIX SAFARI GLOW: Někdy drop-shadow zlobí bez HW akcelerace */
+  transform: translateZ(0);
+  will-change: filter;
 }
 
 .dlg-choice {
@@ -223,12 +231,13 @@ body {
 
 /* Aktivní mluvčí - Zvýraznění */
 .dlg-char.speaking {
-  /* Jemný posun nahoru a zvětšení */
-  transform: translateY(-6px) scale(1.05);
+  /* Původní transformace + fix pro Safari */
+  transform: translateY(-6px) scale(1.05) translateZ(0);
   z-index: 10;
 
-  /* GLOWING EFEKT: Aplikován na filtr obrázku */
-  filter: drop-shadow(0 0 25px rgba(184, 149, 106, 0.5)) brightness(1.1);
+  /* Zkusíme silnější definici filtru pro Safari */
+  -webkit-filter: drop-shadow(0 0 25px rgba(184, 149, 106, 0.6)) brightness(1.1);
+  filter: drop-shadow(0 0 25px rgba(184, 149, 106, 0.6)) brightness(1.1);
 }
 
 /* Atmosférická záře za postavou (pouze pro mluvčího) */
@@ -247,6 +256,11 @@ body {
   z-index: -1;
   animation: speaker-pulse 2.5s infinite ease-in-out;
   pointer-events: none;
+
+  /* FIX ANIMACE: Plynulost na iPadu */
+  will-change: opacity, transform;
+  /* Odstraníme případné rozmazání okrajů kontejneru */
+  -webkit-mask-image: -webkit-radial-gradient(white, black);
 }
 
 @keyframes speaker-pulse {

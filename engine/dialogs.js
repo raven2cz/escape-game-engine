@@ -383,17 +383,27 @@ export class DialogUI {
         const basePose = (side === 'left') ? this.active?.leftPose : this.active?.rightPose;
         const pose = poseOverride || basePose;
 
-        if (!img || !actor) {
-            if (img) img.src = '';
+        if (!img) return;
+
+        if (!actor) {
+            img.src = '';
+            img.style.display = 'none'; // FIX for Safari (hide frame)
             return;
         }
 
         const poses = actor.poses || {};
         const src0 = (pose && poses[pose]) || poses.neutral || Object.values(poses)[0] || '';
-        img.src = this.game._resolveAsset(src0);
-        img.alt = this.game._text(actor.name) || '';
 
-        // Apply mirror class if requested (Framework level feature)
+        if (src0) {
+            img.src = this.game._resolveAsset(src0);
+            img.alt = this.game._text(actor.name) || '';
+            img.style.display = 'block';
+        } else {
+            img.src = '';
+            img.style.display = 'none';
+        }
+
+        // Apply mirror class if requested
         if (mirror) {
             img.classList.add('is-mirrored');
         } else {
