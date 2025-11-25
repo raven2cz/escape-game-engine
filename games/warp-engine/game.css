@@ -169,17 +169,14 @@ body {
   justify-content: center;
   height: 100%;
   bottom: 0;
-
-  /* Původní logika šířky - klíčové pro správné zobrazení */
   width: min(42vw, 380px);
 
-  transition: transform 0.3s ease, filter 0.3s ease;
+  /* FIX PERFORMANCE: Animujeme pouze transformaci, ne filtr (stín), to sekalo iPad */
+  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+
+  /* FIX SAFARI VRSTVY: Vynucení 3D kontextu, aby ::after (záře) nezmizela pod pozadím */
+  transform-style: preserve-3d;
   z-index: 1;
-  /* FIX PERFORMANCE: Přesun do vlastní vrstvy pro GPU */
-  will-change: transform;
-  /* FIX SAFARI GLITCHES: */
-  -webkit-backface-visibility: hidden;
-  backface-visibility: hidden;
 }
 
 .dlg-compact .dlg-char {
@@ -193,22 +190,23 @@ body {
 }
 
 .dlg-char-img {
-  /* NÁVRAT K ORIGINÁLU: Šířka musí poslouchat rodiče */
   width: 100%;
   height: auto;
-
-  /* FIX HLAVA: Zarážka pro výšku */
   max-height: calc(100% - 20px);
 
   object-fit: contain;
-  filter: drop-shadow(0 10px 20px rgba(0,0,0,0.6));
+  /* Statický stín je OK, ale nebudeme ho animovat */
+  filter: drop-shadow(0 5px 15px rgba(0,0,0,0.5));
 
-  /* Skrytí alt textu */
+  /* FIX SAFARI DUCHOVÉ: */
+  will-change: transform;
+
   color: transparent;
   text-indent: -10000px;
-  /* FIX SAFARI GLOW: Někdy drop-shadow zlobí bez HW akcelerace */
-  transform: translateZ(0);
-  will-change: filter;
+
+  /* Musí být v popředí před září */
+  position: relative;
+  z-index: 5;
 }
 
 .dlg-choice {
@@ -231,41 +229,68 @@ body {
 
 /* Aktivní mluvčí - Zvýraznění */
 .dlg-char.speaking {
-  /* Původní transformace + fix pro Safari */
   transform: translateY(-6px) scale(1.05) translateZ(0);
   z-index: 10;
 
-  /* Zkusíme silnější definici filtru pro Safari */
   -webkit-filter: drop-shadow(0 0 25px rgba(184, 149, 106, 0.6)) brightness(1.1);
   filter: drop-shadow(0 0 25px rgba(184, 149, 106, 0.6)) brightness(1.1);
 }
 
-/* Atmosférická záře za postavou (pouze pro mluvčího) */
+/* Atmosférická záře za postavou */
 .dlg-char.speaking::after {
   content: '';
   position: absolute;
   bottom: 0;
   left: 50%;
+
+  /* Centrování */
   transform: translateX(-50%);
 
-  /* Záře respektuje šířku kontejneru */
   width: 120%;
   height: 70%;
 
   background: radial-gradient(ellipse at center, rgba(184, 149, 106, 0.2) 0%, transparent 70%);
   z-index: -1;
+
+  /* Animace */
   animation: speaker-pulse 2.5s infinite ease-in-out;
   pointer-events: none;
 
-  /* FIX ANIMACE: Plynulost na iPadu */
   will-change: opacity, transform;
-  /* Odstraníme případné rozmazání okrajů kontejneru */
   -webkit-mask-image: -webkit-radial-gradient(white, black);
 }
 
 @keyframes speaker-pulse {
   0%, 100% { opacity: 0.3; transform: translateX(-50%) scale(0.95); }
   50% { opacity: 0.6; transform: translateX(-50%) scale(1.05); }
+}
+
+
+/* 2. IOS / SAFARI PATCH (Izolovaná oprava) */
+/* Tento blok se aplikuje POUZE na zařízeních Apple */
+@supports (-webkit-touch-callout: none) {
+
+  /* Rodič musí mít 3D kontext, aby fungovalo 'strčení' záře dozadu */
+  .dlg-char {
+    transform-style: preserve-3d;
+  }
+
+  .dlg-char.speaking::after {
+    /* VYPNOUT ANIMACI: iPad nestíhá animovat filtr + transformaci + průhlednost naraz */
+    animation: none;
+
+    /* Nastavit statickou viditelnost (zlatý střed) */
+    opacity: 0.5;
+
+    /* FIX Z-INDEX: Místo z-index:-1 použijeme fyzický posun v Z ose.
+       Tím to Safari vykreslí správně za postavou. */
+    transform: translateX(-50%) translateZ(-1px) scale(1.0);
+  }
+
+  /* Pro jistotu vynutíme 3D akceleraci i na postavě samotné */
+  .dlg-char.speaking {
+    transform: translate3d(0, -6px, 10px) scale(1.05);
+  }
 }
 
 /* --- 3. PUZZLE SYSTEM (Overrides) --- */
