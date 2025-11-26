@@ -225,72 +225,98 @@ body {
   z-index: 1099;
 }
 
-/* --- SPEAKER HIGHLIGHT (Pulsing Glow) --- */
+/* --- SPEAKER HIGHLIGHT (Cross-Platform Glow) --- */
+
+/* 1. STANDARD (PC, Android, Chrome) - Tvůj původní design */
 
 /* Aktivní mluvčí - Zvýraznění */
 .dlg-char.speaking {
-  transform: translateY(-6px) scale(1.05) translateZ(0);
-  z-index: 10;
+    /* translateZ(0) zapíná GPU akceleraci, ale nemění hloubku */
+    transform: translateY(-6px) scale(1.05) translateZ(0);
+    z-index: 10;
 
-  -webkit-filter: drop-shadow(0 0 25px rgba(184, 149, 106, 0.6)) brightness(1.1);
-  filter: drop-shadow(0 0 25px rgba(184, 149, 106, 0.6)) brightness(1.1);
+    -webkit-filter: drop-shadow(0 0 25px rgba(184, 149, 106, 0.6)) brightness(1.1);
+    filter: drop-shadow(0 0 25px rgba(184, 149, 106, 0.6)) brightness(1.1);
 }
 
 /* Atmosférická záře za postavou */
 .dlg-char.speaking::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 50%;
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
 
-  /* Centrování */
-  transform: translateX(-50%);
+    /* Centrování */
+    transform: translateX(-50%);
 
-  width: 120%;
-  height: 70%;
+    width: 120%;
+    height: 70%;
 
-  background: radial-gradient(ellipse at center, rgba(184, 149, 106, 0.2) 0%, transparent 70%);
-  z-index: -1;
+    background: radial-gradient(ellipse at center, rgba(184, 149, 106, 0.2) 0%, transparent 70%);
+    z-index: -1;
 
-  /* Animace */
-  animation: speaker-pulse 2.5s infinite ease-in-out;
-  pointer-events: none;
+    /* Animace */
+    animation: speaker-pulse 2.5s infinite ease-in-out;
+    pointer-events: none;
 
-  will-change: opacity, transform;
-  -webkit-mask-image: -webkit-radial-gradient(white, black);
+    will-change: opacity, transform;
+    -webkit-mask-image: -webkit-radial-gradient(white, black);
 }
 
 @keyframes speaker-pulse {
-  0%, 100% { opacity: 0.3; transform: translateX(-50%) scale(0.95); }
-  50% { opacity: 0.6; transform: translateX(-50%) scale(1.05); }
+    0%, 100% { opacity: 0.3; transform: translateX(-50%) scale(0.95); }
+    50% { opacity: 0.6; transform: translateX(-50%) scale(1.05); }
 }
 
 
-/* 2. IOS / SAFARI PATCH (Izolovaná oprava) */
-/* Tento blok se aplikuje POUZE na zařízeních Apple */
+/* 2. SAFARI / iOS PATCH (Fix mizejícího efektu) */
+/* Detekce WebKit jádra */
 @supports (-webkit-touch-callout: none) {
 
-  /* Rodič musí mít 3D kontext, aby fungovalo 'strčení' záře dozadu */
-  .dlg-char {
-    transform-style: preserve-3d;
-  }
+    /* Kontejner musí mít explicitní 3D kontext */
+    .dlg-char {
+        transform-style: preserve-3d;
+        /* Klíčový hack pro Safari: donutí ho překreslit filtry */
+        -webkit-perspective: 1000px;
+        perspective: 1000px;
+    }
 
-  .dlg-char.speaking::after {
-    /* VYPNOUT ANIMACI: iPad nestíhá animovat filtr + transformaci + průhlednost naraz */
-    animation: none;
+    .dlg-char.speaking {
+        /* Na Safari použijeme translate3d pro vynucení GPU */
+        transform: translate3d(0, -6px, 10px) scale(1.05);
 
-    /* Nastavit statickou viditelnost (zlatý střed) */
-    opacity: 0.5;
+        /* Vypneme filtr na rodiči, pokud způsobuje problémy s ::after */
+        /* Místo toho ho můžeme aplikovat přímo na img níže, pokud je třeba */
+        filter: none;
+        -webkit-filter: none;
+    }
 
-    /* FIX Z-INDEX: Místo z-index:-1 použijeme fyzický posun v Z ose.
-       Tím to Safari vykreslí správně za postavou. */
-    transform: translateX(-50%) translateZ(-1px) scale(1.0);
-  }
+    /* Fix pro obrázek uvnitř (aby nebyl máznutý) */
+    .dlg-char.speaking .dlg-char-img {
+        /* Zde aplikujeme jas jen na obrázek */
+        filter: brightness(1.1);
+        -webkit-filter: brightness(1.1);
+    }
 
-  /* Pro jistotu vynutíme 3D akceleraci i na postavě samotné */
-  .dlg-char.speaking {
-    transform: translate3d(0, -6px, 10px) scale(1.05);
-  }
+    /* Fix pro záři (::after) */
+    .dlg-char.speaking::after {
+        /* Vypnout animaci, která způsobuje blikání na iPadu */
+        animation: none;
+
+        /* Nastavit statickou, bezpečnou viditelnost */
+        opacity: 0.6;
+
+        /* FYZICKÝ POSUN DOZADU - jediné spolehlivé řešení pro z-index v Safari */
+        /* translateZ(-1px) strčí vrstvu "za" rodiče v 3D prostoru */
+        transform: translateX(-50%) translateZ(-1px) scale(1.0);
+
+        /* Hack proti mizení: */
+        -webkit-backface-visibility: hidden;
+        backface-visibility: hidden;
+
+        /* Zjednodušený gradient pro Safari, který se lépe renderuje */
+        background: radial-gradient(closest-side, rgba(184, 149, 106, 0.5), transparent);
+    }
 }
 
 /* --- 3. PUZZLE SYSTEM (Overrides) --- */
