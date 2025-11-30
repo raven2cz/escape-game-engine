@@ -313,7 +313,21 @@
     { "id": "dlg-newton-outro",   "once": true, "when": { "on": "stateChange", "requireFlags": ["solved_newton"] },   "then": { "openDialog": { "id": "newton.outro" } } },
     { "id": "dlg-volta-outro",    "once": true, "when": { "on": "stateChange", "requireFlags": ["solved_volta"] },    "then": { "openDialog": { "id": "volta.outro" } } },
     { "id": "dlg-faraday-outro",  "once": true, "when": { "on": "stateChange", "requireFlags": ["solved_faraday"] },  "then": { "openDialog": { "id": "faraday.outro" } } },
-    { "id": "dlg-hertz-outro",    "once": true, "when": { "on": "stateChange", "requireFlags": ["solved_hertz"] },    "then": { "openDialog": { "id": "hertz.outro" } } },
+    {
+      "id": "dlg-hertz-outro",
+      "once": true,
+      "when": { "on": "stateChange", "requireFlags": ["solved_hertz"] },
+      "then": {
+        "playVideo": {
+          "src": "assets/video/hertz.mp4",
+          "mode": "fullscreen",
+          "allowSkip": false,
+          "onEnd": {
+            "openDialog": { "id": "hertz.outro" }
+          }
+        }
+      }
+    },
     { "id": "dlg-currents-outro", "once": true, "when": { "on": "stateChange", "requireFlags": ["solved_currents"] }, "then": { "openDialog": { "id": "currents.outro" } } },
     { "id": "dlg-einstein-outro", "once": true, "when": { "on": "stateChange", "requireFlags": ["solved_einstein"] }, "then": { "openDialog": { "id": "einstein.outro" } } },
     {
