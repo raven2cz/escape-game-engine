@@ -33,6 +33,10 @@ export default class MatchPuzzle extends BasePuzzle {
         this._pairs = new Map(); // tokenId -> pairedTokenId
         this._selectedForPair = null; // first token of pair in click mode
         this._mode = (args.config?.mode || 'columns').toLowerCase();
+        this._connectionLines = new Map(); // Store SVG connection elements for columns mode
+        this._svgContainer = null; // SVG overlay for connection lines
+        this._isUpdatingLines = false; // Prevent ResizeObserver infinite loop
+        this._resizeTimeout = null; // Debounce resize updates
     }
 
     /**
@@ -108,6 +112,148 @@ export default class MatchPuzzle extends BasePuzzle {
         return idx;
     }
 
+    /**
+     * Create SVG overlay for connection lines (columns mode only)
+     * @param {HTMLElement} container - Parent container element
+     */
+    _createSvgContainer(container) {
+        if (this._svgContainer) return this._svgContainer;
+
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('class', 'pz-match-connections');
+        svg.style.cssText = `
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        `;
+
+        // Insert SVG before columns (so lines appear behind tokens)
+        const columnsEl = container.querySelector('.pz-match-columns');
+        if (columnsEl) {
+            container.insertBefore(svg, columnsEl);
+        } else {
+            container.appendChild(svg);
+        }
+
+        this._svgContainer = svg;
+        return svg;
+    }
+
+    /**
+     * Draw connection line between two tokens
+     * @param {string} id1 - First token ID
+     * @param {string} id2 - Second token ID
+     * @param {string} color - Line color
+     * @param {number} pairIndex - Pair index for tracking
+     */
+    _drawConnectionLine(id1, id2, color, pairIndex) {
+        if (this._mode !== 'columns') return;
+
+        const el1 = this._tokenEls.get(id1);
+        const el2 = this._tokenEls.get(id2);
+        if (!el1 || !el2 || !this._svgContainer) return;
+
+        // Get positions relative to SVG container
+        const containerRect = this._svgContainer.parentElement.getBoundingClientRect();
+        const rect1 = el1.getBoundingClientRect();
+        const rect2 = el2.getBoundingClientRect();
+
+        // Calculate center points
+        const x1 = rect1.left + rect1.width / 2 - containerRect.left;
+        const y1 = rect1.top + rect1.height / 2 - containerRect.top;
+        const x2 = rect2.left + rect2.width / 2 - containerRect.left;
+        const y2 = rect2.top + rect2.height / 2 - containerRect.top;
+
+        // Create curved path (Bezier curve for better visual clarity)
+        const midX = (x1 + x2) / 2;
+        const controlOffset = Math.abs(x2 - x1) * 0.3; // Control point offset
+
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        const d = `M ${x1} ${y1} Q ${midX - controlOffset} ${y1}, ${midX} ${(y1 + y2) / 2} Q ${midX + controlOffset} ${y2}, ${x2} ${y2}`;
+
+        path.setAttribute('d', d);
+        path.setAttribute('stroke', color);
+        path.setAttribute('stroke-width', '3');
+        path.setAttribute('fill', 'none');
+        path.setAttribute('stroke-linecap', 'round');
+        path.setAttribute('opacity', '0');
+        path.setAttribute('data-pair-index', String(pairIndex));
+        path.setAttribute('data-id1', id1);
+        path.setAttribute('data-id2', id2);
+
+        // Add glow effect
+        path.style.filter = 'drop-shadow(0 0 4px ' + color + ')';
+
+        this._svgContainer.appendChild(path);
+        this._connectionLines.set(`${id1}-${id2}`, path);
+
+        // Animate in
+        requestAnimationFrame(() => {
+            path.setAttribute('opacity', '0.85');
+            path.style.transition = 'opacity 300ms ease-out';
+        });
+
+        return path;
+    }
+
+    /**
+     * Remove connection line between tokens
+     * @param {string} id1 - First token ID
+     * @param {string} id2 - Second token ID
+     */
+    _removeConnectionLine(id1, id2) {
+        const key1 = `${id1}-${id2}`;
+        const key2 = `${id2}-${id1}`;
+
+        const line = this._connectionLines.get(key1) || this._connectionLines.get(key2);
+        if (line) {
+            // Animate out
+            line.style.transition = 'opacity 200ms ease-out';
+            line.setAttribute('opacity', '0');
+
+            setTimeout(() => {
+                line.remove();
+                this._connectionLines.delete(key1);
+                this._connectionLines.delete(key2);
+            }, 200);
+        }
+    }
+
+    /**
+     * Update all connection lines (useful when window resizes)
+     * Uses debounce and recursion prevention to avoid infinite loops
+     */
+    _updateConnectionLines() {
+        if (this._mode !== 'columns' || !this._svgContainer) return;
+        if (this._isUpdatingLines) return; // Prevent recursion
+
+        this._isUpdatingLines = true;
+
+        // Use requestAnimationFrame to batch updates
+        requestAnimationFrame(() => {
+            this._connectionLines.forEach((line, key) => {
+                const id1 = line.getAttribute('data-id1');
+                const id2 = line.getAttribute('data-id2');
+                const color = line.getAttribute('stroke');
+                const pairIndex = parseInt(line.getAttribute('data-pair-index'), 10);
+
+                // Remove old line
+                line.remove();
+                this._connectionLines.delete(key);
+
+                // Redraw with current positions
+                this._drawConnectionLine(id1, id2, color, pairIndex);
+            });
+
+            // Reset flag after updates complete
+            this._isUpdatingLines = false;
+        });
+    }
+
     mount(container, workRect, backgroundUrl) {
         super.mount?.(container, workRect, backgroundUrl);
         const flow = this.flowEl;
@@ -118,6 +264,22 @@ export default class MatchPuzzle extends BasePuzzle {
             this._mountDragDropMode(flow);
         } else {
             this._mountColumnsMode(flow);
+            // Create SVG container for connection lines
+            this._createSvgContainer(flow);
+        }
+
+        // Add resize listener to update connection lines
+        if (this._mode === 'columns') {
+            this._resizeObserver = new ResizeObserver(() => {
+                // Debounce resize updates to prevent excessive calls
+                if (this._resizeTimeout) {
+                    clearTimeout(this._resizeTimeout);
+                }
+                this._resizeTimeout = setTimeout(() => {
+                this._updateConnectionLines();
+                }, 150); // 150ms debounce
+            });
+            this._resizeObserver.observe(flow);
         }
 
         if (DBG()) {
@@ -229,11 +391,35 @@ export default class MatchPuzzle extends BasePuzzle {
         const tokens = this.config.tokens || [];
         const positions = this._generateScatteredPositions(tokens.length);
 
+        // Separate tokens by side for color differentiation
+        const leftTokens = [];
+        const rightTokens = [];
+
+        tokens.forEach((t, idx) => {
+            const side = (t.side || '').toLowerCase();
+            if (side === 'right') {
+                rightTokens.push({...t, originalIndex: idx});
+            } else {
+                leftTokens.push({...t, originalIndex: idx});
+            }
+        });
+
         // Create tokens at scattered positions (non-overlapping)
         tokens.forEach((t, idx) => {
             const id = String(t.id ?? idx);
+            const side = (t.side || '').toLowerCase();
             const el = this.createToken(t);
             const pos = positions[idx];
+
+            // Add side class for styling
+            if (side === 'left') {
+                el.classList.add('pz-match-token--left');
+            } else if (side === 'right') {
+                el.classList.add('pz-match-token--right');
+            }
+
+            // Track side
+            this._tokenSides.set(id, side || 'left');
 
             Object.assign(el.style, {
                 position: 'absolute',
@@ -308,6 +494,11 @@ export default class MatchPuzzle extends BasePuzzle {
         // 1. If already paired -> UNPAIR
         if (currentPair) {
             const otherEl = this._tokenEls.get(currentPair);
+
+            // Remove connection line (columns mode)
+            if (this._mode === 'columns') {
+                this._removeConnectionLine(id, currentPair);
+            }
 
             this._pairs.delete(id);
             this._pairs.delete(currentPair);
@@ -396,6 +587,11 @@ export default class MatchPuzzle extends BasePuzzle {
                 el2.blur();
             }
 
+            // Draw connection line (columns mode only)
+            if (this._mode === 'columns') {
+                this._drawConnectionLine(first, id, pairColor, pairIndex);
+            }
+
             if (DBG()) console.debug('[PZ.match] paired:', {first, second: id, color: pairColor, index: pairIndex});
         }
     }
@@ -449,6 +645,31 @@ export default class MatchPuzzle extends BasePuzzle {
             el.style.zIndex = '5';
             el.classList.remove('is-dragging');
 
+            // CRITICAL: Unpair dragged token FIRST (before checking overlap)
+            // This ensures token returns to side color even if dropped on empty space
+                    const existingPairId = this._pairs.get(id);
+                    if (existingPairId) {
+                        const existingPairEl = this._tokenEls.get(existingPairId);
+
+                        this._pairs.delete(id);
+                        this._pairs.delete(existingPairId);
+
+                // Reset dragged token styles (returns to side color via CSS)
+                        el.style.background = '';
+                        delete el.dataset.pairIndex;
+                        el.classList.remove('correct', 'wrong', 'is-correct', 'is-wrong');
+
+                        // Reset old partner token styles (returns to side color via CSS)
+                        if (existingPairEl) {
+                            existingPairEl.style.background = '';
+                            delete existingPairEl.dataset.pairIndex;
+                            existingPairEl.classList.remove('correct', 'wrong', 'is-correct', 'is-wrong');
+                        }
+
+                if (DBG()) console.debug('[PZ.match] drag unpaired (dropped):', {id, was: existingPairId});
+            }
+
+            // Now check if token was dropped on another token to create new pair
             const rect1 = el.getBoundingClientRect();
             const cx = (rect1.left + rect1.right) / 2;
             const cy = (rect1.top + rect1.bottom) / 2;
@@ -460,6 +681,30 @@ export default class MatchPuzzle extends BasePuzzle {
                 if (cx >= rect2.left && cx <= rect2.right &&
                     cy >= rect2.top && cy <= rect2.bottom) {
 
+                    // If target token is already paired, unpair it first
+                    const otherExistingPairId = this._pairs.get(otherId);
+                    if (otherExistingPairId) {
+                        const otherExistingPairEl = this._tokenEls.get(otherExistingPairId);
+
+                        this._pairs.delete(otherId);
+                        this._pairs.delete(otherExistingPairId);
+
+                        // Reset target token styles (will be set to new pair color below)
+                        otherEl.style.background = '';
+                        delete otherEl.dataset.pairIndex;
+                        otherEl.classList.remove('correct', 'wrong', 'is-correct', 'is-wrong');
+
+                        // Reset old partner token styles (returns to side color via CSS)
+                        if (otherExistingPairEl) {
+                            otherExistingPairEl.style.background = '';
+                            delete otherExistingPairEl.dataset.pairIndex;
+                            otherExistingPairEl.classList.remove('correct', 'wrong', 'is-correct', 'is-wrong');
+                        }
+
+                        if (DBG()) console.debug('[PZ.match] drag unpaired target old pair:', {otherId, was: otherExistingPairId});
+                    }
+
+                    // Create new pair
                     this._pairs.set(id, otherId);
                     this._pairs.set(otherId, id);
 
@@ -476,6 +721,8 @@ export default class MatchPuzzle extends BasePuzzle {
                     break;
                 }
             }
+
+            // If no overlap was found, token remains unpaired with side color (CSS applies automatically)
         };
 
         el.addEventListener('mousedown', onDown);
@@ -539,6 +786,11 @@ export default class MatchPuzzle extends BasePuzzle {
 
                         const otherEl = this._tokenEls.get(pairedWith);
 
+                        // Remove connection line (columns mode)
+                        if (this._mode === 'columns') {
+                            this._removeConnectionLine(id, pairedWith);
+                        }
+
                         this._pairs.delete(id);
                         this._pairs.delete(pairedWith);
 
@@ -580,5 +832,28 @@ export default class MatchPuzzle extends BasePuzzle {
         }
 
         return {ok: allOk, detail: {pairs: detail}};
+    }
+
+    /**
+     * Cleanup when puzzle is unmounted
+     */
+    unmount() {
+        // Disconnect ResizeObserver
+        if (this._resizeObserver) {
+            this._resizeObserver.disconnect();
+            this._resizeObserver = null;
+        }
+
+        // Clear resize timeout
+        if (this._resizeTimeout) {
+            clearTimeout(this._resizeTimeout);
+            this._resizeTimeout = null;
+        }
+
+        // Clear connection lines
+        this._connectionLines.clear();
+
+        // Call parent unmount
+        super.unmount?.();
     }
 }

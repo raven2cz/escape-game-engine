@@ -86,7 +86,7 @@
       { "id": "b3", "label": "@match.storage@Zásobní a osmotická funkce", "side": "right" }
     ],
     "pairs": [["a1","b1"],["a2","b2"],["a3","b3"]],
-    "options": { "aggregateOnly": false, "blockUntilSolved": false }
+    "options": { "aggregateOnly": false, "blockUntilSolved": true }
   },
 
   "match-bio-drag": {
@@ -96,18 +96,18 @@
     "prompt": "@match.drag.prompt@Přetáhni k sobě patřící dvojice.",
     "mode": "dragdrop",
     "tokens": [
-      { "id": "m1",  "label": "@match.protozoa@Prvok – trepka" },
-      { "id": "m2",  "label": "@match.bacteria@Bakterie" },
-      { "id": "m3",  "label": "@match.plant@Rostlinná buňka" },
-      { "id": "m1p", "label": "@match.protozoa.desc@Eukaryotní jednobuněčný" },
-      { "id": "m2p", "label": "@match.bacteria.desc@Prokaryotní jednobuněčný" },
-      { "id": "m3p", "label": "@match.plant.desc@Eukaryot – chloroplasty" }
+      { "id": "m1",  "label": "@match.protozoa@Prvok – trepka", "side": "left" },
+      { "id": "m2",  "label": "@match.bacteria@Bakterie", "side": "left" },
+      { "id": "m3",  "label": "@match.plant@Rostlinná buňka", "side": "left" },
+      { "id": "m1p", "label": "@match.protozoa.desc@Eukaryotní jednobuněčný", "side": "right" },
+      { "id": "m2p", "label": "@match.bacteria.desc@Prokaryotní jednobuněčný", "side": "right" },
+      { "id": "m3p", "label": "@match.plant.desc@Eukaryot – chloroplasty", "side": "right" }
     ],
     "solutionPairs": [["m1","m1p"],["m2","m2p"],["m3","m3p"]],
     "options": {
       "aggregateOnly": false,
-      "blockUntilSolved": false,
-      "layout": { "mode": "manual" }
+      "blockUntilSolved": true,
+      "layout": { "mode": "auto", "direction": "vertical"}
     },
     "background": "assets/puzzles/bg-board.jpg"
   },

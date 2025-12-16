@@ -274,9 +274,25 @@ export class Game {
         return (s === 'hide' || s === 'disable') ? s : 'off';
     }
 
-    /** It this item really usable in an actual scene? */
+    /**
+     * Checks if an item can be used in the current scene.
+     * @param {string} itemId - The item ID to check.
+     * @returns {boolean|null} - true if usable, false if not usable, null if cannot determine (fail-safe).
+     */
     _isItemApplicableHere(itemId) {
-        const hs = this.currentScene?.hotspots || [];
+        // Fail-safe: if currentScene is not loaded, return null to indicate uncertainty
+        if (!this.currentScene) {
+            this._dbg('[GUARD] _isItemApplicableHere: currentScene is null/undefined, returning null (fail-safe)');
+            return null;
+        }
+
+        const hs = this.currentScene.hotspots || [];
+
+        // If scene has no hotspots at all, we can definitively say item is not usable here
+        if (hs.length === 0) {
+            return false;
+        }
+
         return hs.some(h => {
             if (!h || !Array.isArray(h.acceptItems)) return false;
 
@@ -372,9 +388,47 @@ export class Game {
                     e.preventDefault();
                     this._activateHotspot(h).catch(err => this._msg(String(err)));
                 });
+
+                // --- Drop handling for item drag & drop ---
+                if (h.acceptItems && Array.isArray(h.acceptItems)) {
+                    this._setupHotspotDropHandlers(el, h, idx);
+                }
             }
 
             this.hotspotLayer.appendChild(el);
+        });
+    }
+
+    /**
+     * Sets up drag & drop handlers for a hotspot that accepts items.
+     * @param {HTMLElement} el - The hotspot element.
+     * @param {object} hs - The hotspot configuration.
+     * @param {number} idx - The hotspot index.
+     */
+    _setupHotspotDropHandlers(el, hs, idx) {
+        // HTML5 Drag API - dragover is required to allow drop
+        el.addEventListener('dragover', (e) => {
+            const itemId = e.dataTransfer.types.includes('text/plain') ? 'pending' : null;
+            if (itemId) {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                el.classList.add('drop-target');
+            }
+        });
+
+        el.addEventListener('dragleave', (e) => {
+            el.classList.remove('drop-target');
+        });
+
+        el.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            el.classList.remove('drop-target');
+
+            const itemId = e.dataTransfer.getData('text/plain');
+            if (!itemId) return;
+
+            this._dbg('[DROP] Item dropped on hotspot:', itemId, hs);
+            await this._handleItemDropOnHotspot(itemId, hs);
         });
     }
 
@@ -734,20 +788,44 @@ export class Game {
             const wrap = document.createElement('button');
             wrap.type = 'button';
             wrap.className = 'item';
+            wrap.draggable = true; // Enable HTML5 drag
+            wrap.dataset.itemId = id;
             if (this.state.useItemId === id) wrap.classList.add('selected');
-            wrap.title = 'Inspect';
+            wrap.title = this._t('engine.item.hint', 'Klikni pro náhled, táhni pro použití');
 
             if (item.icon) {
                 const img = document.createElement('img');
                 img.src = this._resolveAsset(item.icon);
                 img.alt = this._text(item.label) || id;
+                img.draggable = false; // Prevent image from being dragged separately
                 wrap.appendChild(img);
             }
             const span = document.createElement('span');
             span.textContent = this._text(item.label) || id;
             wrap.appendChild(span);
 
-            wrap.addEventListener('click', () => {
+            // --- Drag & Drop handlers ---
+            this._setupItemDragDrop(wrap, item);
+
+            // --- Click handler (for preview) ---
+            // Using pointerup with tracking to differentiate from drag
+            let pointerDownTime = 0;
+            let pointerMoved = false;
+
+            wrap.addEventListener('pointerdown', (e) => {
+                pointerDownTime = Date.now();
+                pointerMoved = false;
+            });
+
+            wrap.addEventListener('pointermove', () => {
+                pointerMoved = true;
+            });
+
+            wrap.addEventListener('pointerup', (e) => {
+                // Ignore if this was a drag operation
+                if (pointerMoved && Date.now() - pointerDownTime > 150) return;
+
+                // Toggle use mode if already selected
                 if (this.state.useItemId === id) {
                     this.exitUseMode();
                     return;
@@ -755,8 +833,243 @@ export class Game {
                 this._inspectItem(item);
             });
 
+            // Prevent default click to avoid double-firing
+            wrap.addEventListener('click', (e) => {
+                e.preventDefault();
+            });
+
             this.inventoryRoot.appendChild(wrap);
         });
+    }
+
+    /**
+     * Sets up drag & drop handlers for an inventory item element.
+     * @param {HTMLElement} el - The item button element.
+     * @param {object} item - The item data object.
+     */
+    _setupItemDragDrop(el, item) {
+        // HTML5 Drag API
+        el.addEventListener('dragstart', (e) => {
+            e.dataTransfer.setData('text/plain', item.id);
+            e.dataTransfer.effectAllowed = 'move';
+            el.classList.add('is-dragging');
+            document.body.classList.add('item-dragging');
+
+            // Create custom drag image
+            if (item.icon) {
+                const dragImg = new Image();
+                dragImg.src = this._resolveAsset(item.icon);
+                // Use small offset so cursor is on the image
+                e.dataTransfer.setDragImage(dragImg, 24, 24);
+            }
+
+            this._dbg('[DRAG] Started dragging item:', item.id);
+        });
+
+        el.addEventListener('dragend', (e) => {
+            el.classList.remove('is-dragging');
+            document.body.classList.remove('item-dragging');
+            this._clearHotspotDropHighlights();
+            this._dbg('[DRAG] Ended dragging item:', item.id);
+        });
+
+        // Touch-based drag for mobile (pointer events fallback)
+        this._setupTouchDrag(el, item);
+    }
+
+    /**
+     * Sets up touch-based drag for mobile devices where HTML5 drag doesn't work well.
+     * @param {HTMLElement} el - The item element.
+     * @param {object} item - The item data object.
+     */
+    _setupTouchDrag(el, item) {
+        let touchStartTime = 0;
+        let touchStartX = 0;
+        let touchStartY = 0;
+        let ghost = null;
+        let isDragging = false;
+        const DRAG_THRESHOLD = 10; // pixels
+        const HOLD_TIME = 200; // ms to distinguish from tap
+
+        const createGhost = () => {
+            ghost = document.createElement('div');
+            ghost.className = 'item-drag-ghost';
+            if (item.icon) {
+                const img = document.createElement('img');
+                img.src = this._resolveAsset(item.icon);
+                ghost.appendChild(img);
+            }
+            const label = document.createElement('span');
+            label.textContent = this._text(item.label) || item.id;
+            ghost.appendChild(label);
+            document.body.appendChild(ghost);
+        };
+
+        const moveGhost = (x, y) => {
+            if (!ghost) return;
+            ghost.style.left = (x - 30) + 'px';
+            ghost.style.top = (y - 30) + 'px';
+        };
+
+        const removeGhost = () => {
+            if (ghost && ghost.parentNode) {
+                ghost.parentNode.removeChild(ghost);
+            }
+            ghost = null;
+        };
+
+        const getHotspotUnderPoint = (x, y) => {
+            const elements = document.elementsFromPoint(x, y);
+            for (const elem of elements) {
+                if (elem.classList.contains('hotspot') && elem.dataset.acceptsItems) {
+                    return elem;
+                }
+            }
+            return null;
+        };
+
+        el.addEventListener('touchstart', (e) => {
+            touchStartTime = Date.now();
+            const touch = e.touches[0];
+            touchStartX = touch.clientX;
+            touchStartY = touch.clientY;
+            isDragging = false;
+        }, { passive: true });
+
+        el.addEventListener('touchmove', (e) => {
+            const touch = e.touches[0];
+            const dx = touch.clientX - touchStartX;
+            const dy = touch.clientY - touchStartY;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            const elapsed = Date.now() - touchStartTime;
+
+            // Start drag if moved enough or held long enough while moving
+            if (!isDragging && (distance > DRAG_THRESHOLD || (elapsed > HOLD_TIME && distance > 5))) {
+                isDragging = true;
+                createGhost();
+                el.classList.add('is-dragging');
+                document.body.classList.add('item-dragging');
+                this._highlightAcceptingHotspots(item.id);
+            }
+
+            if (isDragging) {
+                e.preventDefault(); // Prevent scroll while dragging
+                moveGhost(touch.clientX, touch.clientY);
+
+                // Highlight hotspot under touch
+                const hotspot = getHotspotUnderPoint(touch.clientX, touch.clientY);
+                this._updateHotspotDropHighlight(hotspot);
+            }
+        }, { passive: false });
+
+        el.addEventListener('touchend', (e) => {
+            if (isDragging) {
+                const touch = e.changedTouches[0];
+                const hotspot = getHotspotUnderPoint(touch.clientX, touch.clientY);
+
+                if (hotspot) {
+                    const hotspotIndex = parseInt(hotspot.dataset.index, 10);
+                    const hs = this.currentScene?.hotspots?.[hotspotIndex];
+                    if (hs) {
+                        this._handleItemDropOnHotspot(item.id, hs);
+                    }
+                }
+
+                removeGhost();
+                el.classList.remove('is-dragging');
+                document.body.classList.remove('item-dragging');
+                this._clearHotspotDropHighlights();
+                isDragging = false;
+            }
+        });
+
+        el.addEventListener('touchcancel', () => {
+            if (isDragging) {
+                removeGhost();
+                el.classList.remove('is-dragging');
+                document.body.classList.remove('item-dragging');
+                this._clearHotspotDropHighlights();
+                isDragging = false;
+            }
+        });
+    }
+
+    /**
+     * Highlights hotspots that accept the given item.
+     * @param {string} itemId - The item ID being dragged.
+     */
+    _highlightAcceptingHotspots(itemId) {
+        const hotspots = this.hotspotLayer.querySelectorAll('.hotspot');
+        hotspots.forEach(el => {
+            const idx = parseInt(el.dataset.index, 10);
+            const hs = this.currentScene?.hotspots?.[idx];
+            if (hs && this._hotspotAcceptsItem(hs, itemId)) {
+                el.classList.add('accepts-drop');
+                el.dataset.acceptsItems = 'true';
+            }
+        });
+    }
+
+    /**
+     * Updates the visual highlight for the hotspot currently under the drag cursor.
+     * @param {HTMLElement|null} hotspotEl - The hotspot element or null.
+     */
+    _updateHotspotDropHighlight(hotspotEl) {
+        const hotspots = this.hotspotLayer.querySelectorAll('.hotspot');
+        hotspots.forEach(el => {
+            el.classList.toggle('drop-target', el === hotspotEl && el.dataset.acceptsItems === 'true');
+        });
+    }
+
+    /**
+     * Clears all drop-related highlights from hotspots.
+     */
+    _clearHotspotDropHighlights() {
+        const hotspots = this.hotspotLayer.querySelectorAll('.hotspot');
+        hotspots.forEach(el => {
+            el.classList.remove('accepts-drop', 'drop-target');
+            delete el.dataset.acceptsItems;
+        });
+    }
+
+    /**
+     * Checks if a hotspot accepts a specific item.
+     * @param {object} hs - The hotspot configuration.
+     * @param {string} itemId - The item ID to check.
+     * @returns {boolean}
+     */
+    _hotspotAcceptsItem(hs, itemId) {
+        if (!hs || !Array.isArray(hs.acceptItems)) return false;
+        const accepts = hs.acceptItems.map(x => typeof x === 'string' ? { id: x } : x);
+        if (!accepts.some(a => a?.id === itemId)) return false;
+        if (hs.requireItems && !this._hasAll(hs.requireItems)) return false;
+        if (hs.requireFlags && !this._hasAllFlags(hs.requireFlags)) return false;
+        return true;
+    }
+
+    /**
+     * Handles dropping an item on a hotspot.
+     * @param {string} itemId - The dropped item ID.
+     * @param {object} hs - The target hotspot configuration.
+     */
+    async _handleItemDropOnHotspot(itemId, hs) {
+        if (!this._hotspotAcceptsItem(hs, itemId)) {
+            this.toast(this._t('engine.use.notApplicable', 'Tento předmět tady nelze použít.'), 2500);
+            return;
+        }
+
+        const accepts = hs.acceptItems.map(x => typeof x === 'string' ? { id: x, consume: false } : x);
+        const match = accepts.find(a => a.id === itemId);
+
+        if (match) {
+            if (match.consume) this._removeItemFromInventory(itemId);
+
+            if (hs.onApply) {
+                await this._applyActions(hs.onApply);
+            } else {
+                this.toast(this._t('engine.use.applied', 'Předmět byl použit.'), 2200);
+            }
+        }
     }
 
     /**
@@ -813,10 +1126,16 @@ export class Game {
         const policy = this._getUseGuardPolicy();
         if (policy !== 'off') {
             const allowed = this._isItemApplicableHere(item.id);
-            if (policy === 'hide' && !allowed) {
-                // the button is not placed to the panel
+            // FAIL-SAFE: If allowed is null (cannot determine), show the button anyway
+            // This prevents edge cases where button disappears due to race conditions
+            const shouldHide = policy === 'hide' && allowed === false;
+            const shouldDisable = policy === 'disable' && allowed === false;
+
+            if (shouldHide) {
+                // Button is intentionally not placed in the panel
+                this._dbg('[ITEM] Use button hidden: policy=hide, allowed=false');
             } else {
-                if (!allowed) {
+                if (shouldDisable) {
                     btnUse.disabled = true;
                     btnUse.title = this._t('engine.use.disabledHere', 'Na této scéně teď nemáš kde použít.');
                     btnUse.classList.add('is-disabled');

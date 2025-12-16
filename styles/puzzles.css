@@ -803,3 +803,66 @@
         max-height: 40% !important;
     }
 }
+
+/* ============================================================================
+   MATCH - Side Differentiation (dragdrop mode)
+   ============================================================================ */
+
+/* Left side tokens - blue tint with left border accent (only when NOT paired) */
+.pz-match--dragdrop .pz-match-token--left:not([data-pair-index]) {
+    background: rgba(100, 150, 255, 0.15);
+    border-left: 4px solid rgba(100, 150, 255, 0.6);
+}
+
+/* Right side tokens - green/teal tint with right border accent (only when NOT paired) */
+.pz-match--dragdrop .pz-match-token--right:not([data-pair-index]) {
+    background: rgba(100, 255, 150, 0.15);
+    border-right: 4px solid rgba(100, 255, 150, 0.6);
+}
+
+/* Hover effects for sides (only on hover-capable devices and NOT paired) */
+@media (hover: hover) {
+    .pz-match--dragdrop .pz-match-token--left:not([data-pair-index]):hover {
+        background: rgba(100, 150, 255, 0.25);
+        box-shadow: 0 0 8px rgba(100, 150, 255, 0.4);
+    }
+
+    .pz-match--dragdrop .pz-match-token--right:not([data-pair-index]):hover {
+        background: rgba(100, 255, 150, 0.25);
+        box-shadow: 0 0 8px rgba(100, 255, 150, 0.4);
+    }
+}
+
+/* When tokens are paired in dragdrop, reset border to normal and allow inline background */
+.pz-match--dragdrop .pz-match-token--left[data-pair-index],
+.pz-match--dragdrop .pz-match-token--right[data-pair-index] {
+    /* Reset borders to normal token border */
+    border-left: 1px solid var(--pz-token-border);
+    border-right: 1px solid var(--pz-token-border);
+    /* Background is set via inline style (pair color) */
+}
+
+/* ============================================================================
+   MATCH - Shake Animation for Wrong Pairs
+   ============================================================================ */
+
+@keyframes shake {
+    0%, 100% { transform: translate(-50%, -50%) translateX(0); }
+    10%, 30%, 50%, 70%, 90% { transform: translate(-50%, -50%) translateX(-10px); }
+    20%, 40%, 60%, 80% { transform: translate(-50%, -50%) translateX(10px); }
+}
+
+.pz-match-token.is-wrong {
+    animation: shake 0.5s ease-in-out;
+}
+
+/* Columns mode wrong pairs - shake animation */
+.pz-match--columns .pz-token.is-wrong {
+    animation: shake-static 0.5s ease-in-out;
+}
+
+@keyframes shake-static {
+    0%, 100% { transform: translateX(0); }
+    10%, 30%, 50%, 70%, 90% { transform: translateX(-8px); }
+    20%, 40%, 60%, 80% { transform: translateX(8px); }
+}

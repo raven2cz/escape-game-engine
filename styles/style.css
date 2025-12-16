@@ -921,3 +921,109 @@ body.use-on #hotspotLayer {
     border-color: rgba(255,255,255,0.9);
     transform: scale(1.1);
 }
+
+/* ==========================================================================
+   ITEM DRAG & DROP SYSTEM
+   ========================================================================== */
+
+/* Item being dragged */
+.item.is-dragging {
+    opacity: 0.5;
+    transform: scale(0.95);
+    box-shadow: none !important;
+}
+
+/* Body state when dragging an item */
+body.item-dragging {
+    cursor: grabbing;
+}
+
+body.item-dragging .hotspot {
+    /* Make hotspots more visible during drag */
+    transition: all 0.2s ease;
+}
+
+/* Hotspot that can accept the dragged item */
+#hotspotLayer .hotspot.accepts-drop {
+    border: 2px dashed rgba(88, 197, 154, 0.7) !important;
+    background: rgba(88, 197, 154, 0.15) !important;
+    animation: pulse-accept 1.2s ease-in-out infinite;
+}
+
+@keyframes pulse-accept {
+    0%, 100% {
+        box-shadow: 0 0 10px rgba(88, 197, 154, 0.3);
+    }
+    50% {
+        box-shadow: 0 0 20px rgba(88, 197, 154, 0.6);
+    }
+}
+
+/* Hotspot currently under the drag cursor */
+#hotspotLayer .hotspot.drop-target {
+    border: 3px solid rgba(88, 197, 154, 1) !important;
+    background: rgba(88, 197, 154, 0.35) !important;
+    box-shadow: 0 0 30px rgba(88, 197, 154, 0.8), inset 0 0 15px rgba(88, 197, 154, 0.4) !important;
+    transform: scale(1.02);
+}
+
+/* Touch drag ghost element */
+.item-drag-ghost {
+    position: fixed;
+    z-index: 10000;
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(20, 22, 28, 0.95);
+    border: 2px solid rgba(88, 197, 154, 0.8);
+    border-radius: 10px;
+    padding: 8px 12px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5), 0 0 20px rgba(88, 197, 154, 0.4);
+    max-width: 200px;
+    animation: ghost-appear 0.15s ease-out;
+}
+
+@keyframes ghost-appear {
+    from {
+        opacity: 0;
+        transform: scale(0.8);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.item-drag-ghost img {
+    width: 36px;
+    height: 36px;
+    object-fit: contain;
+    border-radius: 4px;
+}
+
+.item-drag-ghost span {
+    font-size: 14px;
+    color: #f5f5f5;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Prevent text selection and default touch actions during drag */
+body.item-dragging * {
+    user-select: none !important;
+    -webkit-user-select: none !important;
+}
+
+/* Touch device specific: prevent accidental scrolling during item drag */
+@media (hover: none) and (pointer: coarse) {
+    .item {
+        touch-action: manipulation;
+    }
+
+    body.item-dragging {
+        overflow: hidden;
+        touch-action: none;
+    }
+}
