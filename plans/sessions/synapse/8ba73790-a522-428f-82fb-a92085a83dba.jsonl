@@ -1,0 +1,2 @@
+{"type":"queue-operation","operation":"dequeue","timestamp":"2026-02-01T08:05:42.728Z","sessionId":"8ba73790-a522-428f-82fb-a92085a83dba"}
+{"type":"file-history-snapshot","messageId":"096e5b5a-9998-47ce-a2cd-c07d3645556a","snapshot":{"messageId":"096e5b5a-9998-47ce-a2cd-c07d3645556a","trackedFileBackups":{},"timestamp":"2026-02-01T08:05:42.744Z"},"isSnapshotUpdate":false}

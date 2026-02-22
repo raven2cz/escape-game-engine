@@ -94,16 +94,16 @@
       { "id": "g3", "label": "Izolanty" }
     ],
     "tokens": [
-      { "id": "med",      "label": "měď" },
-      { "id": "hlinik",   "label": "hliník" },
-      { "id": "ocel",     "label": "ocel" },
-      { "id": "porcelan", "label": "porcelán" },
-      { "id": "sklo",     "label": "sklo" },
-      { "id": "beton",    "label": "beton" },
       { "id": "plast",    "label": "plast" },
+      { "id": "ocel",     "label": "ocel" },
+      { "id": "vzduch",   "label": "vzduch" },
+      { "id": "porcelan", "label": "porcelán" },
+      { "id": "med",      "label": "měď" },
       { "id": "drevo",    "label": "dřevo" },
+      { "id": "sklo",     "label": "sklo" },
+      { "id": "hlinik",   "label": "hliník" },
       { "id": "guma",     "label": "guma" },
-      { "id": "vzduch",   "label": "vzduch" }
+      { "id": "beton",    "label": "beton" }
     ],
     "solutions": {
       "med": "g1", "hlinik": "g1", "ocel": "g1",
@@ -125,15 +125,15 @@
     "prompt": "Část servisního záznamu se při poruše stanice poškodila. Doplň chybějící slova z nabídky, aby text dával smysl a odpovídal tomu, jak se teplo šíří vedením.",
     "text": "Během detailní kontroly tepelného systému stanice THERMOS-7 jsme zjistili, že některé části zařízení působí na dotek výrazně {gap0}, přestože mají stejnou {gap1} jako okolní prostředí. Tento jev není způsoben rozdílnou teplotou, ale tím, že materiály jako {gap2} mají schopnost velmi {gap3} odvádět teplo z lidské ruky. Přenos tepla tímto způsobem se nazývá {gap4} a probíhá především v {gap5} látkách, kde jsou částice uspořádány blízko u sebe. Aby se přenos tepla tímto způsobem omezil, nejsou kovové části zařízení ponechány bez ochrany, ale jsou zakryty vrstvou {gap6} materiálu. Tato ochranná vrstva přenos tepla {gap7} a pomáhá zabránit {gap8} citlivých částí systému.",
     "tokens": [
-      { "id": "studene",     "label": "studené" },
-      { "id": "teplotu",     "label": "teplotu" },
-      { "id": "kov",         "label": "kov" },
-      { "id": "rychle",      "label": "rychle" },
       { "id": "vedeni",      "label": "vedení" },
-      { "id": "pevnych",     "label": "pevných" },
+      { "id": "prehrivani",  "label": "přehřívání" },
+      { "id": "teplotu",     "label": "teplotu" },
       { "id": "izolacniho",  "label": "izolačního" },
-      { "id": "zpomaluje",   "label": "zpomaluje" },
-      { "id": "prehrivani",  "label": "přehřívání" }
+      { "id": "rychle",      "label": "rychle" },
+      { "id": "studene",     "label": "studeně" },
+      { "id": "pevnych",     "label": "pevných" },
+      { "id": "kov",         "label": "kov" },
+      { "id": "zpomaluje",   "label": "zpomaluje" }
     ],
     "solution": {
       "gap0": "studene",
@@ -240,17 +240,15 @@
     "id": "order-3-2",
     "kind": "order",
     "title": "Seřazení materiálů",
-    "prompt": "Inženýři potřebují navrhnout stěnu stanice tak, aby co nejméně propouštěla teplo ven. Seřaď materiály od nejlepší izolace po nejhorší.",
+    "prompt": "Inženýři potřebují navrhnout stěnu stanice tak, aby co nejméně propouštěla teplo ven. Seřaď materiály od nejlepší izolace (zadržuje teplo) po nejhorší (propouští teplo).",
     "tokens": [
       { "id": "polystyren", "text": "polystyren" },
-      { "id": "guma",       "text": "guma" },
       { "id": "drevo",      "text": "dřevo" },
       { "id": "sklo",       "text": "sklo" },
-      { "id": "beton",      "text": "beton" },
       { "id": "kov",        "text": "kov" }
     ],
-    "solution": ["polystyren", "guma", "drevo", "sklo", "beton", "kov"],
-    "errorMessage": "Pořadí není správné. Vzpomeň si, které materiály teplo zadržují a které propouští.",
+    "solution": ["polystyren", "drevo", "sklo", "kov"],
+    "errorMessage": "Pořadí není správné. Nápověda: co nejméně vede teplo? Polystyren znáš z obalů, kov cítíš jako studený na dotek.",
     "options": {
       "blockUntilSolved": true,
       "showErrorToast": true,
@@ -419,15 +417,15 @@
     "prompt": "Pro úspěšný restart stanice THERMOS-7 je nutné ověřit, že rozumíte základním principům šíření tepla. Doplň chybějící slova z nabídky tak, aby text dával smysl a správně shrnoval, co jste se během mise naučili. Každé slovo použij právě jednou.",
     "text": "Teplo je forma {gap0}, která se samovolně přenáší z tělesa s vyšší {gap1} na těleso s nižší teplotou. V pevných látkách se teplo šíří především {gap2}, což je typické zejména pro {gap3} materiály. Aby se přenos tepla zpomalil a energie zbytečně neunikala, používají se {gap4} materiály, které vedení tepla {gap5}. V plynech a kapalinách se teplo šíří hlavně {gap6}, kdy se teplejší částice pohybují {gap7} a chladnější klesají dolů. Správným řízením přenosu tepla lze zajistit, že technická zařízení pracují {gap8} a bezpečně.",
     "tokens": [
-      { "id": "energie",    "label": "energie" },
-      { "id": "teplotou",   "label": "teplotou" },
-      { "id": "vedenim",    "label": "vedením" },
-      { "id": "kovove",     "label": "kovové" },
-      { "id": "izolacni",   "label": "izolační" },
-      { "id": "zpomaluji",  "label": "zpomalují" },
       { "id": "proudenim",  "label": "prouděním" },
+      { "id": "kovove",     "label": "kovové" },
+      { "id": "stabilne",   "label": "stabilně" },
+      { "id": "energie",    "label": "energie" },
+      { "id": "zpomaluji",  "label": "zpomalují" },
+      { "id": "teplotou",   "label": "teplotou" },
       { "id": "vzhuru",     "label": "vzhůru" },
-      { "id": "stabilne",   "label": "stabilně" }
+      { "id": "izolacni",   "label": "izolační" },
+      { "id": "vedenim",    "label": "vedením" }
     ],
     "solution": {
       "gap0": "energie",

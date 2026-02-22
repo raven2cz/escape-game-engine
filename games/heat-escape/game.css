@@ -170,6 +170,26 @@ body {
   transform: scale(1.02);
 }
 
+/* Dragging state — ensure token stays readable when overlapping */
+.pz-kind-group .pz-token.dragging,
+.pz-kind-order .pz-token.dragging,
+.pz-kind-group .pz-token:active,
+.pz-kind-order .pz-token:active {
+  background: rgba(39, 42, 60, 0.98) !important;
+  color: var(--he-text) !important;
+  border-color: var(--he-accent) !important;
+  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.6) !important;
+  z-index: 100 !important;
+  opacity: 0.97;
+}
+
+/* Tokens inside group buckets — keep dark bg for readability */
+.pz-group-bucket .pz-token {
+  background: rgba(39, 42, 60, 0.95) !important;
+  color: var(--he-text) !important;
+  border: 1px solid rgba(232, 101, 46, 0.3) !important;
+}
+
 /* Group buckets & order slots */
 .pz-group-bucket,
 .pz-order-slot {
