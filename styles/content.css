@@ -1,0 +1,369 @@
+/* ============================================================================
+   CONTENT PANELS - Rich narrative overlay system
+   - Semi-transparent overlays (background must show through)
+   - Three built-in themes: glass, solid, minimal
+   - Fully themeable via CSS custom properties
+   - Responsive (desktop → tablet → mobile)
+   - Touch-friendly (iPad / Android tablet)
+   - Safari / WebKit compatible
+   ============================================================================ */
+
+/* ── Custom Properties (defaults) ───────────────────────────────────────── */
+
+.cp-panel {
+    --cp-font:              inherit;
+    --cp-text:              rgba(255, 255, 255, 0.92);
+    --cp-heading:           rgba(255, 255, 255, 0.96);
+    --cp-accent:            rgba(255, 255, 255, 0.96);
+    --cp-border:            rgba(255, 255, 255, 0.08);
+
+    --cp-btn-bg:            rgba(255, 255, 255, 0.12);
+    --cp-btn-bg-hover:      rgba(255, 255, 255, 0.20);
+    --cp-btn-text:          rgba(255, 255, 255, 0.95);
+    --cp-btn-radius:        10px;
+
+    --cp-scrollbar:         rgba(255, 255, 255, 0.18);
+    --cp-scrollbar-hover:   rgba(255, 255, 255, 0.30);
+    --cp-blockquote-border: rgba(255, 255, 255, 0.18);
+    --cp-code-bg:           rgba(255, 255, 255, 0.08);
+
+    --cp-transition:        300ms ease;
+}
+
+/* ── Container ──────────────────────────────────────────────────────────── */
+
+.cp-container {
+    position: absolute;
+    inset: 0;
+    pointer-events: auto;
+    /* Prevent text selection on fast taps (tablets) */
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+/* ── Backdrop ───────────────────────────────────────────────────────────── */
+
+.cp-backdrop {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity var(--cp-transition);
+}
+.cp-backdrop--visible {
+    opacity: 1;
+}
+
+.cp-backdrop--dim {
+    background: rgba(0, 0, 0, 0.35);
+}
+.cp-backdrop--blur {
+    background: rgba(0, 0, 0, 0.18);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+}
+.cp-backdrop--none {
+    pointer-events: none;
+}
+
+/* ── Panel (shared) ─────────────────────────────────────────────────────── */
+
+.cp-panel {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    color: var(--cp-text);
+    font-family: var(--cp-font);
+
+    /* Enter animation — starts hidden */
+    opacity: 0;
+    transform: translateX(-12px);
+    transition:
+        opacity var(--cp-transition),
+        transform var(--cp-transition);
+}
+.cp-panel--visible {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+/* ── Theme: Glass ───────────────────────────────────────────────────────── */
+
+.cp-panel--glass {
+    background: rgba(10, 15, 30, 0.82);
+    backdrop-filter: blur(16px) saturate(1.2);
+    -webkit-backdrop-filter: blur(16px) saturate(1.2);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 14px;
+    box-shadow:
+        0 8px 32px rgba(0, 0, 0, 0.45),
+        inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+/* ── Theme: Solid ───────────────────────────────────────────────────────── */
+
+.cp-panel--solid {
+    background: var(--cp-bg, #1a1d2e);
+    border: 1px solid var(--cp-border);
+    border-radius: 12px;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.55);
+}
+
+/* ── Theme: Minimal ─────────────────────────────────────────────────────── */
+
+.cp-panel--minimal {
+    background: rgba(0, 0, 0, 0.60);
+    border-radius: 8px;
+}
+
+/* ── Header ─────────────────────────────────────────────────────────────── */
+
+.cp-header {
+    padding: 1.25rem 1.5rem 0.5rem;
+    flex-shrink: 0;
+}
+
+.cp-title {
+    margin: 0;
+    font-size: 1.4em;
+    font-weight: 700;
+    color: var(--cp-heading);
+    letter-spacing: 0.02em;
+    line-height: 1.3;
+}
+
+/* ── Body ───────────────────────────────────────────────────────────────── */
+
+.cp-body {
+    flex: 1 1 auto;
+    padding: 0.5rem 1.5rem 1rem;
+    overflow: hidden;
+    /* Allow text selection only within body */
+    -webkit-user-select: text;
+    user-select: text;
+}
+.cp-body--scrollable {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scroll-behavior: smooth;
+    /* iOS smooth scroll */
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+}
+
+/* Scrollbar styling */
+.cp-body::-webkit-scrollbar {
+    width: 5px;
+}
+.cp-body::-webkit-scrollbar-track {
+    background: transparent;
+}
+.cp-body::-webkit-scrollbar-thumb {
+    background: var(--cp-scrollbar);
+    border-radius: 3px;
+}
+.cp-body::-webkit-scrollbar-thumb:hover {
+    background: var(--cp-scrollbar-hover);
+}
+
+/* Firefox scrollbar */
+.cp-body {
+    scrollbar-width: thin;
+    scrollbar-color: var(--cp-scrollbar) transparent;
+}
+
+/* ── Rendered content typography ────────────────────────────────────────── */
+
+.cp-content h1,
+.cp-content h2,
+.cp-content h3,
+.cp-content h4 {
+    color: var(--cp-heading);
+    margin: 1em 0 0.45em;
+    line-height: 1.3;
+    font-weight: 700;
+}
+.cp-content h1:first-child,
+.cp-content h2:first-child,
+.cp-content h3:first-child {
+    margin-top: 0;
+}
+.cp-content h1 { font-size: 1.5em; }
+.cp-content h2 { font-size: 1.3em; }
+.cp-content h3 { font-size: 1.15em; }
+
+.cp-content p {
+    margin: 0.55em 0;
+    line-height: 1.65;
+}
+
+.cp-content strong {
+    color: var(--cp-accent);
+    font-weight: 700;
+}
+
+.cp-content em {
+    font-style: italic;
+    opacity: 0.88;
+}
+
+.cp-content ul,
+.cp-content ol {
+    margin: 0.5em 0;
+    padding-left: 1.5em;
+}
+.cp-content li {
+    margin: 0.3em 0;
+    line-height: 1.55;
+}
+
+.cp-content blockquote {
+    border-left: 3px solid var(--cp-blockquote-border);
+    margin: 0.8em 0;
+    padding: 0.4em 1em;
+    opacity: 0.85;
+    font-style: italic;
+}
+
+.cp-content code {
+    background: var(--cp-code-bg);
+    padding: 0.12em 0.4em;
+    border-radius: 4px;
+    font-size: 0.9em;
+    font-family: monospace;
+}
+
+.cp-content img {
+    max-width: 100%;
+    border-radius: 8px;
+    margin: 0.7em 0;
+    display: block;
+}
+
+.cp-content hr {
+    border: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    margin: 1.2em 0;
+}
+
+.cp-content a {
+    color: var(--cp-accent);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+/* ── Footer ─────────────────────────────────────────────────────────────── */
+
+.cp-footer {
+    padding: 0.6rem 1.5rem 1rem;
+    display: flex;
+    justify-content: flex-end;
+    flex-shrink: 0;
+}
+
+.cp-btn {
+    padding: 0.55em 1.5em;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: var(--cp-btn-radius);
+    font-size: 0.92em;
+    font-weight: 600;
+    cursor: pointer;
+    background: var(--cp-btn-bg);
+    color: var(--cp-btn-text);
+    transition:
+        background 0.2s ease,
+        transform 0.15s ease,
+        border-color 0.2s ease;
+    /* Touch optimisation */
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+}
+.cp-btn:hover {
+    background: var(--cp-btn-bg-hover);
+    border-color: rgba(255, 255, 255, 0.25);
+}
+.cp-btn:active {
+    transform: scale(0.97);
+}
+.cp-btn:focus-visible {
+    outline: 2px solid var(--cp-accent);
+    outline-offset: 2px;
+}
+
+/* ── Responsive: tablet portrait ────────────────────────────────────────── */
+
+@media (max-width: 1024px) {
+    .cp-title {
+        font-size: 1.25em;
+    }
+    .cp-content {
+        font-size: 0.95em;
+    }
+}
+
+/* ── Responsive: phone / small tablet ───────────────────────────────────── */
+
+@media (max-width: 720px) {
+    .cp-panel {
+        left: 2% !important;
+        right: 2% !important;
+        bottom: 2% !important;
+        top: auto !important;
+        width: 96% !important;
+        max-height: 75vh;
+        border-radius: 14px 14px 8px 8px;
+        /* Override slide direction for bottom-sheet style */
+        transform: translateY(20px);
+    }
+    .cp-panel--visible {
+        transform: translateY(0);
+    }
+
+    .cp-header {
+        padding: 1rem 1.2rem 0.4rem;
+    }
+    .cp-body {
+        padding: 0.4rem 1.2rem 0.8rem;
+    }
+    .cp-footer {
+        padding: 0.5rem 1.2rem 0.8rem;
+    }
+}
+
+/* ── Touch device helpers ───────────────────────────────────────────────── */
+
+@media (hover: none) and (pointer: coarse) {
+    .cp-btn {
+        padding: 0.65em 1.6em;
+        font-size: 1em;
+        /* Larger touch target on touch devices */
+        min-height: 44px;
+    }
+    .cp-body {
+        /* Prevent rubber-band scrolling leaking to body */
+        overscroll-behavior: contain;
+    }
+}
+
+/* ── Safari / WebKit fixes ──────────────────────────────────────────────── */
+
+@supports (-webkit-touch-callout: none) {
+    .cp-panel--glass {
+        /* Safari sometimes needs explicit background-clip */
+        -webkit-background-clip: padding-box;
+        background-clip: padding-box;
+    }
+    .cp-body--scrollable {
+        /* Ensure momentum scrolling on iOS */
+        -webkit-overflow-scrolling: touch;
+    }
+}
+
+/* ── Reduced motion preference ──────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+    .cp-panel,
+    .cp-backdrop {
+        transition-duration: 0ms !important;
+    }
+}

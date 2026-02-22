@@ -1,8 +1,9 @@
 // engine/engine.js
-// Game engine core: scenes, i18n, dialogs, hero profile, inventory, puzzles, events.
+// Game engine core: scenes, i18n, dialogs, hero profile, inventory, puzzles, events, content panels.
 
 import {createPuzzleRunner, openListModal} from './puzzles/index.js';
 import {DialogUI} from './dialogs.js';
+import {ContentPanel} from './content.js';
 
 export class Game {
     constructor(opts) {
@@ -40,6 +41,9 @@ export class Game {
 
         // Dialog UI
         this.dialogUI = new DialogUI(this);
+
+        // Content Panel UI
+        this.contentPanel = new ContentPanel(this);
 
         // Modal events
         this.modalCancel.addEventListener('click', () => this._closeModal(false));
@@ -147,7 +151,8 @@ export class Game {
             scene: this.data.startScene || this.data.scenes[0]?.id,
             useItemId: null,
             hero: null,
-            puzzleResults: [] // aggregateOnly results bucket
+            puzzleResults: [], // aggregateOnly results bucket
+            contentShown: {}  // tracks "once" content panels
         };
 
         // initialize hero (default → then URL override if present)
@@ -192,6 +197,18 @@ export class Game {
         this._drainHighlightsForScene(sceneId);
         // events: enterScene
         await this._processEvents({on: 'enterScene', scene: sceneId});
+
+        // scene-level auto content panel
+        if (scene.content?.ref) {
+            const trigger = scene.content.trigger || 'enter';
+            if (trigger === 'enter') {
+                const cId = scene.content.ref;
+                const cOnce = scene.content.once ?? true;
+                if (!cOnce || !this.state.contentShown?.[cId]) {
+                    await this.contentPanel.open(cId);
+                }
+            }
+        }
 
         if (scene.end) this._msg(this._t('engine.endCongrats', '🎉 Gratulujeme! Našel si cestu ven!'));
     }
@@ -583,6 +600,11 @@ export class Game {
             return;
         }
 
+        if (h.type === 'content') {
+            await this.contentPanel.open(h.contentRef);
+            return;
+        }
+
         // Fallback pro neznámé typy
         this._msg('Unknown hotspot type: ' + h.type);
         console.warn('Unknown hotspot type:', h);
@@ -670,7 +692,7 @@ export class Game {
 
     /**
      * Executes a bundle of actions (used by Hotspots, Puzzles onSuccess/onFail, Video onEnd).
-     * Supports: toast, message, openDialog, highlightHotspot, playVideo, giveItem, setFlags, clearFlags, goTo.
+     * Supports: toast, message, openDialog, openContent, highlightHotspot, playVideo, giveItem, setFlags, clearFlags, goTo.
      */
     async _applyActions(actions) {
         if (!actions) return;
@@ -686,6 +708,11 @@ export class Game {
         // 2. Dialogs (Blocking)
         if (actions.openDialog) {
             await this.openDialog(actions.openDialog);
+        }
+
+        // 2b. Content Panels (Blocking)
+        if (actions.openContent) {
+            await this.contentPanel.open(actions.openContent);
         }
 
         // 3. Highlight Hotspot
@@ -1389,6 +1416,11 @@ export class Game {
             // The engine waits here until the dialog is fully closed by the user.
             if (act.openDialog) {
                 await this.openDialog(act.openDialog);
+            }
+
+            // Open Content Panel (Blocking)
+            if (act.openContent) {
+                await this.contentPanel.open(act.openContent);
             }
 
             // Highlight Hotspot
