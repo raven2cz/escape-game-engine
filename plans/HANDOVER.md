@@ -60,7 +60,8 @@ regression tests that should name the game they protect.
   them. Done.
 - **EI-017**: delete `plans/sessions/`, keep
   `games/warp-engine/assets/resource/`, and close GitHub Pages rather than merely
-  excluding `resource/` from it. All done except the git history. See below.
+  excluding `resource/` from it. Done. History is deliberately not rewritten; the
+  transcripts were scanned for credentials first and are clean.
 - **EI-020**: delete `games/demo`. A demo of the framework is wanted eventually,
   but as a deliberate separate thing, not as this leftover. Done.
 - **EI-002 step two** and **EI-010**: left where they were. EI-010 belongs to the
@@ -68,17 +69,12 @@ regression tests that should name the game they protect.
 
 **Still open, and it needs the owner:**
 
-- **EI-017, the rest of it: git history.** The 70 deleted session transcripts are
-  still reachable from commit `ef8f5c5` by anyone who clones the public
-  repository - 52 from `somewm`, 13 from `synapse`, plus a 38 MB zip, most of it
-  working context from unrelated projects. Deleting them in a commit did not make
-  them private, and `.git` is still 430 MB. Removing them for real means a history
-  rewrite and a force push: every commit hash changes and every clone has to be
-  thrown away. The natural moment is the repository split.
-
-  `resource/` itself stays, by the owner's decision, though it was decided on the
-  belief that it holds the game's films - it holds 147 MB of source PNGs and no
-  video at all. Nothing publishes it any more.
+- **The repository split, and it is now the most urgent thing here.** `games/` is
+  proprietary as of EI-004 and still sits in a public repository. Closing Pages
+  took away the web player, not the source: every `scenes.json`, `dialogs.json`
+  and asset is readable and cloneable by anyone, and 21 puzzles across five games
+  carry their answers in `puzzles.json` in plain text. Nothing in the engine work
+  changes that; only moving the games out does.
 - **The oldest iPad that has to work**, which decides whether `ResizeObserver`
   needs a runtime fallback and not just a test stub.
 

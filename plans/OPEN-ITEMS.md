@@ -37,7 +37,7 @@ pre-existing defect rather than a new one.
 | EI-014 | P3   | DONE   | `reactor` is missing the `end` flag on its final scene          |
 | EI-015 | P3   | DONE   | Leftovers from the first game hardcoded as if they were generic |
 | EI-016 | P4   | DONE   | 5 of 113 tests fail on main and CI never runs them              |
-| EI-017 | P4   | PART   | 318 MB of material tracked in git that does not belong there    |
+| EI-017 | P4   | DONE   | 318 MB of material tracked in git that does not belong there    |
 | EI-018 | P4   | DONE   | Dead code, and a README documenting an API the engine lacks     |
 | EI-019 | P3   | DONE   | Inspecting a second item showed the first item's name           |
 | EI-020 | P3   | DONE   | `games/demo` is not playable and is excluded from the data tests |
@@ -839,9 +839,23 @@ fresh clone downloads all of it.
 Removing them for real means a history rewrite and a force push on a public,
 already-pushed repository: every commit hash from the first touch onwards
 changes, every existing clone has to be thrown away, and it cannot be undone
-without a backup. Not something to do quietly. The natural moment is the
-repository split, where the new private games repository starts with clean
-history anyway.
+without a backup.
+
+**Decided by the owner: do not rewrite.** The reasoning is that the games are
+sold to teachers who neither know nor care what was once in a git repository,
+that they are paid from this version onwards, and that further work on them will
+happen in a private repository anyway.
+
+Before the decision, all 66 transcripts were scanned for well-known credential
+formats: GitHub tokens, OpenAI keys, AWS access keys, Slack tokens, Google API
+keys and PEM private key blocks. **Three matches, all the same false positive**:
+`gh auth status` output, where the token is already masked as `gho_****` in the
+transcript itself. No credential is exposed. That is what the scan can say; it
+cannot say that nothing else in 171 MB of working notes is sensitive, because
+private discussion and internal detail match no pattern.
+
+`.git` therefore stays at 430 MB and every fresh clone downloads all of it. That
+is now an accepted cost rather than an open question.
 
 **Test.** None.
 
