@@ -9,7 +9,7 @@ where the work is and what comes next.
 
     branch    fix/stabilization-audit
     base      main @ 5dbca85
-    suite     181 passing, CI runs it on push and pull request
+    suite     191 passing, CI runs it on push and pull request
 
 | commit | what |
 |---|---|
@@ -21,10 +21,12 @@ where the work is and what comes next.
 | `7222b09` | S3: EI-002 step one, EI-011, EI-012 |
 | `076e654` | what the reviews of S1 to S3 found, three of them P1 |
 | `2f6ce6b` | what a second review round found, and two vacuous assertions |
+| _next_    | EI-021, EI-022, EI-023, the three the reviews turned up |
 
-Every code batch in the plan is done. What is left is the owner's decisions
-(S5), one new defect found while fixing another (EI-021), and the items that were
-always meant to wait for the hosted runtime design.
+Every code batch in the plan is done, and so are the three defects the reviews
+turned up (EI-021, EI-022, EI-023). What is left is the owner's decisions (S5),
+EI-018 and EI-015, and the items that were always meant to wait for the hosted
+runtime design.
 
 ## The reload harness
 
@@ -64,25 +66,18 @@ decide them and do not work around them:
 
 **Code, in rough order of value:**
 
-- **EI-022**, the highest-value one left. Both warp-engine videos are
-  `allowSkip: false`, and `_playVideo()` resolves only on `ended` or `error`. A
-  `play()` that the browser refuses - autoplay policy, or iOS in Low Power Mode -
-  is caught, logged and then waited on forever, behind a full-screen overlay with
-  no way out. The intro video plays on the first tap of the game, which is the
-  least likely moment for a browser to allow it.
-- **EI-021**, found while fixing EI-013. A dialog opened from another dialog's
-  ending cannot be advanced, because `DialogUI._busy` is still held by the
-  advance that started the chain. Verified that none of the six shipped games can
-  reach it, which is why it was recorded rather than fixed in the same batch.
-- **EI-023**, latent. A puzzle and a content panel both mount inside the hotspot
-  layer, and `_renderHotspots()` clears that layer without settling them. Same
-  reasoning: recorded because no shipped game can reach it.
 - **EI-018**, dead code and a README documenting an API the engine does not have.
   This one matters more than its priority suggests once the games move to their
   own repository, because the next author will follow the README.
 - **EI-015**, the remaining leftovers from the first game. The storage key was
   the important one and is now gone; what is left is the hero fallback to `adam`,
   the service worker cache name, and the default game in `index.html`.
+
+One thing left undone inside a finished item: EI-023 was fixed by making
+`_renderHotspots()` remove only its own output. The better shape is to mount the
+puzzle and the content panel somewhere other than the hit-testing layer, but both
+are positioned in percentages of it, so that is a visual change nobody can check
+from a test. Worth doing when somebody can look at the result.
 
 **Waiting on the hosted runtime, deliberately:**
 

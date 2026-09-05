@@ -18,6 +18,8 @@ export const ENGINE_I18N = {
         'engine.use.applied': 'Předmět byl použit.',
         'engine.use.button': 'Použít',
         'engine.use.notApplicable': 'Tento předmět tady nelze použít.',
+        'engine.video.skip': 'Přeskočit video',
+        'engine.video.play': '▶ Přehrát',
     },
     en: {
         'engine.sceneNotFound': 'Scene not found: {id}',
@@ -37,5 +39,7 @@ export const ENGINE_I18N = {
         'engine.use.applied': 'Item applied.',
         'engine.use.button': 'Use',
         'engine.use.notApplicable': 'You cannot use this item here.',
+        'engine.video.skip': 'Skip video',
+        'engine.video.play': '▶ Play',
     }
 };

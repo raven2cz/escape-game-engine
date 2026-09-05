@@ -661,6 +661,15 @@ export class DialogUI {
         const resolveClosed = this._closeResolver;
         this._closeResolver = null;
 
+        // This dialog run is over, so release the input lock now rather than in
+        // next()'s finally. What follows can open another dialog, and next()
+        // does not return until that one is finished: _busy would still be held
+        // by an advance that belongs to a dialog nobody is looking at any more,
+        // and _handleInput() refuses every tap while it is. The second dialog
+        // could then never be closed and the run stopped there. Advancing this
+        // dialog again is impossible regardless, because `active` is null. EI-021.
+        this._busy = false;
+
         // 2. Apply logic
         if (onEnd) {
             if (onEnd.message) g._msg(g._text(onEnd.message));

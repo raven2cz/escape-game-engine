@@ -59,6 +59,10 @@ export class Game {
         // than refused never fires anything at all. See EI-003.
         this.sceneImageTimeoutMs = opts.sceneImageTimeoutMs ?? 8000;
 
+        // How long a video gets to start playing before the pupil is offered a
+        // way past it, even when the game asked for no skipping. See EI-022.
+        this.videoStartTimeoutMs = opts.videoStartTimeoutMs ?? 6000;
+
         // State
         this.data = null;
         this.meta = {};
@@ -501,7 +505,16 @@ export class Game {
     // --- renderers --------------------------------------------------------------
 
     _renderHotspots() {
-        this.hotspotLayer.innerHTML = '';
+        // Remove only what this method and the highlight helper put here.
+        //
+        // A puzzle and a content panel mount into this same layer, and clearing
+        // it wholesale tore them out of the DOM without ever settling them: the
+        // puzzle's promise was left waiting for an onResolve that could no
+        // longer come, and since EI-013 the activation lock waits with it, so
+        // afterwards no tap did anything at all. See EI-023.
+        this.hotspotLayer.querySelectorAll(':scope > .hotspot, :scope > .hs-glow')
+            .forEach(el => el.remove());
+
         const hotspots = this.currentScene.hotspots || [];
 
         hotspots.forEach((h, idx) => {
@@ -1710,6 +1723,25 @@ export class Game {
     /**
      * Plays a video overlay or embedded video.
      * Returns a Promise that resolves when the video ends or is skipped.
+     *
+     * Nothing here assumes the video plays. It used to: the promise settled on
+     * `ended` or `error` and on nothing else, a refused `play()` was logged and
+     * then waited on forever, and `allowSkip: false` meant there was not even a
+     * button. Both warp-engine videos are `allowSkip: false` and the intro one
+     * runs on the first tap of the game, so a lesson could end on a black
+     * screen. See EI-022.
+     *
+     * The tablet cases this is built around, in the order they bite:
+     *   - iOS refuses playback with sound unless the call is close enough to a
+     *     real touch, and refuses it outright in Low Power Mode. So a refused
+     *     `play()` puts a play button on screen, and tapping that retries from
+     *     inside a real touch handler, which is what iOS wants. One tap and the
+     *     video plays properly, with its sound.
+     *   - A school network can leave a video buffering indefinitely. If nothing
+     *     has started playing by `videoStartTimeoutMs`, or the download stalls
+     *     part way through, a way out appears even when the author asked for no
+     *     skipping. An intro somebody skipped beats an intro nobody can pass.
+     *
      * @param {object} cfg - { src, mode, rect, delay, allowSkip, onEnd }
      */
     async _playVideo(cfg) {
@@ -1747,44 +1779,80 @@ export class Game {
 
             wrapper.appendChild(video);
 
-            // Skip button (optional)
-            if (cfg.allowSkip !== false) {
-                const skipBtn = document.createElement('button');
-                skipBtn.className = 'video-skip';
-                skipBtn.innerHTML = '&times;'; // Close icon
-                skipBtn.title = 'Skip Video';
+            const allowSkip = cfg.allowSkip !== false;
 
-                // Skip handler
-                skipBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    finish();
-                });
-                wrapper.appendChild(skipBtn);
-
-                // Allow clicking outside/on wrapper to skip (only in fullscreen mode)
-                if (cfg.mode !== 'rect') {
-                    wrapper.addEventListener('click', finish);
-                }
-            }
-
-            // Mount to DOM (highest layer)
-            document.body.appendChild(wrapper);
-
-            // Lifecycle end handler
             let finished = false;
-            function finish() {
+            let watchdog = null;
+
+            const finish = () => {
                 if (finished) return;
                 finished = true;
 
+                clearTimeout(watchdog);
                 video.pause();
                 if (wrapper.parentNode) wrapper.parentNode.removeChild(wrapper);
 
                 // Execute follow-up actions (onEnd) if defined
                 // Note: We resolve first to unblock the engine, logic happens outside
                 resolve();
+            };
+
+            // The skip control exists even when the author asked for no
+            // skipping. It stays hidden until the video shows that it cannot
+            // play, and once shown it stays: taking a control away again from
+            // somebody who has just seen it is its own kind of stuck.
+            const skipBtn = document.createElement('button');
+            skipBtn.type = 'button';
+            skipBtn.className = 'video-skip';
+            skipBtn.innerHTML = '&times;'; // Close icon
+            const skipLabel = this._t('engine.video.skip', 'Přeskočit video');
+            skipBtn.title = skipLabel;
+            skipBtn.setAttribute('aria-label', skipLabel);
+            skipBtn.hidden = !allowSkip;
+            skipBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                finish();
+            });
+            wrapper.appendChild(skipBtn);
+
+            const offerWayOut = () => {
+                skipBtn.hidden = false;
+            };
+
+            // Shown only when the browser has actually refused to start.
+            const playBtn = document.createElement('button');
+            playBtn.type = 'button';
+            playBtn.className = 'video-play';
+            playBtn.textContent = this._t('engine.video.play', '▶ Přehrát');
+            playBtn.hidden = true;
+            playBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                // Retried from inside a real touch handler, which is the only
+                // kind iOS accepts for a video with sound.
+                video.play().then(() => {
+                    playBtn.hidden = true;
+                }).catch(err => {
+                    console.warn('[VIDEO] Playback refused again:', err);
+                });
+            });
+            wrapper.appendChild(playBtn);
+
+            // Allow clicking outside/on the wrapper to skip (only in fullscreen
+            // mode, and only when skipping was allowed in the first place: an
+            // accidental tap must not eat an intro the author wanted watched).
+            if (allowSkip && cfg.mode !== 'rect') {
+                wrapper.addEventListener('click', finish);
             }
 
+            // Mount to DOM (highest layer)
+            document.body.appendChild(wrapper);
+
             // Event listeners
+            video.addEventListener('playing', () => {
+                clearTimeout(watchdog);
+                playBtn.hidden = true;
+            });
+
             video.addEventListener('ended', finish);
 
             video.addEventListener('error', (e) => {
@@ -1792,11 +1860,18 @@ export class Game {
                 finish(); // Don't block the game on error
             });
 
+            // Fired when the download has produced nothing for a while. The
+            // video may already have been playing, so the watchdog below has
+            // long since been cleared.
+            video.addEventListener('stalled', offerWayOut);
+
+            watchdog = setTimeout(offerWayOut, this.videoStartTimeoutMs);
+
             // Start playback with error handling (autoplay policy)
             video.play().catch(err => {
                 console.warn('[VIDEO] Autoplay blocked or failed:', err);
-                // If autoplay is blocked, we might need a "Click to Play" UI here.
-                // For now, we assume user interaction has already happened (dialog click).
+                playBtn.hidden = false;
+                offerWayOut();
             });
         });
     }

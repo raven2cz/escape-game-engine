@@ -922,6 +922,41 @@ body.use-on #hotspotLayer {
     transform: scale(1.1);
 }
 
+/* Play button, shown only when the browser has refused to start playback:
+   iOS in Low Power Mode, or a video with sound and no recent touch. Tapping it
+   retries from inside a real touch handler, which is what iOS wants. See
+   EI-022. Sized for a finger, not a mouse. */
+.video-play {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    min-width: 200px;
+    min-height: 60px;
+    padding: 14px 32px;
+    background: rgba(255, 255, 255, 0.96);
+    color: #17171c;
+    border: none;
+    border-radius: 999px;
+    font: inherit;
+    font-size: 20px;
+    font-weight: 700;
+    cursor: pointer;
+    z-index: 11;
+    box-shadow: 0 6px 28px rgba(0, 0, 0, 0.55);
+}
+
+.video-play:active {
+    transform: translate(-50%, -50%) scale(0.97);
+}
+
+/* Both controls are always in the DOM and hidden with the `hidden` attribute.
+   Their own display rules would otherwise override the browser default for it. */
+.video-skip[hidden],
+.video-play[hidden] {
+    display: none;
+}
+
 /* ==========================================================================
    ITEM DRAG & DROP SYSTEM
    ========================================================================== */

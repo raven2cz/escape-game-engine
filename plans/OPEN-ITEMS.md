@@ -39,9 +39,9 @@ pre-existing defect rather than a new one.
 | EI-018 | P4   | OPEN   | Dead code, and a README documenting an API the engine lacks     |
 | EI-019 | P3   | DONE   | Inspecting a second item showed the first item's name           |
 | EI-020 | P3   | OPEN   | `games/demo` is not playable and is excluded from the data tests |
-| EI-021 | P3   | OPEN   | A dialog opened from another dialog's ending cannot be advanced   |
-| EI-022 | P2   | OPEN   | An unskippable video that never plays blocks the run forever     |
-| EI-023 | P3   | OPEN   | Re-rendering hotspots can destroy a mounted puzzle or panel      |
+| EI-021 | P3   | DONE   | A dialog opened from another dialog's ending cannot be advanced   |
+| EI-022 | P2   | DONE   | An unskippable video that never plays blocks the run forever     |
+| EI-023 | P3   | DONE   | Re-rendering hotspots can destroy a mounted puzzle or panel      |
 
 Where the fix lands is decided in [STABILIZATION.md](STABILIZATION.md).
 
@@ -842,14 +842,20 @@ The engine is then blocked on it for good.
 `onEnd` or `onNext`, so no game can reach it today. The chain is supported by the
 engine and a new game could use it without doing anything unusual.
 
-**Fix.** `_busy` guards one thing, an advance that is already running, and should
-not stay held across whatever that advance sets in motion. Scope it to the
-synchronous part, or make it per-dialog rather than per-DialogUI.
+**Status:** DONE, on the owner's instruction to fix it rather than leave it
+recorded.
 
-**Test.** Partly there already: `games/tests/engine.double-tap.test.js`, "still
-lets a dialog open one from its own onEnd", closes the second dialog through
-`close()` and says why. Change it to close by clicking, and it is the regression
-test for this item.
+**Fix as applied.** `_end()` releases `_busy` as soon as it has taken the
+resolver and set `active` to null, rather than leaving it to `next()`'s
+`finally`, which does not run until everything the ending set in motion has
+finished. One line. Advancing the finished dialog again is impossible regardless,
+because `next()` returns early when `active` is null, so the lock has nothing
+left to protect by then.
+
+**Test.** `games/tests/engine.double-tap.test.js`, "still lets a dialog open one
+from its own onEnd, and lets the pupil click through it". It used to close the
+second dialog through `close()` because clicking did not work; it now closes it
+by tapping, the way a pupil does. Verified to fail before the fix.
 
 ---
 
@@ -873,14 +879,35 @@ likely moment for a browser to allow it. The result is a black screen that the
 lesson cannot get past. heat-escape's two videos are `allowSkip: true` and
 therefore recoverable.
 
-**Fix.** Two parts, and the first is enough on its own. Treat a rejected `play()`
-as an end rather than a warning, and give the overlay a way out regardless of
-`allowSkip`: a skip button that appears after a few seconds costs nothing and
-removes a whole class of stuck lesson. Reconsider `allowSkip: false` in
-warp-engine while you are there.
+**Status:** DONE, on the owner's instruction, with tablets as the case to get
+right.
 
-**Test.** A video whose `play()` rejects still resolves `_playVideo()`. A video
-that never fires `ended` can still be dismissed.
+**Fix as applied.** Nothing in `_playVideo()` assumes the video plays.
+
+- A refused `play()` puts a **play button** on screen rather than skipping the
+  video. Tapping it retries from inside a real touch handler, which is the only
+  kind iOS accepts for a video with sound, so one tap gets the pupil the video
+  as the author intended rather than losing it. Falling back to muted playback
+  was considered and rejected: silent narration is worse than one extra tap.
+- The skip control is always in the DOM and hidden with the `hidden` attribute.
+  `allowSkip: false` hides it, and it is revealed when the video has not started
+  by `videoStartTimeoutMs` (6 s, injectable), when `stalled` fires part way
+  through, or when `play()` was refused. Once revealed it stays: taking a control
+  away from somebody who has just seen it is its own kind of stuck.
+- `allowSkip: false` still means something during normal playback, which is
+  what stops this being a way of quietly deleting the setting.
+- Tapping the backdrop still skips only when `allowSkip` is true, so an
+  accidental tap cannot eat an intro the author wanted watched.
+- `styles/style.css` needed `.video-skip[hidden], .video-play[hidden] { display:
+  none }`: `.video-skip` sets `display: flex`, which beats the browser's default
+  styling for the attribute.
+
+**Test.** `games/tests/engine.video.stuck.test.js`: a refused `play()` offers the
+play button and the retry works, a video that never starts can be got past even
+with `allowSkip: false`, a stall part way through does the same, the control
+stays hidden while the video really is playing, and the activation lock is
+released either way. Four verified to fail before the fix; the fifth was
+mutation-checked, because it guards the setting rather than the defect.
 
 ---
 
@@ -905,9 +932,21 @@ only leeuwenhoek's treasure room has a puzzle and an item-accepting hotspot in
 the same scene, and the item it accepts is the reward for solving that puzzle, so
 it cannot be held while the puzzle is open.
 
-**Fix.** Either mount modal surfaces outside the hotspot layer, or have
-`_renderHotspots()` refuse to run while one is mounted. The first is better; the
-layer is a hit-testing surface and should not also be a modal host.
+**Status:** DONE, on the owner's instruction to fix it rather than leave it
+recorded.
 
-**Test.** Mount a puzzle, trigger a hotspot re-render, assert the puzzle promise
-settles and the activation lock is released.
+**Fix as applied.** `_renderHotspots()` removes only what it and the highlight
+helper put there, `:scope > .hotspot` and `:scope > .hs-glow`, instead of
+clearing the layer. Verified that nothing else appends to it: the editor only
+restyles existing `.hotspot` children.
+
+Moving the modal surfaces out of the hotspot layer would be the better shape -
+the layer is a hit-testing surface and should not also be a modal host - but
+both are positioned in percentages of it, so moving them is a visual change that
+cannot be checked from a test. Worth doing when somebody can look at the result.
+
+**Test.** `games/tests/engine.modal-surfaces.test.js`: a re-render leaves an open
+puzzle mounted and still able to settle, leaves a content panel mounted, leaves
+the activation lock releasable, and still clears the hotspots it drew last time.
+Three verified to fail before the fix; the fourth guards the renderer still
+owning its own output.

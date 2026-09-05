@@ -142,10 +142,15 @@ describe('EI-013: a double tap', () => {
         expect(game.dialogUI.active).toBeNull();
     });
 
-    it('still lets a dialog open one from its own onEnd', async () => {
+    it('still lets a dialog open one from its own onEnd, and lets the pupil click through it', async () => {
         // The refusal must not catch this. A dialog whose onEnd sets a flag that
         // an event reacts to by opening another dialog is a normal chain in the
         // shipped games, and it runs while the first dialog is still finishing.
+        //
+        // The second dialog also has to be usable, which is EI-021: _busy was
+        // still held by the advance that started the chain, and _handleInput()
+        // returns early whenever _busy is set, so every tap on the second dialog
+        // was ignored and the run stopped there for good.
         const game = await bootRoom();
 
         let settled = false;
@@ -160,12 +165,10 @@ describe('EI-013: a double tap', () => {
         expect(game.state.flags.handover_done).toBe(true);
         expect(settled).toBe(false); // the first dialog waits for what it started
 
-        // Closed through close() rather than by clicking: while the chain is
-        // running, DialogUI._busy is still held by the advance that started it,
-        // so a click on the second dialog is ignored. No shipped game can reach
-        // that today; recorded as EI-021 rather than fixed here.
-        await game.dialogUI.close();
+        // Closed the way a pupil closes it: by tapping.
+        document.querySelector('.dlg-overlay').click();
         await waitFor(() => settled, { label: 'the handover dialog to settle' });
+        expect(game.dialogUI.active).toBeNull();
     });
 
     it('lets the next dialog open once the first one is closed', async () => {
