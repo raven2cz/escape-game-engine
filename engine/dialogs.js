@@ -8,6 +8,8 @@
  * allowing the main Engine to await the conversation.
  */
 
+import {flagEntries} from './utils.js';
+
 export class DialogUI {
     /**
      * @param {import('./engine.js').Game} game
@@ -381,7 +383,14 @@ export class DialogUI {
         // Special handling for 'hero' placeholder
         if (charId === 'hero') {
             const hero = this.game.getHero();
-            const byId = chars.find(c => c?.id === hero.id);
+
+            // A game that names its heroes may also give each one a character of
+            // its own, and that is preferred over the template. The exception is
+            // the neutral hero a game with no heroes falls back to: its id is
+            // `hero` too, so this lookup would find the template itself and
+            // return it with its `{heroBase}` placeholders still in the text.
+            // See NEUTRAL_HERO in engine.js and EI-015.
+            const byId = hero.id !== 'hero' ? chars.find(c => c?.id === hero.id) : null;
             if (byId) return byId;
 
             const tpl = chars.find(c => c?.id === 'hero');
@@ -550,7 +559,15 @@ export class DialogUI {
     // --- Logic & Flow ---
 
     async _applyChoice(step, ch) {
+        // The step this choice belongs to has to still be the one on screen.
+        // _flashChoice disables the button that was tapped for 220 ms but not
+        // its siblings, so a second choice can arrive while the first is being
+        // applied. The lock alone stopped that until EI-021 started releasing it
+        // as soon as a dialog ends, which it has to; this is the check that was
+        // missing underneath it. Without it the second choice runs against a
+        // dialog that is already over: its flags get set and its onEnd runs.
         if (this._busy) return;
+        if (this.active?.dlg?.sequence?.[this.active.idx] !== step) return;
         this._busy = true;
 
         try {
@@ -613,17 +630,10 @@ export class DialogUI {
     async _applyFlags(flags) {
         const g = this.game;
         let changed = false;
-        if (Array.isArray(flags)) {
-            for (const f of flags) if (!g.state.flags[f]) {
-                g.state.flags[f] = true;
+        for (const [flag, value] of flagEntries(flags)) {
+            if (!!g.state.flags[flag] !== value) {
+                g.state.flags[flag] = value;
                 changed = true;
-            }
-        } else if (flags && typeof flags === 'object') {
-            for (const [k, v] of Object.entries(flags)) {
-                if (!!g.state.flags[k] !== !!v) {
-                    g.state.flags[k] = !!v;
-                    changed = true;
-                }
             }
         }
 

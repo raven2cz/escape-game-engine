@@ -13,7 +13,9 @@ The fixes in S1 to S3 were reviewed the same way, by Fable 5.1 and codex SOL
 independently. Both found the same two P1 defects in the new code, and SOL found
 a third that neither the audit nor the first review had. A second round over the
 corrections found three more, all P3, and two assertions that were passing
-whatever the code did. What they turned up is recorded in the item it belongs to,
+whatever the code did. A closing round over the whole branch found no P1 or P2
+and four more things worth fixing, one of which - EI-024 - was a defect the
+rewritten README exposed rather than caused. What they turned up is recorded in the item it belongs to,
 under "Corrected after review", and as EI-022 and EI-023 where it was a
 pre-existing defect rather than a new one.
 
@@ -42,6 +44,7 @@ pre-existing defect rather than a new one.
 | EI-021 | P3   | DONE   | A dialog opened from another dialog's ending cannot be advanced   |
 | EI-022 | P2   | DONE   | An unskippable video that never plays blocks the run forever     |
 | EI-023 | P3   | DONE   | Re-rendering hotspots can destroy a mounted puzzle or panel      |
+| EI-024 | P2   | DONE   | A single flag name set one flag per character instead           |
 
 Where the fix lands is decided in [STABILIZATION.md](STABILIZATION.md).
 
@@ -679,7 +682,22 @@ dialogs meta went in S4. What was left:
   with a comment saying it is a convenience for local use and that the hosted
   runtime always supplies the id.
 
-**Test.** `games/tests/engine.hero.neutral.test.js` and
+**Corrected after review.** `NEUTRAL_HERO.id` is `hero`, which is also the id
+of the character template that `characterId: "hero"` expands. `_findCharacter()`
+looks the hero up by id before falling back to the template, so it found the
+template itself and returned it unexpanded: a game with no heroes showed the
+literal `{heroBase}neutral.png` as a portrait source. The lookup now skips itself
+for the neutral hero.
+
+Also recorded rather than left implicit: the explicit `_saveState()` in `init()`
+is what makes `?reset=1` durable for those same five games, because `init()` does
+not clear storage - it ignores what is there and builds a fresh state. Without
+the save, a reset link followed by a reload with nothing tapped handed the team
+back the lesson they had just left. `games/tests/engine.reset.test.js` now says
+so.
+
+**Test.** `games/tests/engine.hero.neutral.test.js`,
+`games/tests/engine.dialog.choice.test.js` and
 `games/tests/engine.neutrality.test.js`. The second walks every file under
 `engine/` and fails on any mention of a shipped game's id outside a comment,
 with one allowed line: `LEGACY_STATE_KEY`, which has to name the old key in
@@ -801,6 +819,17 @@ auto-advance, conditions on dialog choices, scene enter/exit hooks - were remove
 rather than glossed. The PWA section now says plainly that it does not work, and
 points at EI-007.
 
+**Corrected after review.** The rewrite got four things wrong of its own, all
+found by reading it back against the engine: it claimed `setFlags` takes a single
+name, which was true of `giveItem` and not of `setFlags` (that became EI-024); it
+paired the hero character template with a game that defines no heroes, so its own
+example rendered a placeholder on screen; it sent the puzzle window rect to
+`options.rect` where the runner reads the top-level `rect`; and it still
+advertised PWA support in two places that the rest of the document contradicts.
+Three nits with it: the new-puzzle-kind path, three demo links passing
+`hero=adam` to games that have no heroes, and a sentence implying a step with
+choices waits for one, when tapping anywhere advances past it.
+
 **Test.** `games/tests/readme.contract.test.js`: every JSON example parses, no
 example uses a field the engine ignores, every `goTo` has a `target` and every
 `puzzle` hotspot a `puzzleRef`, the documented hotspot types are read out of
@@ -908,8 +937,18 @@ finished. One line. Advancing the finished dialog again is impossible regardless
 because `next()` returns early when `active` is null, so the lock has nothing
 left to protect by then.
 
+**Corrected after review.** Releasing the lock earlier widened a window that
+was already there: `_applyChoice()` checked the lock but never that the step it
+was made for was still the one on screen. `_flashChoice` disables the button that
+was tapped for 220 ms but not its siblings, so two *different* choices could be
+tapped in that time and the second would run against a dialog that had already
+ended - setting its flags and running its `onEnd`. It now checks the step, which
+is what was missing underneath the lock all along. No shipped game can reach it;
+leeuwenhoek's four choices are all `jump`.
+
 **Test.** `games/tests/engine.double-tap.test.js`, "still lets a dialog open one
-from its own onEnd, and lets the pupil click through it". It used to close the
+from its own onEnd, and lets the pupil click through it", and
+`games/tests/engine.dialog.choice.test.js`, "runs one choice, not two". It used to close the
 second dialog through `close()` because clicking did not work; it now closes it
 by tapping, the way a pupil does. Verified to fail before the fix.
 
@@ -957,6 +996,15 @@ right.
 - `styles/style.css` needed `.video-skip[hidden], .video-play[hidden] { display:
   none }`: `.video-skip` sets `display: flex`, which beats the browser's default
   styling for the attribute.
+
+**Hardened again in the closing review.** Two interruptions were not covered.
+A pupil switching apps is the most ordinary one there is on a tablet: iOS pauses
+the video and does not resume it, and neither `ended` nor `stalled` follows, so a
+`pause` that is not the engine shutting down now offers the play button and the
+way out. And rather than trusting `stalled` alone - Safari has been unreliable
+about firing it, Chrome has fired it spuriously - `waiting` and `stalled` both
+re-arm the same clock that watches for a video that never starts, so a normal
+buffer stays invisible and one that does not recover ends up offering a way out.
 
 **Test.** `games/tests/engine.video.stuck.test.js`: a refused `play()` offers the
 play button and the retry works, a video that never starts can be got past even
@@ -1006,3 +1054,35 @@ puzzle mounted and still able to settle, leaves a content panel mounted, leaves
 the activation lock releasable, and still clears the hotspots it drew last time.
 Three verified to fail before the fix; the fourth guards the renderer still
 owning its own output.
+
+---
+
+## EI-024: A single flag name set one flag per character instead
+
+**Priority:** P2. Found in the closing review, by reading the rewritten README
+back against the engine.
+
+**Where:** `engine/engine.js`, `_applyActions()` and `_processEvents()`;
+`engine/dialogs.js`, `_applyFlags()`.
+
+**What happened.** `setFlags` handled an array and an object, and everything else
+fell through to `Object.entries()`, which walks a string one character at a time.
+So `"setFlags": "lab_unlocked"` set twelve flags called `"0"` to `"11"`, left
+`lab_unlocked` unset, and - because something had changed - saved the state and
+fired the `stateChange` events. `clearFlags` took an array only and ignored a
+string silently. In `dialogs.js` a string was ignored silently too.
+
+**Why it mattered.** Nothing threw and nothing was logged. The door the flag
+gates simply never opens, and the author has no way to find out why. `giveItem`
+has always accepted a single value, which is what makes this a trap rather than a
+limitation: the two look interchangeable and are not.
+
+**Fix as applied.** `flagEntries()` in `engine/utils.js` reads all three forms -
+a name, a list of names, a map of name to boolean - into `[name, value]` pairs,
+and all three call sites go through it. It lives in `utils.js` rather than in the
+engine because `dialogs.js` needs it too and importing back from `engine.js`
+would be a cycle.
+
+**Test.** `games/tests/engine.flags.spec.test.js`, for an event, an action bundle,
+a dialog ending and `clearFlags`, plus a guard that lists and maps still work.
+Four of the five fail before the fix.

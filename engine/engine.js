@@ -2,6 +2,7 @@
 // Game engine core: scenes, i18n, dialogs, hero profile, inventory, puzzles, events, content panels.
 
 import {createPuzzleRunner} from './puzzles/index.js';
+import {flagEntries} from './utils.js';
 import {DialogUI} from './dialogs.js';
 import {ContentPanel} from './content.js';
 
@@ -954,30 +955,17 @@ export class Game {
             if (added) this._renderInventory();
         }
 
-        if (actions.setFlags) {
-            if (Array.isArray(actions.setFlags)) {
-                for (const f of actions.setFlags) {
-                    if (!this.state.flags[f]) {
-                        this.state.flags[f] = true;
-                        changed = true;
-                    }
-                }
-            } else {
-                for (const [k, v] of Object.entries(actions.setFlags)) {
-                    if (!!this.state.flags[k] !== !!v) {
-                        this.state.flags[k] = !!v;
-                        changed = true;
-                    }
-                }
+        for (const [flag, value] of flagEntries(actions.setFlags)) {
+            if (!!this.state.flags[flag] !== value) {
+                this.state.flags[flag] = value;
+                changed = true;
             }
         }
 
-        if (actions.clearFlags && Array.isArray(actions.clearFlags)) {
-            for (const f of actions.clearFlags) {
-                if (this.state.flags[f]) {
-                    delete this.state.flags[f];
-                    changed = true;
-                }
+        for (const [flag] of flagEntries(actions.clearFlags)) {
+            if (this.state.flags[flag]) {
+                delete this.state.flags[flag];
+                changed = true;
             }
         }
 
@@ -1620,25 +1608,14 @@ export class Game {
             // state and saves. It does not call _stateChanged(), so it cannot
             // re-enter _processEvents, which is what the marking below guards
             // against.
-            if (act.setFlags) {
-                let changed = false;
-                if (Array.isArray(act.setFlags)) {
-                    for (const f of act.setFlags) {
-                        if (!this.state.flags[f]) {
-                            this.state.flags[f] = true;
-                            changed = true;
-                        }
-                    }
-                } else {
-                    for (const [k, v] of Object.entries(act.setFlags)) {
-                        if (!!this.state.flags[k] !== !!v) {
-                            this.state.flags[k] = !!v;
-                            changed = true;
-                        }
-                    }
+            let flagsChanged = false;
+            for (const [flag, value] of flagEntries(act.setFlags)) {
+                if (!!this.state.flags[flag] !== value) {
+                    this.state.flags[flag] = value;
+                    flagsChanged = true;
                 }
-                if (changed) this._saveState();
             }
+            if (flagsChanged) this._saveState();
 
             // Mark event as fired IMMEDIATELY before executing actions.
             // This prevents recursion loops if an action (like a dialog) triggers
@@ -1863,6 +1840,11 @@ export class Game {
             // Mount to DOM (highest layer)
             document.body.appendChild(wrapper);
 
+            const armWatchdog = () => {
+                clearTimeout(watchdog);
+                watchdog = setTimeout(offerWayOut, this.videoStartTimeoutMs);
+            };
+
             // Event listeners
             video.addEventListener('playing', () => {
                 clearTimeout(watchdog);
@@ -1876,12 +1858,28 @@ export class Game {
                 finish(); // Don't block the game on error
             });
 
-            // Fired when the download has produced nothing for a while. The
-            // video may already have been playing, so the watchdog below has
-            // long since been cleared.
-            video.addEventListener('stalled', offerWayOut);
+            // Buffering. Rather than trusting any one event to mean "this is
+            // never coming back" - Safari has been unreliable about `stalled`
+            // and Chrome has fired it spuriously - restart the same clock that
+            // watches for a video that never starts. Playback resuming clears
+            // it again, so a normal buffer is invisible and one that does not
+            // recover ends up offering a way out.
+            video.addEventListener('waiting', armWatchdog);
+            video.addEventListener('stalled', armWatchdog);
 
-            watchdog = setTimeout(offerWayOut, this.videoStartTimeoutMs);
+            // The most ordinary interruption on a tablet: the pupil switches
+            // apps, iOS pauses the video, and coming back leaves a still frame
+            // with no controls, no `ended` and no `stalled`. There is no way for
+            // the pupil to pause deliberately - the element has none - so any
+            // pause that is not the engine shutting the overlay down means the
+            // video needs starting again.
+            video.addEventListener('pause', () => {
+                if (finished || video.ended) return;
+                playBtn.hidden = false;
+                offerWayOut();
+            });
+
+            armWatchdog();
 
             // Start playback with error handling (autoplay policy)
             video.play().catch(err => {

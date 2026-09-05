@@ -6,10 +6,10 @@ Create sophisticated point-and-click adventures with **Puzzles 2.0**, **dialogs*
 - **Demo (GitHub Pages):**
   - https://raven2cz.github.io/escape-game-engine/index.html?game=leeuwenhoek&lang=cs&debug=1&hero=adam&reset=1 (two heroes: "adam" and "eva", adam selected)
   - https://raven2cz.github.io/escape-game-engine/index.html?game=leeuwenhoek&lang=cs&debug=1&hero=eva&reset=1 (two heroes: "adam" and "eva", eva selected)
-  - https://raven2cz.github.io/escape-game-engine/index.html?game=stop-train&lang=cs&debug=1&hero=adam&reset=1 
-  - https://raven2cz.github.io/escape-game-engine/index.html?game=time-factory&lang=cs&debug=1&hero=adam&reset=1
-  - https://raven2cz.github.io/escape-game-engine/index.html?game=reactor&lang=cs&debug=1&hero=adam&reset=1
-- **PWA:** append `?pwa=1` for installable/offline mode.
+  - https://raven2cz.github.io/escape-game-engine/index.html?game=stop-train&lang=cs&debug=1&reset=1 
+  - https://raven2cz.github.io/escape-game-engine/index.html?game=time-factory&lang=cs&debug=1&reset=1
+  - https://raven2cz.github.io/escape-game-engine/index.html?game=reactor&lang=cs&debug=1&reset=1
+- **PWA:** `?pwa=1` exists but does nothing today, see the note under iPad & Mobile (EI-007).
 
 ---
 
@@ -22,7 +22,7 @@ Create sophisticated point-and-click adventures with **Puzzles 2.0**, **dialogs*
 - **Event System**: Trigger action chains on entering a scene (`enterScene`) or on any state change (`stateChange`)
 - **Hero Profiles**: Support for multiple playable characters with custom avatars and names
 - **Internationalization (i18n)**: Multi-language support with `@key@fallback` syntax
-- **PWA Support**: Install as offline-capable app on mobile devices
+- **PWA Support**: present but not working today, see the note under iPad & Mobile (EI-007)
 
 ### Puzzles 2.0 System
 Nine built-in puzzle types with unified theming and layout system:
@@ -368,9 +368,9 @@ engine runs its keys in a fixed order regardless of how they are written:
 The order is: `toast` → `message` → `openDialog` → `openContent` →
 `highlightHotspot` → `playVideo` → `giveItem` → `setFlags` → `clearFlags` →
 `goTo`. `openDialog`, `openContent` and `playVideo` block: nothing after them
-runs until the pupil has clicked through. `giveItem` and `setFlags` accept a
-single value or an array; `setFlags` also accepts an object of
-`{ "flag": true|false }`.
+runs until the pupil has clicked through. `giveItem` accepts a single id or an array.
+`setFlags` and `clearFlags` accept a single name, an array of names, or an
+object of `{ "flag": true|false }`.
 
 ### Events
 Events live at the top level of `scenes.json` and fire on `enterScene` or on any
@@ -466,9 +466,18 @@ invent one:
 window.__game.setHero('eva');   // or open the game with ?hero=eva
 ```
 
-Dialogs use the selected hero wherever `characterId: "hero"` appears. The
-character template's poses may contain `{heroId}` and `{heroBase}`, and a
-`/hero/` segment in a path is replaced with the hero's id.
+Dialogs use the selected hero wherever `characterId: "hero"` appears. In the
+`hero` character template, `{heroId}` and `{heroBase}` in a pose path are
+replaced with the hero's id and `assetsBase`, and so is a `/hero/` segment. Those
+are the only two placeholders; there is nothing for the name, so write the name
+you want as normal text or an `@key@fallback`.
+
+If a game defines a character whose id equals the selected hero's id, that
+character is used directly and the template is ignored.
+
+A game that defines no heroes and still uses `characterId: "hero"` gets the
+template with `{heroBase}` replaced by nothing, so the portrait will not resolve.
+Either define heroes or use a normal character.
 
 ### Using an item on a hotspot
 1. Tap an inventory item → the inspect panel opens
@@ -531,7 +540,7 @@ For puzzles with `layout: { mode: "auto" }`:
 1. Enable editor while puzzle is open
 2. Adjust yellow window rectangle (puzzle viewport)
 3. Components auto-flow inside window
-4. Copy rect for `options.rect` in JSON
+4. Copy the rect into the puzzle's top-level `rect` (not `options.rect`)
 
 ### Puzzle Editor (MANUAL Layout)
 For puzzles with `layout: { mode: "manual" }`:
@@ -742,7 +751,7 @@ The list of lines is `sequence`, and a line names its speaker with `speaker`.
     },
     {
       "id": "hero",
-      "name": "{heroName}",
+      "name": "@character.hero.name@Hrdina",
       "poses": { "neutral": "{heroBase}neutral.png" }
     }
   ],
@@ -790,8 +799,10 @@ The list of lines is `sequence`, and a line names its speaker with `speaker`.
 `mirror`, `choices` and `onNext`. **A choice** takes `label` and `onChoose`,
 which understands `setFlags`, `jump` (to a step `id`), `end` and `onEnd`. A step
 has no `requireFlags` or `requireItems`: conditions live on hotspots and events,
-not inside a dialog. Without `choices`, tapping anywhere advances one step, and
-tapping during the typewriter animation completes the line.
+not inside a dialog. Tapping anywhere advances one step, and tapping during the
+typewriter animation completes the line instead. That applies to a step with
+`choices` too: the buttons are an offer, not a gate, so a step whose branches
+matter should say so in its text.
 
 **Blocking.** `openDialog` returns only once the dialog has closed *and* its
 `onEnd` has finished, including any scene change it makes.
@@ -827,7 +838,7 @@ Contributions welcome! Areas for improvement:
 - Accessibility improvements (keyboard navigation, screen readers)
 
 ### Adding a New Puzzle Type
-1. Create `engine/puzzles/your-puzzle.js` extending `BasePuzzle`
+1. Create `engine/puzzles/kinds/your-puzzle.js` extending `BasePuzzle`
 2. Implement `mount()`, `validate()`, `destroy()`
 3. Register in `engine/puzzles/index.js`
 4. Add CSS in `styles/puzzles.css` under `.pz--kind-your-puzzle`

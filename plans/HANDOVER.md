@@ -9,7 +9,7 @@ where the work is and what comes next.
 
     branch    fix/stabilization-audit
     base      main @ 5dbca85
-    suite     203 passing, CI runs it on push and pull request
+    suite     215 passing, CI runs it on push and pull request
 
 | commit | what |
 |---|---|
@@ -23,6 +23,7 @@ where the work is and what comes next.
 | `2f6ce6b` | what a second review round found, and two vacuous assertions |
 | `22c473a` | EI-021, EI-022, EI-023, the three the reviews turned up |
 | `e095696` | EI-018 and EI-015: dead code, README, the last borrowed names |
+| _next_    | closing review: EI-024, and corrections to EI-015/021/022 |
 
 Every code batch in the plan is done, so are the three defects the reviews turned
 up (EI-021, EI-022, EI-023), and so is the cleanup (EI-018, EI-015). What is left
@@ -94,6 +95,11 @@ test:**
   claim turned out to be wrong when checked.
 - **Verify before you assert.** Three independent audits were run and each got
   something wrong.
+- **Review the documentation against the code the same way.** The README rewrite
+  was itself reviewed, and reading it back against the engine turned up EI-024:
+  a `setFlags` form the document promised and the engine mangled into twelve
+  flags named after string indices. Documentation is a claim about behaviour and
+  deserves the same check as a fix.
 - **Have the work reviewed by something that is not you.** Fable 5.1 and codex
   SOL reviewed S1 to S3 independently and both found the same two P1 defects in
   the new code; SOL found a third that neither the audit nor the other reviewer

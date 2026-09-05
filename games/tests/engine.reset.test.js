@@ -78,6 +78,32 @@ describe('reset=1 handling', () => {
         expect(params.get('game')).toBe('reset-test');
     });
 
+    it('writes the fresh start down straight away', async () => {
+        // A reset that is only in memory is not a reset. init() does not clear
+        // storage, it ignores what is there and builds a fresh state, so until
+        // something writes that state down the old lesson is still the one on
+        // disk: a teacher's reset link followed by a reload with nothing tapped
+        // in between would hand the team back the game they had just left.
+        //
+        // This used to work by accident, because hero initialisation always
+        // saved. It stopped applying to the five games that define no heroes
+        // when EI-015 removed the invented one, so init() now saves explicitly.
+        const first = newGame();
+        await first.init();
+        await first.goto('exit');
+
+        mountDom();
+        history.replaceState(null, '', '/?reset=1');
+        await newGame().init();
+
+        mountDom();
+        history.replaceState(null, '', '/');
+        const afterReload = newGame();
+        await afterReload.init();
+
+        expect(afterReload.state.scene).toBe('room');
+    });
+
     it('does not wipe progress on a reload that follows a reset', async () => {
         history.replaceState(null, '', '/?reset=1');
 
