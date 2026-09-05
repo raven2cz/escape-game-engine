@@ -816,15 +816,32 @@ names exist directly in `assets/` at a fraction of the size, so these are the
 source originals the shipped assets were exported from. All of warp-engine's
 assets excluding `resource/` come to 23 MB.
 
-**Still open.** `pages.yml` does `cp -R games out/`, so those 147 MB are
-published to GitHub Pages on every deploy even though no game asks for them.
-Excluding `resource/` from the deploy is independent of whether it stays in git
-and is worth doing either way, but it was not done without the owner's word.
+**Settled, and more broadly than asked.** The question was whether to exclude
+`resource/` from the Pages deploy. The owner's answer was to close Pages
+altogether: the games are proprietary now and will be distributed and run on
+Cloudflare, so a public static site has no games to serve.
 
-**Also still open, and the reason this is PART.** Deleting files in a commit does
-not remove them from history. `.git` is still 430 MB. Getting that back means a
-history rewrite on a repository that is public and pushed, which is destructive
-and needs coordinating rather than doing quietly.
+`.github/workflows/pages.yml` is deleted and the GitHub Pages site is disabled,
+so nothing publishes `resource/` - or any game - any more. Confirmed before
+acting that the site really was serving it:
+`raven2cz.github.io/escape-game-engine/games/warp-engine/assets/resource/newton-lab.png`
+returned 200 with the full 6.7 MB original. That was the point, rather than the
+bytes: a static public site cannot enforce a per-lesson licence, and it was
+handing out the source artwork of a product about to be sold.
+
+**Still open, and the reason this is PART.** Deleting files in a commit does not
+remove them from history. The 70 session files are still reachable from commit
+`ef8f5c5`, so anyone who clones the public repository can retrieve them: 52 from
+`somewm`, 13 from `synapse`, one from this project, and a 38 MB zip. Most of it
+is working context from unrelated projects. `.git` is still 430 MB, so every
+fresh clone downloads all of it.
+
+Removing them for real means a history rewrite and a force push on a public,
+already-pushed repository: every commit hash from the first touch onwards
+changes, every existing clone has to be thrown away, and it cannot be undone
+without a backup. Not something to do quietly. The natural moment is the
+repository split, where the new private games repository starts with clean
+history anyway.
 
 **Test.** None.
 

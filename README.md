@@ -3,12 +3,9 @@
 A **no-build**, iPad-friendly **escape game framework** in plain HTML/CSS/JS.  
 Create sophisticated point-and-click adventures with **Puzzles 2.0**, **dialogs**, **theming system**, and an **in-browser editor**.
 
-- **Demo (GitHub Pages):**
-  - https://raven2cz.github.io/escape-game-engine/index.html?game=leeuwenhoek&lang=cs&debug=1&hero=adam&reset=1 (two heroes: "adam" and "eva", adam selected)
-  - https://raven2cz.github.io/escape-game-engine/index.html?game=leeuwenhoek&lang=cs&debug=1&hero=eva&reset=1 (two heroes: "adam" and "eva", eva selected)
-  - https://raven2cz.github.io/escape-game-engine/index.html?game=stop-train&lang=cs&debug=1&reset=1 
-  - https://raven2cz.github.io/escape-game-engine/index.html?game=time-factory&lang=cs&debug=1&reset=1
-  - https://raven2cz.github.io/escape-game-engine/index.html?game=reactor&lang=cs&debug=1&reset=1
+> **There is no public demo.** The games are licensed per school and are served
+> by the hosted runtime, not from this repository. See [Running a
+> game](#-running-a-game).
 
 ---
 
@@ -545,23 +542,28 @@ For puzzles with `layout: { mode: "manual" }`:
 
 ---
 
-## 🚢 Deploy on GitHub Pages
+## 🚢 Running a game
 
-1. Push repository to GitHub
-2. **Settings** → **Pages**
-3. **Source**: Deploy from a branch
-4. **Branch**: `main` | **Folder**: `/ (root)`
-5. **Save**
-6. Open `https://<username>.github.io/<repo-name>/`
+### Locally
+Serve the repository with any static server and pick the game with `?game=`:
 
-### Multi-Game Setup
-Use `?game=<game-id>` parameter:
 ```
-https://username.github.io/repo/?game=leeuwenhoek
-https://username.github.io/repo/?game=mystery-manor
+http://localhost:5500/?game=leeuwenhoek
+http://localhost:5500/?game=warp-engine&lang=cs&debug=1
 ```
 
-Each game lives in `games/<game-id>/` directory.
+Each game lives in `games/<game-id>/`. Without `?game=`, `index.html` opens the
+one named in its `DEFAULT_GAME` constant, which is a convenience for local work.
+
+### In a lesson
+Games are licensed per school and are served by the hosted runtime on Cloudflare,
+which is what decides who may play and for how long. This repository is not a
+distribution channel for them.
+
+There used to be a GitHub Pages deployment that published every game, and the
+game assets with them, to a public URL. It was removed once the games became
+proprietary: a static public site cannot enforce a per-lesson licence, and it was
+serving the full-resolution source artwork along with the games.
 
 ---
 
