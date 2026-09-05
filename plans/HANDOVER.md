@@ -9,7 +9,7 @@ where the work is and what comes next.
 
     branch    fix/stabilization-audit
     base      main @ 5dbca85
-    suite     176 passing, CI runs it on push and pull request
+    suite     181 passing, CI runs it on push and pull request
 
 | commit | what |
 |---|---|
@@ -20,6 +20,7 @@ where the work is and what comes next.
 | `21d8fb4` | S2: EI-003, EI-013 |
 | `7222b09` | S3: EI-002 step one, EI-011, EI-012 |
 | `076e654` | what the reviews of S1 to S3 found, three of them P1 |
+| `2f6ce6b` | what a second review round found, and two vacuous assertions |
 
 Every code batch in the plan is done. What is left is the owner's decisions
 (S5), one new defect found while fixing another (EI-021), and the items that were
@@ -104,9 +105,12 @@ decide them and do not work around them:
 - **Have the work reviewed by something that is not you.** Fable 5.1 and codex
   SOL reviewed S1 to S3 independently and both found the same two P1 defects in
   the new code; SOL found a third that neither the audit nor the other reviewer
-  had. Two of the tests that were supposed to prove those fixes were passing for
-  the wrong reason. A green suite written by the same session that wrote the fix
-  is not enough on its own.
+  had. A second round over the corrections found three more. Four of the tests
+  that were supposed to prove a fix were passing whatever the code did. A green
+  suite written by the same session that wrote the fix is not enough on its own.
+  The technique that found those four: revert the fix in a throwaway copy and
+  check the test actually fails. Stashing only catches it while the fix is still
+  uncommitted.
 - **Comments and commit messages in English.** The user writes Czech, the
   repository is English. Do not mix.
 - **Do not restructure beyond the item.** A large diff cannot be reviewed
