@@ -1,4 +1,20 @@
 {
+    "name": "escape-game-engine",
+    "version": "1.0.0",
+    "description": "No-build escape game engine: scenes, hotspots, inventory, dialogs, puzzles, content panels.",
+    "license": "MIT",
+    "type": "module",
+    "exports": {
+        "./engine/*": "./engine/*",
+        "./styles/*": "./styles/*"
+    },
+    "files": [
+        "engine",
+        "styles",
+        "index.html",
+        "LICENSE",
+        "README.md"
+    ],
     "devDependencies": {
         "jsdom": "^27.0.1",
         "vitest": "^2.0.0"

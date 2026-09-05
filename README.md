@@ -3,9 +3,11 @@
 A **no-build**, iPad-friendly **escape game framework** in plain HTML/CSS/JS.  
 Create sophisticated point-and-click adventures with **Puzzles 2.0**, **dialogs**, **theming system**, and an **in-browser editor**.
 
-> **There is no public demo.** The games are licensed per school and are served
-> by the hosted runtime, not from this repository. See [Running a
-> game](#-running-a-game).
+- **Demo game:** `games/demo` is a complete, playable game shipped with the
+  engine. Serve the repository and open `index.html` - it is what opens by
+  default. It is not MIT; see [`games/LICENSE`](games/LICENSE).
+- **The commercial games** are not in this repository. They are licensed per
+  school and delivered by the hosted runtime.
 
 ---
 
@@ -87,7 +89,7 @@ escape-game-engine/
 │           ├── cloze.js   # Fill-in-the-blank puzzle
 │           └── list.js    # Puzzle sequence manager
 ├── games/
-│   ├── <game-id>/
+│   ├── demo/
 │   │   ├── scenes.json    # Scenes, hotspots, items, events, content
 │   │   ├── puzzles.json   # Puzzle configurations
 │   │   ├── dialogs.json   # Dialog trees (optional)
@@ -96,7 +98,8 @@ escape-game-engine/
 │   │   │   └── en.json    # English translations
 │   │   ├── game.css       # Per-game theme overrides (optional)
 │   │   └── assets/        # Images, video, backgrounds
-│   └── tests/             # Vitest suite, including the reload harness
+│   ├── tests/             # Vitest suite, including the reload harness
+│   └── LICENSE            # demo game licence, not MIT
 └── plans/                 # Defect registry and stabilization plan
 ```
 
@@ -556,9 +559,10 @@ Each game lives in `games/<game-id>/`. Without `?game=`, `index.html` opens the
 one named in its `DEFAULT_GAME` constant, which is a convenience for local work.
 
 ### In a lesson
-Games are licensed per school and are served by the hosted runtime on Cloudflare,
-which is what decides who may play and for how long. This repository is not a
-distribution channel for them.
+The commercial games live in a separate private repository and are delivered by
+the hosted runtime on Cloudflare, which is what decides who may play and for how
+long. This repository holds the engine and one demo game; it is not a
+distribution channel.
 
 There used to be a GitHub Pages deployment that published every game, and the
 game assets with them, to a public URL. It was removed once the games became
@@ -842,13 +846,14 @@ Contributions welcome! Areas for improvement:
 
 ## 📄 License
 
-**The engine is MIT. The games are not.**
+**The engine is MIT. The demo game is not.**
 
-- Everything outside `games/` - the engine, the editor, the styles, the test
+- Everything except `games/demo` - the engine, the editor, the styles, the test
   suite - is MIT licensed. See [`LICENSE`](LICENSE).
-- Everything inside `games/` - scenes, dialogs, puzzles, translations and all
-  assets - is proprietary and licensed commercially per school. See
-  [`games/LICENSE`](games/LICENSE).
+- `games/demo` is a complete game rather than a sample. You may read it, run it
+  locally and develop against it; you may not redistribute it or use it in paid
+  teaching. See [`games/LICENSE`](games/LICENSE).
+- The commercial games are in a separate private repository, licensed per school.
 
 The MIT text below applies to the engine only.
 

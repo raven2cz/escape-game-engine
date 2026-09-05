@@ -57,7 +57,7 @@
     // convenience for opening index.html locally, and the only place in the
     // repository outside games/ that names a particular game: the engine itself
     // is neutral, and the hosted runtime will always supply the id. See EI-015.
-    const DEFAULT_GAME = 'leeuwenhoek';
+    const DEFAULT_GAME = 'demo';
     const gameId = params.get('game') || DEFAULT_GAME;
     const lang = (params.get('lang') || 'cs').toLowerCase();
     const baseUrl = `./games/${gameId}/`;

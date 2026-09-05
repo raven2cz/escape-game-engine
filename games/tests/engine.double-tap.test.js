@@ -14,6 +14,7 @@ import { createReloadHarness, waitFor } from './helpers/reload.js';
 const SCENES = {
     meta: { id: 'ei013', version: '1.0.0' },
     startScene: 'room',
+    items: [{ id: 'cog', label: 'Kolečko' }],
     events: [
         {
             id: 'after-the-handover',
@@ -40,6 +41,13 @@ const SCENES = {
             hotspots: [
                 { type: 'puzzle', puzzleRef: 'riddle', rect: { x: 1, y: 1, w: 5, h: 5 } },
                 { type: 'dialog', dialogId: 'chat', rect: { x: 10, y: 1, w: 5, h: 5 } },
+                // Filled by dragging, the way the warp-engine module slots are.
+                {
+                    type: 'apply',
+                    acceptItems: [{ id: 'cog', consume: true }],
+                    onApply: { openDialog: 'chat' },
+                    rect: { x: 20, y: 1, w: 5, h: 5 },
+                },
             ],
         },
     ],
@@ -183,6 +191,34 @@ describe('EI-013: a double tap', () => {
         await waitFor(() => game.dialogUI.active?.id === 'interloper', { label: 'interloper dialog' });
 
         expect(game.dialogUI.active.id).toBe('interloper');
+    });
+
+    it('holds the same lock when an item is dropped, not only when a hotspot is tapped', async () => {
+        // Dragging an item onto a target is what the inventory tooltip tells the
+        // pupil to do, and in warp-engine the six module slots can only be
+        // filled that way. The drop path used to run _applyActions with nothing
+        // held, so an event that sets a flag early (EI-001) could have that flag
+        // acted on by a tap before the event had finished presenting itself.
+        //
+        // The real-data version of this lives with warp-engine in the games
+        // repository, where dropping the last module and immediately tapping the
+        // exit would have cost the run its game_completed flag. This is the
+        // engine's own guard for the same thing.
+        const game = await bootRoom();
+
+        game.state.inventory.push('cog');
+        game._renderInventory();
+
+        const slot = game.currentScene.hotspots.find(h => h.acceptItems);
+        game._handleItemDropOnHotspot('cog', slot);
+        await waitFor(() => game.dialogUI.active?.id === 'chat', { label: 'the dialog the drop opened' });
+
+        // Mid-drop, with the dialog still on screen: a tap must do nothing.
+        expect(game._hotspotBusy).toBe(true);
+        document.querySelectorAll('#hotspotLayer .hotspot')[0].click();
+        await new Promise(res => setTimeout(res, 0));
+
+        expect(document.querySelectorAll('.pz-container')).toHaveLength(0);
     });
 
     it('lets the next hotspot be used once the first activation is done', async () => {

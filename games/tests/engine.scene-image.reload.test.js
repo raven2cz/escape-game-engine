@@ -1,18 +1,22 @@
 // EI-006: a scene image changed by an event must still be changed after a
 // reload.
 //
+// Runs against `games/demo`, which is the first game this engine ever had and is
+// where the defect actually happened. The same data ships commercially as
+// `leeuwenhoek` from the private games repository.
+//
 // The handler mutated `sc.image` on the in-memory `this.data` and nothing else.
 // Because the event that makes the change is `once`, it never ran again, so the
-// world contradicted itself: in leeuwenhoek the chest was shut again although
+// world contradicted itself: the chest was shut again although
 // `chest_opened` was set and the golden key was in the inventory.
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createReloadHarness, loadGameFixtures, waitFor } from './helpers/reload.js';
 
-const OPENED = './games/leeuwenhoek/assets/treasure-room-opened.jpg';
-const CLOSED = './games/leeuwenhoek/assets/treasure-room.jpg';
+const OPENED = './games/demo/assets/treasure-room-opened.jpg';
+const CLOSED = './games/demo/assets/treasure-room.jpg';
 
-const fixtures = loadGameFixtures('leeuwenhoek');
+const fixtures = loadGameFixtures('demo');
 
 /** Open the chest in the treasure room, the way the game does it. */
 async function openTheChest(harness) {
@@ -26,7 +30,7 @@ async function openTheChest(harness) {
     return game;
 }
 
-describe('leeuwenhoek: the opened chest survives a reload (EI-006)', () => {
+describe('demo: the opened chest survives a reload (EI-006)', () => {
     beforeEach(() => {
         localStorage.clear();
     });
@@ -42,14 +46,14 @@ describe('leeuwenhoek: the opened chest survives a reload (EI-006)', () => {
     });
 
     it('shows the opened chest straight away', async () => {
-        const harness = createReloadHarness(fixtures, { baseUrl: './games/leeuwenhoek/' });
+        const harness = createReloadHarness(fixtures, { baseUrl: './games/demo/' });
         const game = await openTheChest(harness);
 
         expect(game.sceneImage.getAttribute('src')).toBe(OPENED);
     });
 
     it('still shows the opened chest after a reload', async () => {
-        const harness = createReloadHarness(fixtures, { baseUrl: './games/leeuwenhoek/' });
+        const harness = createReloadHarness(fixtures, { baseUrl: './games/demo/' });
         await openTheChest(harness);
 
         const reloaded = await harness.reload();
@@ -62,19 +66,19 @@ describe('leeuwenhoek: the opened chest survives a reload (EI-006)', () => {
         // Not the same test: goto() is the path that reads the image, and a
         // reload restores through goto() as well. This one proves the override
         // is not only applied to the scene that happened to be on screen.
-        const harness = createReloadHarness(fixtures, { baseUrl: './games/leeuwenhoek/' });
+        const harness = createReloadHarness(fixtures, { baseUrl: './games/demo/' });
         await openTheChest(harness);
 
         const reloaded = await harness.reload();
         await reloaded.goto('title');
-        expect(reloaded.sceneImage.getAttribute('src')).toBe('./games/leeuwenhoek/assets/title.jpg');
+        expect(reloaded.sceneImage.getAttribute('src')).toBe('./games/demo/assets/title.jpg');
 
         await reloaded.goto('treasure-room');
         expect(reloaded.sceneImage.getAttribute('src')).toBe(OPENED);
     });
 
     it('leaves an untouched scene alone', async () => {
-        const harness = createReloadHarness(fixtures, { baseUrl: './games/leeuwenhoek/' });
+        const harness = createReloadHarness(fixtures, { baseUrl: './games/demo/' });
         const { game, ready } = harness.bootDetached();
         await waitFor(() => document.querySelector('.dlg-overlay:not(.hidden)'), { label: 'intro dialog' });
         await game.dialogUI.close();

@@ -45,6 +45,7 @@ pre-existing defect rather than a new one.
 | EI-022 | P2   | DONE   | An unskippable video that never plays blocks the run forever     |
 | EI-023 | P3   | DONE   | Re-rendering hotspots can destroy a mounted puzzle or panel      |
 | EI-024 | P2   | DONE   | A single flag name set one flag per character instead           |
+| EI-025 | P1   | DONE   | Proprietary games sat in a public repository                     |
 
 Where the fix lands is decided in [STABILIZATION.md](STABILIZATION.md).
 
@@ -1176,3 +1177,56 @@ would be a cycle.
 **Test.** `games/tests/engine.flags.spec.test.js`, for an event, an action bundle,
 a dialog ending and `clearFlags`, plus a guard that lists and maps still work.
 Four of the five fail before the fix.
+
+---
+
+## EI-025: Proprietary games sat in a public repository
+
+**Priority:** P1. Raised while closing EI-017, once EI-004 had made the games
+proprietary.
+
+**What happened.** EI-004 gave the games their own commercial licence and EI-007
+closed the GitHub Pages site, but neither moved a single file. The repository
+itself was public, so all six games stayed readable and cloneable: every
+`scenes.json`, every asset, and 21 puzzle answers across five games sitting in
+`puzzles.json` as plain `"solution"` strings. Closing Pages took away the web
+player, not the source. A licence that says "you may not copy this" over files
+anyone can clone is a statement, not a control.
+
+**Fix as applied.** The six games moved to a new private repository,
+`raven2cz/escape-games`, which takes the engine as a dependency
+(`github:raven2cz/escape-game-engine`) rather than copying it. Its history starts
+there.
+
+`games/leeuwenhoek` stays in the engine repository, renamed to `games/demo`. It
+was always the demo, it is the first game this engine ever had, and as a fixture
+it is worth more than anything purpose-built: 22 scenes, 7 events, 2 heroes, and
+all nine puzzle kinds. Identifiers that named the old game were renamed with it -
+`meta.id`, the character id, its translation key and the `met_leeuwenhoek` flag -
+so the engine repository contains no game id but its own. The character is still
+called Antoni van Leeuwenhoek out loud in the dialogue, because that is who the
+game is about.
+
+**Tests followed their data.** `games.data.test.js` and the two reload
+regressions that run against real games went to the private repository, where the
+games are. What stayed in the engine repository is its own guards, including a
+new synthetic test for the drop-path activation lock, which had only ever been
+covered by the warp-engine test. Verified by removing the lock: it fails.
+
+The engine repository also dropped the blunt "no game mentions leeuwenhoek"
+check. Its sharp form - `meta.id` matches the directory - catches the case it was
+written for, and the blunt one now trips over a character's name in the demo's
+own dialogue. It still earns its keep in the games repository, where six games
+can be confused with each other.
+
+**What this does not do, and it is deliberate.** The games remain in this
+repository's *history*. Anyone can check out a commit from before the move and
+get all six, answers included. Removing that needs a history rewrite, which the
+owner declined in EI-017 with the reasoning recorded there. The move stops the
+public copy being the current one; it does not erase the old one.
+
+**Still the owner's to weigh.** `games/demo` is content-identical to the
+`leeuwenhoek` that ships commercially. A school can play the demo for free. The
+demo licence forbids using it in paid or institutional teaching, but the file is
+there. If that is not wanted, the demo should be trimmed - the first few scenes,
+or a game written for the purpose. Recorded rather than decided.

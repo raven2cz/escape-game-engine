@@ -9,6 +9,7 @@ where the work is and what comes next.
 
     branch    fix/stabilization-audit
     base      main @ 5dbca85
+    games     moved to raven2cz/escape-games (private); this repo keeps games/demo
     suite     215 passing, CI runs it on push and pull request
 
 | commit | what |
@@ -69,12 +70,12 @@ regression tests that should name the game they protect.
 
 **Still open, and it needs the owner:**
 
-- **The repository split, and it is now the most urgent thing here.** `games/` is
-  proprietary as of EI-004 and still sits in a public repository. Closing Pages
-  took away the web player, not the source: every `scenes.json`, `dialogs.json`
-  and asset is readable and cloneable by anyone, and 21 puzzles across five games
-  carry their answers in `puzzles.json` in plain text. Nothing in the engine work
-  changes that; only moving the games out does.
+- **Whether `games/demo` should stay content-identical to a game that is sold.**
+  It is the old `leeuwenhoek`, renamed. As a fixture it is worth more than
+  anything purpose-built - 22 scenes, 7 events, 2 heroes, all nine puzzle kinds -
+  and it was always the public demo. But a school can play it for free, and the
+  demo licence forbidding that is a sentence, not a lock. Trimming it to a few
+  scenes, or writing a demo for the purpose, is the alternative. See EI-025.
 - **The oldest iPad that has to work**, which decides whether `ResizeObserver`
   needs a runtime fallback and not just a test stub.
 

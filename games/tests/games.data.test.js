@@ -48,26 +48,13 @@ describe('shipped games', () => {
         }
     });
 
-    it('no game other than leeuwenhoek carries leeuwenhoek identity', () => {
-        // stop-train was copied from leeuwenhoek and kept its dialogs meta.id
-        // and a translation key belonging to its characters.
-        //
-        // Scope is games/ only. The engine itself still names the first game in
-        // several places (storage key, service worker, default game); that is
-        // EI-002, EI-007 and EI-015 and is not fixed here.
-        for (const id of GAME_IDS) {
-            if (id === 'leeuwenhoek') continue;
-            for (const file of ['scenes.json', 'dialogs.json', 'puzzles.json']) {
-                let raw;
-                try {
-                    raw = readFileSync(join(GAMES_DIR, id, file), 'utf8');
-                } catch {
-                    continue; // not every game has every file
-                }
-                expect(raw.toLowerCase(), `${id}/${file}`).not.toContain('leeuwenhoek');
-            }
-        }
-    });
+    // A blunt "no game mentions leeuwenhoek" test used to live here. It was
+    // written when stop-train, copied from leeuwenhoek, still carried its
+    // meta.id. The sharp version of that guard is the meta.id test below, which
+    // catches the same thing without tripping over a character's name in the
+    // dialogue: `games/demo` is a game *about* Antoni van Leeuwenhoek and says
+    // so out loud. The blunt version still earns its keep in the games
+    // repository, where there are six games to confuse with each other.
 
     it('meta.id matches the directory name where meta exists', () => {
         for (const id of GAME_IDS) {
