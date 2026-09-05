@@ -18,7 +18,7 @@ here is second-hand.
 | EI-005 | P2   | OPEN   | `reset=1` stays in the URL and wipes progress on every reload   |
 | EI-006 | P2   | OPEN   | `setSceneImage` is not persisted                                |
 | EI-007 | P2   | OPEN   | Service worker precache is broken, and cache-first is unsafe    |
-| EI-008 | P2   | OPEN   | Inventory items cannot be activated from the keyboard           |
+| EI-008 | P2   | DONE   | Inventory items cannot be activated from the keyboard           |
 | EI-009 | P2   | OPEN   | `runPuzzleList` is called but never defined                     |
 | EI-010 | P2   | OPEN   | Progress signal differs per game, no single source for a dashboard |
 | EI-011 | P3   | OPEN   | Consumed item removal is not saved                              |
@@ -26,9 +26,10 @@ here is second-hand.
 | EI-013 | P3   | OPEN   | A double tap can open two dialogs or two puzzles                |
 | EI-014 | P3   | OPEN   | `reactor` is missing the `end` flag on its final scene          |
 | EI-015 | P3   | OPEN   | Leftovers from the first game hardcoded as if they were generic |
-| EI-016 | P4   | OPEN   | 5 of 113 tests fail on main and CI never runs them              |
+| EI-016 | P4   | DONE   | 5 of 113 tests fail on main and CI never runs them              |
 | EI-017 | P4   | OPEN   | 318 MB of material tracked in git that does not belong there    |
 | EI-018 | P4   | OPEN   | Dead code, and a README documenting an API the engine lacks     |
+| EI-019 | P3   | DONE   | Inspecting a second item showed the first item's name           |
 
 Where the fix lands is decided in [STABILIZATION.md](STABILIZATION.md).
 
@@ -568,3 +569,41 @@ the documented examples.
 
 **Test.** Load every documented example and assert it parses into something the
 engine acts on.
+
+---
+
+## EI-019: Inspecting a second item showed the first item's name
+
+**Status:** DONE in S0, commit `967b385`.
+
+**Where:** `engine/engine.js`, `_inspectItem()` and `_closeModal()`.
+
+**What happened.** `_inspectItem()` opens the modal and then, on the next tick,
+rewrites its DOM: it builds a `.modal-header` with the item name and a close
+button, and **removes the shell's `#modalTitle` element** to avoid showing the
+title twice. `_closeModal()` only adds the `hidden` class; it never resets the
+content. So the header survives.
+
+On the second inspection, `openModal()` writes the new title into
+`this.modalTitle`, which is now a detached node nobody can see, and the header
+block is skipped because a header already exists. The modal then displays the
+name of the previously inspected item.
+
+**Why it mattered.** Every game has more than one inventory item, so every game
+was affected from the second item onwards. It was never reported, presumably
+because a wrong name looks like a misclick rather than a bug.
+
+**How it was found.** Not by reading the code. The regression test for EI-008
+asserted on `#modalTitle` and failed with `TypeError: Cannot read properties of
+null`, which is what exposed the removal, and the rest followed.
+
+**Fix.** The header title is now assigned on every `tune()` run, outside the
+creation guard.
+
+**Test.** `games/tests/engine.use.test.js`, "shows the right name when a second
+item is inspected". Verified to fail before the fix.
+
+**Remaining, not fixed here:** the whole rewrite-the-modal-after-mount approach is
+fragile, as is the regex over footer text used to hide buttons. `openModal()`
+should take a `hideFooter` option and the engine should not delete elements the
+shell owns. Kept with EI-018.
