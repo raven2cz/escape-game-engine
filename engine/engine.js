@@ -848,9 +848,17 @@ export class Game {
                 pointerMoved = true;
             });
 
-            wrap.addEventListener('pointerup', (e) => {
-                // Ignore if this was a drag operation
-                if (pointerMoved && Date.now() - pointerDownTime > 150) return;
+            // Activation lives on `click`, not on `pointerup`. The element is a
+            // real <button>, so Enter and Space produce a click and no pointer
+            // event at all; handling only pointerup made inventory unreachable
+            // from the keyboard. Pointer events stay, but only to tell a tap
+            // apart from a drag.
+            wrap.addEventListener('click', (e) => {
+                e.preventDefault();
+
+                const wasDrag = pointerMoved && Date.now() - pointerDownTime > 150;
+                pointerMoved = false;
+                if (wasDrag) return;
 
                 // Toggle use mode if already selected
                 if (this.state.useItemId === id) {
@@ -858,11 +866,6 @@ export class Game {
                     return;
                 }
                 this._inspectItem(item);
-            });
-
-            // Prevent default click to avoid double-firing
-            wrap.addEventListener('click', (e) => {
-                e.preventDefault();
             });
 
             this.inventoryRoot.appendChild(wrap);
@@ -1203,6 +1206,11 @@ export class Game {
             content.classList.add('modal--item');
 
             // Header with title + close icon (×)
+            //
+            // The header survives _closeModal(), which only hides the overlay,
+            // so on every inspection after the first one this block is skipped.
+            // The title is therefore set below, outside the guard: doing it only
+            // on creation left the previous item's name on screen.
             let header = content.querySelector('.modal-header');
             if (!header) {
                 header = document.createElement('div');
@@ -1227,6 +1235,9 @@ export class Game {
                 if (oldTitle && oldTitle.parentElement === content) oldTitle.remove();
                 content.insertBefore(header, content.firstChild);
             }
+
+            const headerTitle = header.querySelector('.modal-title');
+            if (headerTitle) headerTitle.textContent = this._text(item.label) || item.id;
 
             // Hide any footer/actions row defensively (if openModal created it)
             const candidates = Array.from(content.children).slice(-3); // last few blocks

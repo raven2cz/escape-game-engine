@@ -33,7 +33,8 @@ function mountDom() {
 const SCENES_FIXTURE = {
     meta: { id: 'use-test', name: 'Use Mode Test' },
     items: [
-        { id: 'golden_key', label: 'Zlatý klíč', icon: 'items/golden_key.png' }
+        { id: 'golden_key', label: 'Zlatý klíč', icon: 'items/golden_key.png' },
+        { id: 'rusty_nail', label: 'Rezavý hřebík', icon: 'items/rusty_nail.png' }
     ],
     scenes: [
         {
@@ -178,5 +179,77 @@ describe('Use-mode flow', () => {
         const invItem = document.querySelector('#inventory .item');
         invItem.click();
         expect(game.state.useItemId).toBe(null);
+    });
+    it('activates an inventory item from a plain click, which is what the keyboard produces', async () => {
+        // Regression test for EI-008. Activation used to live on `pointerup`
+        // only, so Enter and Space on the <button> did nothing at all: they
+        // produce a click and no pointer event. Anyone playing on a laptop
+        // could not open an item.
+        const game = new Game({
+            baseUrl: './games/use-test/',
+            scenesUrl: './games/use-test/scenes.json',
+            lang: 'cs',
+            i18n: { engine: {}, game: {} },
+            sceneImage: document.getElementById('sceneImage'),
+            hotspotLayer: document.getElementById('hotspotLayer'),
+            inventoryRoot: document.getElementById('inventory'),
+            messageBox: document.getElementById('msg'),
+            modalRoot: document.getElementById('modal'),
+            modalTitle: document.getElementById('modalTitle'),
+            modalBody: document.getElementById('modalBody'),
+            modalCancel: document.getElementById('modalCancel'),
+            modalOk: document.getElementById('modalOk'),
+        });
+
+        await game.init();
+        game.state.inventory.push('golden_key');
+        game._renderInventory();
+
+        const invItem = document.querySelector('#inventory .item');
+        expect(invItem.tagName).toBe('BUTTON');
+
+        // No pointer events at all, exactly like a keyboard activation.
+        invItem.click();
+        await new Promise(r => setTimeout(r, 0));
+
+        expect(document.getElementById('modal').classList.contains('hidden')).toBe(false);
+        expect(document.querySelector('#modal .modal-title').textContent).toContain('klíč');
+    });
+
+    it('shows the right name when a second item is inspected', async () => {
+        // Regression test for EI-019. _inspectItem() removes the shell's
+        // #modalTitle and inserts its own header, _closeModal() never resets the
+        // content, and the second inspection then finds that header already
+        // present and leaves the previous item's name in place.
+        const game = new Game({
+            baseUrl: './games/use-test/',
+            scenesUrl: './games/use-test/scenes.json',
+            lang: 'cs',
+            i18n: { engine: {}, game: {} },
+            sceneImage: document.getElementById('sceneImage'),
+            hotspotLayer: document.getElementById('hotspotLayer'),
+            inventoryRoot: document.getElementById('inventory'),
+            messageBox: document.getElementById('msg'),
+            modalRoot: document.getElementById('modal'),
+            modalTitle: document.getElementById('modalTitle'),
+            modalBody: document.getElementById('modalBody'),
+            modalCancel: document.getElementById('modalCancel'),
+            modalOk: document.getElementById('modalOk'),
+        });
+
+        await game.init();
+        game.state.inventory.push('golden_key', 'rusty_nail');
+        game._renderInventory();
+
+        const [first, second] = document.querySelectorAll('#inventory .item');
+
+        first.click();
+        await new Promise(r => setTimeout(r, 0));
+        expect(document.querySelector('#modal .modal-title').textContent).toContain('klíč');
+        game._closeModal(false);
+
+        second.click();
+        await new Promise(r => setTimeout(r, 0));
+        expect(document.querySelector('#modal .modal-title').textContent).toContain('hřebík');
     });
 });
