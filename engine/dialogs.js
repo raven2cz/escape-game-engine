@@ -25,6 +25,9 @@ export class DialogUI {
         /** @type {Function|null} Resolver for the Promise returned by open() */
         this._closeResolver = null;
 
+        /** True between the start of open() and the resolver being installed. */
+        this._opening = false;
+
         /** * Input lock to prevent race conditions during async transitions.
          * Prevents "double-click" skipping issues.
          * @type {boolean}
@@ -215,6 +218,32 @@ export class DialogUI {
     async open(dialogId) {
         this._dbg('open() →', dialogId);
 
+        // One dialog at a time, and a second request is refused rather than
+        // allowed to take over. There is a single _closeResolver, so a second
+        // open() used to replace the first one's, and the action that was
+        // awaiting the first dialog then waited forever: the run carried on with
+        // a step silently skipped. Refusing loses a line of dialogue; taking
+        // over lost the rest of the event. See EI-013.
+        if (this._opening || this._closeResolver) {
+            console.warn('[DLG] open() refused, a dialog is already open:', dialogId);
+            return;
+        }
+
+        // The claim has to be made synchronously: _open() awaits a portrait
+        // preload before it installs the resolver, and a second open() could
+        // otherwise walk straight past the check above during that await.
+        this._opening = true;
+        try {
+            return await this._open(dialogId);
+        } finally {
+            // _open() drops the claim itself the moment the resolver takes over,
+            // so that a dialog opened from this one's onEnd is not refused. This
+            // only covers the paths that never got that far.
+            this._opening = false;
+        }
+    }
+
+    async _open(dialogId) {
         const list = Array.isArray(this.game.dialogsData?.dialogs) ? this.game.dialogsData.dialogs : [];
 
         // Resolve ID
@@ -290,11 +319,19 @@ export class DialogUI {
             }
         }
 
-        this._renderStep();
-
-        return new Promise(resolve => {
+        // The resolver is installed before the first step is rendered, not
+        // after. A dialog whose sequence is empty ends inside _renderStep(),
+        // which used to happen while there was no resolver to call, so the
+        // promise handed back was never settled and the event that opened the
+        // dialog stopped there.
+        const closed = new Promise(resolve => {
             this._closeResolver = resolve;
         });
+        this._opening = false;
+
+        this._renderStep();
+
+        return closed;
     }
 
     /**
@@ -590,6 +627,15 @@ export class DialogUI {
         this._hide();
         this.active = null;
 
+        // Take ownership of the resolver now, before the logic below runs.
+        // onEnd can set a flag or navigate, either of which can open another
+        // dialog; while this one still held _closeResolver that dialog would be
+        // refused, and before EI-013 it would have stolen this one's resolver
+        // instead. The promise is still settled last, so the engine stays
+        // blocked until everything this dialog set in motion is finished.
+        const resolveClosed = this._closeResolver;
+        this._closeResolver = null;
+
         // 2. Apply logic
         if (onEnd) {
             if (onEnd.message) g._msg(g._text(onEnd.message));
@@ -602,9 +648,6 @@ export class DialogUI {
 
         // 3. Unblock Engine
         // Now we tell the engine "dialog is fully done".
-        if (this._closeResolver) {
-            this._closeResolver();
-            this._closeResolver = null;
-        }
+        if (resolveClosed) resolveClosed();
     }
 }

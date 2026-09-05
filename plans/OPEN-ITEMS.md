@@ -13,7 +13,7 @@ here is second-hand.
 |--------|------|--------|----------------------------------------------------------------|
 | EI-001 | P1   | DONE   | Once-events can be marked done before their effects apply       |
 | EI-002 | P1   | OPEN   | One saved state for every game and every team                   |
-| EI-003 | P1   | OPEN   | goto() hangs on a missing image and persists the broken scene   |
+| EI-003 | P1   | DONE   | goto() hangs on a missing image and persists the broken scene   |
 | EI-004 | P1   | OPEN   | MIT licence also covers `games/`                                |
 | EI-005 | P2   | DONE   | `reset=1` stays in the URL and wipes progress on every reload   |
 | EI-006 | P2   | DONE   | `setSceneImage` is not persisted                                |
@@ -23,7 +23,7 @@ here is second-hand.
 | EI-010 | P2   | OPEN   | Progress signal differs per game, no single source for a dashboard |
 | EI-011 | P3   | OPEN   | Consumed item removal is not saved                              |
 | EI-012 | P3   | OPEN   | Saved state has no schema, validation or migration              |
-| EI-013 | P3   | OPEN   | A double tap can open two dialogs or two puzzles                |
+| EI-013 | P3   | DONE   | A double tap can open two dialogs or two puzzles                |
 | EI-014 | P3   | DONE   | `reactor` is missing the `end` flag on its final scene          |
 | EI-015 | P3   | PART   | Leftovers from the first game hardcoded as if they were generic |
 | EI-016 | P4   | DONE   | 5 of 113 tests fail on main and CI never runs them              |
@@ -31,6 +31,7 @@ here is second-hand.
 | EI-018 | P4   | OPEN   | Dead code, and a README documenting an API the engine lacks     |
 | EI-019 | P3   | DONE   | Inspecting a second item showed the first item's name           |
 | EI-020 | P3   | OPEN   | `games/demo` is not playable and is excluded from the data tests |
+| EI-021 | P3   | OPEN   | A dialog opened from another dialog's ending cannot be advanced   |
 
 Where the fix lands is decided in [STABILIZATION.md](STABILIZATION.md).
 
@@ -159,15 +160,36 @@ reloads, and lands back in the same broken scene. Note the contrast with
 `img.onerror = resolve` and a comment explaining exactly this risk. The scene
 loader never got the same treatment.
 
-**Fix.** One-shot `load` and `error` listeners, a timeout (8 s is a reasonable
-first guess) that resolves rather than rejects, a navigation token so a stale
-load cannot resolve a newer navigation, and persistence of the scene only after
-the transition succeeds. A visible message when an asset is missing beats a
-silent freeze.
+**Status:** DONE in S2.
 
-**Test.** A scene whose image 404s still finishes `goto()` and renders hotspots.
-Two navigations in a row both settle and the last one wins. Note this also fixes
-the test-environment hang described in EI-016.
+**Fix as applied.** A `_loadSceneImage(src)` helper that adds one-shot `load` and
+`error` listeners, races them against a timeout that resolves rather than
+rejects, and returns `'ok' | 'error' | 'timeout'` without ever rejecting.
+`goto()` takes a navigation token before it starts and drops everything if a
+newer navigation has begun by the time the image settles; the token is what makes
+two navigations safe, because there is one `<img>` for the whole game and
+therefore only one `load` event to go round. The scene is persisted only on
+`'ok'`, and on anything else the pupil gets a toast instead of a blank screen.
+The timeout defaults to 8 s and is injectable as `opts.sceneImageTimeoutMs`, so a
+test does not have to wait for it.
+
+The same loader is now used by the `setSceneImage` event action, which had an
+identical copy of the original three-line hang.
+
+**Note on what "persisted only on success" means.** `state.scene` in memory does
+follow the pupil into a scene whose image failed, because that is where they are
+and they have to be able to leave it. What does not happen is the immediate
+write, so a reload puts them back in the last scene that actually displayed
+rather than into the same dead end.
+
+**Tests.** `games/tests/engine.goto.image.test.js`: a 404 still finishes and
+renders hotspots, a request that never answers finishes within the timeout, a
+failed scene is not recorded, and two navigations in a row both settle with the
+later one winning. All four verified to fail before the fix.
+
+Two older test files carried their own image stub that called `this.onload`
+directly. Those stubs were deleted rather than repaired; image loading is
+simulated once, in `games/tests/setup.localstorage.js`.
 
 ---
 
@@ -436,12 +458,43 @@ whoever was awaiting the first dialog waits forever.
 a dialog that never resolves is the same class of failure as EI-001: the run
 continues but a step is silently skipped.
 
-**Fix.** A single modal operation at a time. Disable the hotspot layer while a
-transition is in flight, and make `DialogUI.open()` either settle the previous
-operation properly or refuse the new one.
+**Status:** DONE in S2.
 
-**Test.** Two synchronous activations produce one runner. An awaited dialog always
-settles.
+**Fix as applied.** Three changes, all small:
+
+- `Game._hotspotBusy` is claimed in the hotspot click handler and released when
+  the activation finishes. The flag lives on the Game, not the element, because
+  `_renderHotspots()` replaces those elements while an activation is still
+  running. It holds for exactly as long as the activation does, which for a
+  dialog or a puzzle means until it is closed, so a second tap during it is
+  dropped and a deliberate second tap afterwards is not.
+- `DialogUI.open()` refuses a second call instead of taking over. The claim is
+  made synchronously, because `open()` awaits a portrait preload before it
+  installs the resolver and a second call could otherwise slip past the check
+  during that await. It is dropped again the moment the resolver is installed,
+  not when the dialog closes, so a dialog opened from another dialog's ending is
+  still allowed.
+- `_end()` takes the resolver before it runs the `onEnd` logic and calls it
+  afterwards. That logic can set a flag or navigate, either of which can open
+  another dialog, and while this one still owned `_closeResolver` that dialog
+  would have stolen it.
+
+**Also fixed here, same defect from the other end.** The resolver is now
+installed before the first step is rendered. A dialog with an empty sequence ends
+inside `_renderStep()`, which used to happen while there was no resolver to call,
+so the promise handed back was never settled and the event that opened the dialog
+stopped there for good.
+
+**Tests.** `games/tests/engine.double-tap.test.js`: one puzzle rather than two,
+one activation rather than two, an awaited dialog settles despite a second
+`open()`, an empty dialog settles, a dialog opened from another dialog's ending is
+not refused, and the locks release afterwards. Five of the seven verified to fail
+before the fix; the other two guard the release.
+
+One existing test in `engine.use.test.js` fired two hotspot activations in a
+single turn of the event loop, which is now correctly refused. It was given a
+tick between the two taps rather than weakened: two deliberate taps by a pupil are
+never in the same turn.
 
 ---
 
@@ -660,3 +713,33 @@ product is a different thing from a leftover prototype.
 
 **Test.** The data tests already skip it. Removing it from `KNOWN_BROKEN` is the
 acceptance criterion for whichever decision is taken.
+
+---
+
+## EI-021: A dialog opened from another dialog's ending cannot be advanced
+
+**Priority:** P3. Found while fixing EI-013, not by an audit pass.
+
+**Where:** `engine/dialogs.js`, `next()` and `_handleInput()`.
+
+**What happens.** `next()` sets `this._busy` and clears it in a `finally`, and
+what it awaits in between is `_end()`, which runs the dialog's `onEnd`. If that
+sets a flag, `_stateChanged()` runs the events, and an event whose `then` opens a
+dialog will open one. The second dialog appears while `_busy` is still held by
+the advance that started it, and `_handleInput()` returns early whenever `_busy`
+is set. So every tap on the second dialog is ignored and it can never be closed.
+The engine is then blocked on it for good.
+
+**Why it is not urgent.** Verified against all six shipped games: none has a
+`stateChange` event with a blocking action gated on a flag that a dialog sets in
+`onEnd` or `onNext`, so no game can reach it today. The chain is supported by the
+engine and a new game could use it without doing anything unusual.
+
+**Fix.** `_busy` guards one thing, an advance that is already running, and should
+not stay held across whatever that advance sets in motion. Scope it to the
+synchronous part, or make it per-dialog rather than per-DialogUI.
+
+**Test.** Partly there already: `games/tests/engine.double-tap.test.js`, "still
+lets a dialog open one from its own onEnd", closes the second dialog through
+`close()` and says why. Change it to close by clicking, and it is the regression
+test for this item.

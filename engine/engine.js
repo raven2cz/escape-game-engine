@@ -25,6 +25,11 @@ export class Game {
         this.lang = (opts.lang || 'cs').toLowerCase();
         this.i18n = opts.i18n || {engine: {}, game: {}};
 
+        // How long to wait for a scene image before carrying on without it.
+        // A school network drops requests, and a request that is dropped rather
+        // than refused never fires anything at all. See EI-003.
+        this.sceneImageTimeoutMs = opts.sceneImageTimeoutMs ?? 8000;
+
         // State
         this.data = null;
         this.meta = {};
@@ -33,6 +38,8 @@ export class Game {
         this.currentScene = null;
         this._modalResolve = null;
         this._pendingHighlights = {};
+        this._navToken = 0;
+        this._hotspotBusy = false;
 
         // Toast container
         this.toastRoot = document.createElement('div');
@@ -193,19 +200,36 @@ export class Game {
         const scene = this.data.scenes.find(s => s.id === sceneId);
         if (!scene) return this._msg(this._t('engine.sceneNotFound', 'Scéna nebyla nalezena: {id}', {id: sceneId}));
 
+        const token = ++this._navToken;
+
         this.currentScene = scene;
         this.state.scene = sceneId;
         this.state.visited[sceneId] = true;
-        if (!opts.noSave) this._saveState();
 
-        this.sceneImage.src = this._sceneImageSrc(scene);
-        await new Promise(res => {
-            if (this.sceneImage.complete && this.sceneImage.naturalWidth) res();
-            else this.sceneImage.onload = () => res();
-        });
+        const outcome = await this._loadSceneImage(this._sceneImageSrc(scene));
+
+        // A newer navigation started while this one was waiting for its image.
+        // That one owns the screen now; carrying on here would render this scene
+        // over the top of it.
+        if (token !== this._navToken) return;
 
         this._renderHotspots();
         this._msg(this._text(scene.title) || '');
+
+        if (outcome === 'ok') {
+            // Persisted only now. Recording the scene before the image was known
+            // to load meant a scene that cannot be displayed became the place
+            // the pupil returns to after a reload. See EI-003.
+            if (!opts.noSave) this._saveState();
+        } else {
+            // Say something. A blank screen with no explanation is the worst
+            // outcome on a school network, and it is the one that gets reported
+            // as "the game is broken".
+            this.toast(this._t(
+                'engine.sceneImageFailed',
+                'Obrázek scény se nepodařilo načíst. Hraj dál, nebo zkus stránku obnovit.',
+            ), 6000);
+        }
 
         // queued highlights for this scene
         this._drainHighlightsForScene(sceneId);
@@ -239,6 +263,48 @@ export class Game {
     _sceneImageSrc(scene) {
         const override = this.state?.sceneImages?.[scene.id];
         return this._resolveAsset(override || scene.image);
+    }
+
+    /**
+     * Point the scene image at `src` and wait for it to display, fail, or run
+     * out of patience. Resolves 'ok' | 'error' | 'timeout' and never rejects,
+     * because a game that refuses to leave a scene is worse than a scene with a
+     * missing picture.
+     *
+     * The listeners are added, not assigned. There is one <img> for the whole
+     * game, so `onload = ...` meant a second navigation replaced the first one's
+     * handler and whoever awaited the first waited forever. Two navigations also
+     * share one image element and therefore one `load` event, which is why the
+     * caller checks a navigation token instead of trusting the event. EI-003.
+     *
+     * Compare engine/dialogs.js, where the portrait preload has handled onerror
+     * from the start. The scene loader never got the same treatment.
+     */
+    _loadSceneImage(src) {
+        const img = this.sceneImage;
+        img.src = src;
+
+        if (img.complete && img.naturalWidth) return Promise.resolve('ok');
+
+        return new Promise(resolve => {
+            let settled = false;
+
+            const finish = (outcome) => {
+                if (settled) return;
+                settled = true;
+                clearTimeout(timer);
+                img.removeEventListener('load', onLoad);
+                img.removeEventListener('error', onError);
+                resolve(outcome);
+            };
+
+            const onLoad = () => finish('ok');
+            const onError = () => finish('error');
+            const timer = setTimeout(() => finish('timeout'), this.sceneImageTimeoutMs);
+
+            img.addEventListener('load', onLoad, {once: true});
+            img.addEventListener('error', onError, {once: true});
+        });
     }
 
     // --- hero profile -----------------------------------------------------------
@@ -431,7 +497,18 @@ export class Game {
                         e.preventDefault(); e.stopPropagation(); return;
                     }
                     e.preventDefault();
-                    this._activateHotspot(h).catch(err => this._msg(String(err)));
+
+                    // One activation at a time. A double tap is an ordinary
+                    // input on a tablet, and without this it opens two puzzles
+                    // over each other, or two dialogs of which only the second
+                    // can ever be closed. The flag lives on the Game rather than
+                    // on the element, because _renderHotspots() rebuilds these
+                    // elements while an activation is still running. EI-013.
+                    if (this._hotspotBusy) return;
+                    this._hotspotBusy = true;
+                    this._activateHotspot(h)
+                        .catch(err => this._msg(String(err)))
+                        .finally(() => { this._hotspotBusy = false; });
                 });
 
                 // --- Drop handling for item drag & drop ---
@@ -1467,11 +1544,9 @@ export class Game {
 
                     // If we are currently in this scene, update the DOM immediately
                     if (this.currentScene?.id === sc.id) {
-                        this.sceneImage.src = this._sceneImageSrc(sc);
-                        await new Promise(res => {
-                            if (this.sceneImage.complete && this.sceneImage.naturalWidth) res();
-                            else this.sceneImage.onload = () => res();
-                        });
+                        // Through the same loader as goto(), so a missing
+                        // replacement image cannot hang the event either.
+                        await this._loadSceneImage(this._sceneImageSrc(sc));
                     }
                 }
             }
