@@ -21,7 +21,7 @@ where the work is and what comes next.
 | `7222b09` | S3: EI-002 step one, EI-011, EI-012 |
 | `076e654` | what the reviews of S1 to S3 found, three of them P1 |
 | `2f6ce6b` | what a second review round found, and two vacuous assertions |
-| _next_    | EI-021, EI-022, EI-023, the three the reviews turned up |
+| `22c473a` | EI-021, EI-022, EI-023, the three the reviews turned up |
 
 Every code batch in the plan is done, and so are the three defects the reviews
 turned up (EI-021, EI-022, EI-023). What is left is the owner's decisions (S5),
