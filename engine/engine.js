@@ -1871,6 +1871,12 @@ export class Game {
      * _appendPuzzleResult() fails on undefined.push against a state from a build
      * that predates the field. The state is also the one thing a pupil can edit
      * in devtools, so this is input validation as much as it is a migration.
+     *
+     * The list of fields is a whitelist, so anything not named here is dropped.
+     * That is the right trade for a value the player can edit, and the cost is
+     * that a state written by a *newer* engine loses the fields that engine
+     * added. Only reachable if an older build is served to the same device,
+     * which is one more reason the service worker question (EI-007) matters.
      */
     _normalizeState(saved) {
         const fresh = this._freshState();

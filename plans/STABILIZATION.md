@@ -44,7 +44,7 @@ all five are defects whose whole nature is "survives the reload or does not".
 Each batch is one commit or a small series, and the suite is green at the end of
 each. Batches are ordered so that no batch depends on a later one.
 
-### S0: green baseline and CI
+### S0: green baseline and CI — DONE, `967b385`
 
 Items: **EI-016**, **EI-008**.
 
@@ -59,7 +59,7 @@ whole exercise repeats in six months.
 
 Tests: the existing 113 pass, plus keyboard activation of an inventory item.
 
-### S1: durable effects survive a reload
+### S1: durable effects survive a reload — DONE, `5235db0`
 
 Items: **EI-001**, **EI-006**.
 
@@ -77,7 +77,7 @@ Tests:
   still reachable. This is the regression test for the worst bug found.
 - A scene image changed by an event is still changed after a reload.
 
-### S2: transitions cannot hang or overlap
+### S2: transitions cannot hang or overlap — DONE, `21d8fb4`
 
 Items: **EI-003**, **EI-013**.
 
@@ -91,9 +91,9 @@ Tests:
 - Two synchronous hotspot activations create one runner, not two.
 - An awaited dialog always settles, even if a second `open()` arrives.
 
-### S3: state has an identity and a shape
+### S3: state has an identity and a shape — DONE, `7222b09`
 
-Items: **EI-002**, **EI-011**, **EI-012**.
+Items: **EI-002** (step one), **EI-011**, **EI-012**.
 
 Grouped because they all change how state is written and read, and doing them
 separately would mean touching the same code three times.
@@ -111,9 +111,9 @@ Tests:
 - A state missing each field in turn still starts the game.
 - An unknown scene id falls back to the start scene rather than freezing.
 
-### S4: cleanup, no behaviour change intended
+### S4: cleanup, no behaviour change intended — PART, `36c6e95`
 
-Items: **EI-005**, **EI-009**, **EI-014**, **EI-015**, **EI-018**.
+Items: **EI-005**, **EI-009**, **EI-014** done; **EI-015** partial, **EI-018** open.
 
 Deliberately last among the code batches. These are small and safe individually,
 and putting them earlier would mix noise into the diffs of the batches that matter.
@@ -125,9 +125,9 @@ Tests:
   prevents the next game from shipping without it.
 - No file outside `games/leeuwenhoek/` mentions leeuwenhoek.
 
-### S5: decisions, not code
+### S5: decisions, not code — OPEN, needs the owner
 
-Items: **EI-004**, **EI-007**, **EI-017**.
+Items: **EI-004**, **EI-007**, **EI-017**, and **EI-020**.
 
 These need the owner, and two of them should be settled before the games are split
 into their own repository, because both get harder afterwards.
