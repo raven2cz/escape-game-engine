@@ -1,5 +1,11 @@
 // service-worker.js
-const CACHE_NAME = 'leeuwenhoek-escape-v3';
+//
+// NOTE: 15 of the 19 paths below do not exist. cache.addAll() is atomic, so
+// install always rejects and ?pwa=1 is a silent no-op today. Whether this file
+// is repaired or removed is EI-007, an open decision, so the list is left as it
+// is rather than half-fixed. Only the cache name, which said leeuwenhoek, was
+// made neutral (EI-015).
+const CACHE_NAME = 'escape-game-engine-v3';
 const ASSETS = [
   './', './index.html', './style.css', './manifest.webmanifest',
   './engine/engine.js', './engine/puzzles.js', './engine/editor.js', './game/scenes.json',

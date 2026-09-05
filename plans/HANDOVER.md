@@ -9,7 +9,7 @@ where the work is and what comes next.
 
     branch    fix/stabilization-audit
     base      main @ 5dbca85
-    suite     191 passing, CI runs it on push and pull request
+    suite     203 passing, CI runs it on push and pull request
 
 | commit | what |
 |---|---|
@@ -22,11 +22,12 @@ where the work is and what comes next.
 | `076e654` | what the reviews of S1 to S3 found, three of them P1 |
 | `2f6ce6b` | what a second review round found, and two vacuous assertions |
 | `22c473a` | EI-021, EI-022, EI-023, the three the reviews turned up |
+| _next_    | EI-018 and EI-015: dead code, README, the last borrowed names |
 
-Every code batch in the plan is done, and so are the three defects the reviews
-turned up (EI-021, EI-022, EI-023). What is left is the owner's decisions (S5),
-EI-018 and EI-015, and the items that were always meant to wait for the hosted
-runtime design.
+Every code batch in the plan is done, so are the three defects the reviews turned
+up (EI-021, EI-022, EI-023), and so is the cleanup (EI-018, EI-015). What is left
+is the owner's decisions (S5) and the two items that were always meant to wait
+for the hosted runtime design.
 
 ## The reload harness
 
@@ -64,20 +65,16 @@ decide them and do not work around them:
 - The oldest iPad that has to work, which decides whether `ResizeObserver` needs
   a runtime fallback and not just a test stub.
 
-**Code, in rough order of value:**
+**Left undone inside finished items, both needing eyes on a screen rather than a
+test:**
 
-- **EI-018**, dead code and a README documenting an API the engine does not have.
-  This one matters more than its priority suggests once the games move to their
-  own repository, because the next author will follow the README.
-- **EI-015**, the remaining leftovers from the first game. The storage key was
-  the important one and is now gone; what is left is the hero fallback to `adam`,
-  the service worker cache name, and the default game in `index.html`.
-
-One thing left undone inside a finished item: EI-023 was fixed by making
-`_renderHotspots()` remove only its own output. The better shape is to mount the
-puzzle and the content panel somewhere other than the hit-testing layer, but both
-are positioned in percentages of it, so that is a visual change nobody can check
-from a test. Worth doing when somebody can look at the result.
+- **EI-023** was fixed by making `_renderHotspots()` remove only its own output.
+  The better shape is to mount the puzzle and the content panel somewhere other
+  than the hit-testing layer, but both are positioned in percentages of it, so
+  moving them is a visual change nobody can check from a test.
+- **EI-018** left the CSS alone. The audit lists classes the JS never sets;
+  deciding that safely means also reading every game's `game.css`, and a wrongly
+  deleted class is a silent visual regression.
 
 **Waiting on the hosted runtime, deliberately:**
 

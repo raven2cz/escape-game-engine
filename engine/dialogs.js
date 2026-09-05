@@ -373,11 +373,6 @@ export class DialogUI {
         }
     }
 
-    refresh() {
-        if (!this.active) return;
-        this._renderStep();
-    }
-
     // --- Character & Asset Resolution ---
 
     _findCharacter(charId) {

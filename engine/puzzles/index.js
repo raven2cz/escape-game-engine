@@ -93,12 +93,12 @@ export function createPuzzleRunner(args) {
         });
     };
 
-    const containerRect = (args.instanceOptions && args.instanceOptions.overrideContainerRect === true && args.rect) ? args.rect : {
-        x: 0,
-        y: 0,
-        w: 100,
-        h: 100
-    };
+    // The puzzle overlay always covers the whole layer; the puzzle window
+    // inside it is placed by the puzzle's own `rect`. There used to be an
+    // `overrideContainerRect` instance option that shrank the overlay to the
+    // hotspot's rect. No game ever used it and nothing documented it, so it
+    // went with the rest of the dead code in EI-018.
+    const containerRect = {x: 0, y: 0, w: 100, h: 100};
 
     const container = document.createElement('div');
     container.className = 'pz-container';
@@ -125,18 +125,6 @@ export function createPuzzleRunner(args) {
         // Resolve background: args.background (from list step) OR cfg.background (from puzzle config)
         const resolvedBackground = args.background ||
                                    (cfg.background ? (args.engine?._resolveAsset?.(cfg.background) || cfg.background) : undefined);
-
-        console.log('[PZ] runner mountInto:', {
-            id: puzzle.id,
-            kind: puzzle.kind,
-            argsRect: args.rect,
-            cfgRect: cfg.rect,
-            containerRect,
-            workRect,
-            'args.background': args.background,
-            'cfg.background': cfg.background,
-            'resolvedBackground': resolvedBackground
-        });
 
         if (/\bdebug=1\b/.test(window.location.search)) {
             console.debug('[PZ] runner mountInto:', {

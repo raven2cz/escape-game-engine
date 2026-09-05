@@ -33,10 +33,10 @@ pre-existing defect rather than a new one.
 | EI-012 | P3   | DONE   | Saved state has no schema, validation or migration              |
 | EI-013 | P3   | DONE   | A double tap can open two dialogs or two puzzles                |
 | EI-014 | P3   | DONE   | `reactor` is missing the `end` flag on its final scene          |
-| EI-015 | P3   | PART   | Leftovers from the first game hardcoded as if they were generic |
+| EI-015 | P3   | DONE   | Leftovers from the first game hardcoded as if they were generic |
 | EI-016 | P4   | DONE   | 5 of 113 tests fail on main and CI never runs them              |
 | EI-017 | P4   | OPEN   | 318 MB of material tracked in git that does not belong there    |
-| EI-018 | P4   | OPEN   | Dead code, and a README documenting an API the engine lacks     |
+| EI-018 | P4   | DONE   | Dead code, and a README documenting an API the engine lacks     |
 | EI-019 | P3   | DONE   | Inspecting a second item showed the first item's name           |
 | EI-020 | P3   | OPEN   | `games/demo` is not playable and is excluded from the data tests |
 | EI-021 | P3   | DONE   | A dialog opened from another dialog's ending cannot be advanced   |
@@ -653,8 +653,39 @@ literal after the marker is used.
 worse once games move to their own repository and the engine is supposed to stand
 alone. The storage key is the exception and is tracked separately as EI-002.
 
-**Fix.** Neutral defaults in the engine, per-game values in the game. The hero
-fallback should be defined by the game or absent, not `adam`.
+**Status:** DONE.
+
+**Fix as applied.** The storage key went with EI-002 and stop-train's borrowed
+dialogs meta went in S4. What was left:
+
+- The hero fallback. A game that defines no `heroes` now gets no hero at all,
+  and `getHero()` returns `NEUTRAL_HERO`, which exists so the getter never
+  returns null rather than to stand in for a character. An id the game does not
+  know keeps its own name and gets no asset path, instead of quietly becoming
+  Adam pointing into leeuwenhoek's portraits. Five of the six shipped games were
+  storing that phantom.
+- One consequence worth knowing: `_setHeroInternal()` was the only thing that
+  wrote a fresh state to storage at startup, so removing it for those five games
+  meant nothing was persisted until the first interaction. Nothing was lost by
+  that, but `init()` now saves explicitly. Persistence should not depend on which
+  unrelated thing happened to save first, and the hosted runtime will want a run
+  to exist from the moment it starts.
+- `manifest.webmanifest` is "Úniková hra" rather than "Leeuwenhoek Escape", and
+  the service worker's cache name is `escape-game-engine-v3`. The **precache
+  list is deliberately untouched**: repairing it would decide EI-007, which is
+  the owner's. A comment at the top of the file says so.
+- `index.html` still names a game, and legitimately: it has to open something
+  when the address bar does not say. It is now a named `DEFAULT_GAME` constant
+  with a comment saying it is a convenience for local use and that the hosted
+  runtime always supplies the id.
+
+**Test.** `games/tests/engine.hero.neutral.test.js` and
+`games/tests/engine.neutrality.test.js`. The second walks every file under
+`engine/` and fails on any mention of a shipped game's id outside a comment,
+with one allowed line: `LEGACY_STATE_KEY`, which has to name the old key in
+order to migrate it. Scope is the engine, because the engine is what has to
+stand alone once the games move; `index.html` is the shell and
+`service-worker.js` is EI-007.
 
 Explicitly **not** in scope: the incomplete English translations. Only Czech is
 shipped and only Czech is sold, so an unused `en` branch is not a defect. Checked
@@ -745,12 +776,37 @@ the puzzle runner, and several CSS classes the JS never sets. Also unconditional
 **Why it matters.** Whoever authors a game in the new private repository will
 follow the README and produce content the engine ignores, with no error message.
 
-**Fix.** Delete the dead code. Rewrite the README sections against the actual
-implementation, ideally by generating the field list from the code or by testing
-the documented examples.
+**Status:** DONE.
 
-**Test.** Load every documented example and assert it parses into something the
-engine acts on.
+**Dead code, removed.** `_applyOnSuccess` (no callers), `DialogUI.refresh()` (no
+callers), `engine/puzzles/i18n.js` (imported nowhere), and
+`overrideContainerRect` in the puzzle runner (no game used it and nothing
+documented it). The three unconditional `console.log` calls are gone: two became
+`_dbg`, the third duplicated a `debug=1` guarded log two lines below it.
+
+**CSS was left alone.** The audit mentions classes the JS never sets. Deciding
+that safely means also reading every game's `game.css`, and a wrongly deleted
+class is a silent visual regression that no test here would catch. Not worth it
+for the size of the win.
+
+**README, rewritten against the implementation.** Every item in the drift list
+was wrong in the way the audit described, and each is now right: action bundles
+are objects rather than arrays; `onEnter`/`onExit` and `delay` are gone, with a
+pointer to events and `playVideo.delay`; `goTo` takes `target`; a `puzzle`
+hotspot takes `puzzleRef` while the `openPuzzle` *action* really does take `ref`,
+which the audit had lumped together; items are `label`/`icon`/`meta`; dialogs use
+`sequence`/`speaker`, and choices `onChoose`; `setHero` takes an id. Four
+capabilities the README advertised and the engine does not have - voice lines,
+auto-advance, conditions on dialog choices, scene enter/exit hooks - were removed
+rather than glossed. The PWA section now says plainly that it does not work, and
+points at EI-007.
+
+**Test.** `games/tests/readme.contract.test.js`: every JSON example parses, no
+example uses a field the engine ignores, every `goTo` has a `target` and every
+`puzzle` hotspot a `puzzleRef`, the documented hotspot types are read out of
+`engine.js` rather than repeated, `setHero` is never shown taking an object, and
+every file named in the project tree exists. All five fail against the old
+README.
 
 ---
 

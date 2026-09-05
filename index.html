@@ -54,7 +54,12 @@
 
     // --- Query params --------------------------------------------------------
     const params = new URLSearchParams(location.search);
-    const gameId = params.get('game') || 'leeuwenhoek';
+    // Which game to open when the address bar does not say. This is a
+    // convenience for opening index.html locally, and the only place in the
+    // repository outside games/ that names a particular game: the engine itself
+    // is neutral, and the hosted runtime will always supply the id. See EI-015.
+    const DEFAULT_GAME = 'leeuwenhoek';
+    const gameId = params.get('game') || DEFAULT_GAME;
     const lang = (params.get('lang') || 'cs').toLowerCase();
     const baseUrl = `./games/${gameId}/`;
 

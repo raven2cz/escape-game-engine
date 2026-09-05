@@ -27,6 +27,23 @@ const STATE_SCHEMA_VERSION = 1;
  */
 const LEGACY_STATE_KEY = 'leeuwenhoek_escape_state';
 
+/**
+ * What the engine knows about a hero when the game has not said.
+ *
+ * It used to be Adam, with portraits under `assets/npc/adam/`, which is one
+ * particular character in one particular game. Five of the six shipped games
+ * define no heroes at all, so every one of them stored a phantom Adam pointing
+ * into leeuwenhoek's assets. A hero belongs to a game, not to the engine: this
+ * is here so that `getHero()` never returns null, not to stand in for one.
+ * See EI-015.
+ */
+const NEUTRAL_HERO = Object.freeze({
+    id: 'hero',
+    gender: 'n',
+    name: '',
+    assetsBase: ''
+});
+
 export class Game {
     constructor(opts) {
         // DOM refs
@@ -221,15 +238,25 @@ export class Game {
         }
 
         // initialize hero (default → then URL override if present)
+        // A game that defines no heroes gets none. Inventing one meant every
+        // game but leeuwenhoek carried a hero it had never heard of. EI-015.
         if (!this.state.hero) {
-            const defId = this.data?.defaultHero || Object.keys(this.data?.heroes || {})[0] || 'adam';
-            this._setHeroInternal(defId);
+            const defId = this.data?.defaultHero || Object.keys(this.data?.heroes || {})[0] || null;
+            if (defId) this._setHeroInternal(defId);
         }
         if (urlHero) {
             // URL always wins (do not nuke progress)
             this._setHeroInternal(urlHero);
             this._dbg('[HERO] overridden from URL →', urlHero, this.state.hero);
         }
+
+        // Write the run down as soon as it exists. This used to happen only as a
+        // side effect of hero initialisation, which stopped for any game that
+        // defines no heroes once EI-015 removed the invented one. Nothing was
+        // lost by that - there was nothing to lose yet - but persistence should
+        // not depend on which unrelated thing happened to save first, and the
+        // hosted runtime will want a run to exist from the moment it starts.
+        this._saveState();
 
         await this.goto(this.state.scene, {noSave: true});
         this._renderInventory();
@@ -386,17 +413,14 @@ export class Game {
     }
 
     _setHeroInternal(id) {
-        const prof = this._getHeroProfileById(id) || {
-            id: 'adam',
-            gender: 'm',
-            name: 'Adam',
-            assetsBase: 'assets/npc/adam/'
-        };
+        // An id the game does not define keeps its own name and gets no assets,
+        // rather than being turned into somebody else's hero. See NEUTRAL_HERO.
+        const prof = this._getHeroProfileById(id) || {...NEUTRAL_HERO, id, name: id};
         this.state.hero = {
             id: prof.id,
-            gender: prof.gender || 'm',
-            name: this._text(prof.name) || prof.name || 'Hero',
-            assetsBase: prof.assetsBase || 'assets/npc/adam/'
+            gender: prof.gender || NEUTRAL_HERO.gender,
+            name: this._text(prof.name) || prof.name || '',
+            assetsBase: prof.assetsBase || ''
         };
         this._saveState();
     }
@@ -406,12 +430,9 @@ export class Game {
     }
 
     getHero() {
-        return this.state?.hero || this._getHeroProfileById(this.data?.defaultHero) || {
-            id: 'adam',
-            gender: 'm',
-            name: 'Adam',
-            assetsBase: 'assets/npc/adam/'
-        };
+        return this.state?.hero
+            || this._getHeroProfileById(this.data?.defaultHero)
+            || {...NEUTRAL_HERO};
     }
 
     getHeroId() {
@@ -649,7 +670,7 @@ export class Game {
     }
 
     async _activateHotspot(h) {
-        console.log('[HOTSPOT] Activation triggered:', h.type, h);
+        this._dbg('[HOTSPOT] activation:', h.type, h);
 
         // 1. Use-mode guard (pokud držíme předmět a hotspot ho neumí přijmout)
         // Pokud hráč drží předmět, ale klikne na něco, co předměty nebere -> chyba.
@@ -710,7 +731,7 @@ export class Game {
         // --- NOVÁ ČÁST: Obecná akce Apply (bez předmětu) ---
         // Toto je to, co potřebujeme pro spuštění videa kliknutím na šipku
         if (h.type === 'apply') {
-            console.log('[HOTSPOT] Executing Apply actions:', h.onApply);
+            this._dbg('[HOTSPOT] apply actions:', h.onApply);
             if (h.onApply) {
                 await this._applyActions(h.onApply);
             }
@@ -972,11 +993,6 @@ export class Game {
         if (actions.goTo) {
             await this.goto(actions.goTo);
         }
-    }
-
-    // backward compatibility
-    async _applyOnSuccess(actions) {
-        return this._applyActions(actions);
     }
 
     // --- state changed hook -----------------------------------------------------
