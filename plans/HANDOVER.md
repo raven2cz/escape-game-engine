@@ -23,7 +23,7 @@ where the work is and what comes next.
 | `2f6ce6b` | what a second review round found, and two vacuous assertions |
 | `22c473a` | EI-021, EI-022, EI-023, the three the reviews turned up |
 | `e095696` | EI-018 and EI-015: dead code, README, the last borrowed names |
-| _next_    | closing review: EI-024, and corrections to EI-015/021/022 |
+| `cbf860f` | closing review: EI-024, and corrections to EI-015/021/022 |
 
 Every code batch in the plan is done, so are the three defects the reviews turned
 up (EI-021, EI-022, EI-023), and so is the cleanup (EI-018, EI-015). What is left
