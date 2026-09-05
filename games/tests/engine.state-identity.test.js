@@ -145,10 +145,10 @@ describe('EI-002: saved state has an identity', () => {
         expect(localStorage.getItem(LEGACY_KEY)).not.toBeNull();
     });
 
-    it('does not let a restart resurrect a lesson from the old key', async () => {
-        // reset=1 skips adoption but used to leave the old entry in place, and
-        // restart() only cleared the new one. The next start then found the old
-        // key and adopted a lesson the teacher had just reset away.
+    it('does not let a reset be undone by what is under the old key', async () => {
+        // reset=1 skips adoption but used to leave the old entry in place, so
+        // the next start found it and adopted the lesson the teacher had just
+        // reset away.
         localStorage.setItem(LEGACY_KEY, JSON.stringify(legacyState()));
         history.replaceState(null, '', '/?reset=1');
 
@@ -156,9 +156,36 @@ describe('EI-002: saved state has an identity', () => {
         const fresh = await harness.boot();
         expect(fresh.state.inventory).toEqual([]);
         expect(localStorage.getItem(LEGACY_KEY)).toBeNull();
+    });
 
-        const afterReload = await harness.boot();
-        expect(afterReload.state.inventory).toEqual([]);
+    // restart() ends in location.reload(), which jsdom cannot do and reports on
+    // stderr as "Not implemented: navigation to another Document". That line is
+    // this test saying the engine did the right thing, not a failure.
+    it('clears the old key on restart too', async () => {
+        // restart() used to clear only the namespaced key, so the next start
+        // adopted whatever was still under the old one.
+        const harness = alpha();
+        const game = await harness.boot();
+        localStorage.setItem(LEGACY_KEY, JSON.stringify(legacyState()));
+
+        game.restart();
+
+        expect(localStorage.getItem(LEGACY_KEY)).toBeNull();
+        expect(localStorage.getItem('state:alpha')).toBeNull();
+    });
+
+    it('never removes another game\'s entry from the old key', async () => {
+        // Discarding has to check ownership just as adopting does. A teacher
+        // opening game B with a reset link, or a team restarting game B, must
+        // not take game A's lesson with it.
+        localStorage.setItem(LEGACY_KEY, JSON.stringify({ ...legacyState(), signature: 'beta|1.0.0|cs' }));
+        history.replaceState(null, '', '/?reset=1');
+
+        const game = await alpha().boot();
+        expect(localStorage.getItem(LEGACY_KEY)).not.toBeNull();
+
+        game.restart();
+        expect(localStorage.getItem(LEGACY_KEY)).not.toBeNull();
     });
 
     it('does not adopt another game\'s state left under the old key', async () => {

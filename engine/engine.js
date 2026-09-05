@@ -267,6 +267,23 @@ export class Game {
             this.state.visited[sceneId] = true;
             if (!opts.noSave) this._saveState();
         } else {
+            if (outcome === 'timeout') {
+                // A timeout means "not yet", not "never". Congested school
+                // Wi-Fi takes longer than eight seconds over a 700 KB scene
+                // often enough to matter, and without this the pupil plays on
+                // in a scene that is never recorded, so a reload sends them
+                // back to wherever they were several minutes earlier, with this
+                // scene's once-events already spent. Still guarded by the
+                // token: a load that arrives after a newer navigation belongs
+                // to that one.
+                this.sceneImage.addEventListener('load', () => {
+                    if (token !== this._navToken) return;
+                    this.state.scene = sceneId;
+                    this.state.visited[sceneId] = true;
+                    if (!opts.noSave) this._saveState();
+                }, {once: true});
+            }
+
             // Say something. A blank screen with no explanation is the worst
             // outcome on a school network, and it is the one that gets reported
             // as "the game is broken".
@@ -1974,9 +1991,22 @@ export class Game {
      * on the prefix rather than the whole string.
      */
     _adoptLegacyState() {
-        // Only when this engine owns the browser's storage. The old key is an
-        // artefact of the unhosted engine, and a runtime that supplies per-team
-        // storage must not be handed whatever was left on the tablet.
+        const legacy = this._readLegacyState();
+        if (!legacy) return null;
+        this._discardLegacyState();
+        return legacy;
+    }
+
+    /**
+     * The old entry, but only if it is this game's.
+     *
+     * Read only when this engine owns the browser's storage: the old key is an
+     * artefact of the unhosted engine, and a runtime that supplies per-team
+     * storage must not be handed whatever was left on the tablet. The old
+     * signature carried the language as a third segment, which is why the
+     * comparison is on the prefix rather than the whole string.
+     */
+    _readLegacyState() {
         if (!this._ownsLocalStorage) return null;
 
         let raw = null;
@@ -1997,15 +2027,13 @@ export class Game {
         const signature = this._signature();
         const ours = typeof legacy?.signature === 'string'
             && (legacy.signature === signature || legacy.signature.startsWith(signature + '|'));
-        if (!ours) return null;
 
-        this._discardLegacyState();
-
-        return {...legacy, signature};
+        return ours ? {...legacy, signature} : null;
     }
 
+    /** Remove the old entry, but only ever this game's own. */
     _discardLegacyState() {
-        if (!this._ownsLocalStorage) return;
+        if (!this._readLegacyState()) return;
         try {
             localStorage.removeItem(LEGACY_STATE_KEY);
         } catch { /* noop */

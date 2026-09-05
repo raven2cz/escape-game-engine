@@ -11,9 +11,11 @@ here is second-hand.
 
 The fixes in S1 to S3 were reviewed the same way, by Fable 5.1 and codex SOL
 independently. Both found the same two P1 defects in the new code, and SOL found
-a third that neither the audit nor the first review had. What they turned up is
-recorded in the item it belongs to, under "Corrected after review", and as
-EI-022 and EI-023 where it was a pre-existing defect rather than a new one.
+a third that neither the audit nor the first review had. A second round over the
+corrections found three more, all P3, and two assertions that were passing
+whatever the code did. What they turned up is recorded in the item it belongs to,
+under "Corrected after review", and as EI-022 and EI-023 where it was a
+pre-existing defect rather than a new one.
 
 | #      | prio | status | topic                                                          |
 |--------|------|--------|----------------------------------------------------------------|
@@ -158,6 +160,11 @@ reset away; and adoption read device-wide localStorage even when a caller had
 supplied its own storage, which would have handed a hosted per-team store
 whatever happened to be on the tablet. Both fixed, both tested.
 
+A second review round caught the mirror image of the first hole: discarding the
+old entry did not check whose it was, so a teacher opening game B with a reset
+link, or a team restarting game B, took game A's lesson with it. Reading and
+discarding now share one ownership test, `_readLegacyState()`.
+
 **Step two, deliberately not done here.** Run and team identity,
 `state:<sessionId>:<gameId>:<teamId>`. The identity has to come from the hosted
 runtime, which does not exist yet; inventing one now would mean the runtime
@@ -214,8 +221,9 @@ test does not have to wait for it.
 The same loader is now used by the `setSceneImage` event action, which had an
 identical copy of the original three-line hang.
 
-**Corrected after review.** The first attempt only made the direct `_saveState()`
-conditional, and left `state.scene` moving before the image loaded. That was not
+**Corrected after review, twice.** The first attempt only made the direct
+`_saveState()` conditional, and left `state.scene` moving before the image
+loaded. That was not
 enough and the claim in this file was wrong: the enter events run a few lines
 later and a `once` event saves the whole state as it marks itself, so the failed
 scene was persisted anyway. Almost every scene in the shipped games has such an
@@ -223,6 +231,12 @@ event, `reactor`'s `main-room` among them. `state.scene` now moves only on a
 successful load; it is the resume point, and where the pupil actually is, is
 `currentScene`. The two places that read `state.scene` as a stand-in for "here"
 were changed to `_hereId()`, which prefers `currentScene`.
+
+The second round then pointed out that a timeout is not a failure: an eight
+second timeout on a 700 KB scene over congested school Wi-Fi is an ordinary
+Tuesday, and treating it as "never" left the team playing on in a scene that was
+never recorded. If the image does turn up, the scene is recorded then, still
+guarded by the navigation token.
 
 **Tests.** `games/tests/engine.goto.image.test.js`: a 404 still finishes and
 renders hotspots, a request that never answers finishes within the timeout, a
@@ -885,10 +899,11 @@ EI-013 that also means the activation lock is never released, and no tap does
 anything afterwards.
 
 **Why it is not urgent.** Reaching it needs a state change while a puzzle is
-mounted, and the only unlocked path into `_applyActions` is a touch drop. Checked
-all six shipped games: only leeuwenhoek's treasure room has a puzzle and an
-item-accepting hotspot in the same scene, and the item it accepts is the reward
-for solving that puzzle, so it cannot be held while the puzzle is open.
+mounted, and since EI-013 both ways into `_applyActions` from a hotspot, the tap
+and the drop, hold the activation lock. Checked all six shipped games as well:
+only leeuwenhoek's treasure room has a puzzle and an item-accepting hotspot in
+the same scene, and the item it accepts is the reward for solving that puzzle, so
+it cannot be held while the puzzle is open.
 
 **Fix.** Either mount modal surfaces outside the hotspot layer, or have
 `_renderHotspots()` refuse to run while one is mounted. The first is better; the

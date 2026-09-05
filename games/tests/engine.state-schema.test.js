@@ -113,6 +113,15 @@ describe('EI-012: a saved state is checked before it is used', () => {
         expect(game.state.useItemId).toBeNull();
     });
 
+    it('drops a scene image override that is not a path', async () => {
+        store({ ...fullState(), scene: 'start', sceneImages: { start: 42, deeper: 'scenes/lit.jpg' } });
+
+        const game = await harness().boot();
+
+        expect(game.state.sceneImages).toEqual({ deeper: 'scenes/lit.jpg' });
+        expect(game.sceneImage.getAttribute('src')).toBe('./games/schema/scenes/start.jpg');
+    });
+
     it('survives a stored value that is not an object at all', async () => {
         localStorage.setItem(KEY, '"just a string"');
         const game = await harness().boot();

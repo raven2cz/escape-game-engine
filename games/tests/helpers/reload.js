@@ -26,8 +26,10 @@
 // fixes. What those listeners could still do is reach the retired Game and make
 // it write - ContentPanel._closeImmediate() calls _saveState() - and both runs
 // share a storage key, so the retired run's storage is redirected to a sink
-// instead. Its DOM is detached with the old body, so nothing else it does is
-// visible.
+// instead. Its DOM is detached with the old body, so what is left is small but
+// not nothing: the Escape handler in the Game constructor calls exitUseMode(),
+// which takes `use-on` off the body that both runs share. A test that dispatches
+// Escape after a reload should know that.
 
 import { vi } from 'vitest';
 import { readFileSync } from 'node:fs';

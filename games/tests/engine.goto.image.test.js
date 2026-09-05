@@ -123,6 +123,48 @@ describe('EI-003: goto() and the scene image', () => {
         expect(game._loadState().scene).toBe('hall');
     });
 
+    it('records a scene whose image was late rather than never', async () => {
+        // A timeout is "not yet". Congested school Wi-Fi takes longer than the
+        // timeout over a 700 KB scene often enough to matter, and treating it
+        // as "never" would leave the team playing on in a scene that is never
+        // recorded: a reload would send them back to wherever they were several
+        // minutes earlier, with this scene's once-events already spent.
+        const harness = createReloadHarness({ scenes: SCENES });
+
+        const { game, ready } = harness.bootDetached({ gameOpts: { sceneImageTimeoutMs: 20 } });
+        await img.waitForRequest('hall.jpg');
+        img.settle('hall.jpg');
+        await ready;
+
+        await game.goto('broken');
+        expect(game._loadState().scene).toBe('hall');
+
+        // It turns up after all.
+        img.settle('missing.jpg');
+        await waitFor(
+            () => game._loadState().scene === 'broken',
+            { label: 'the late scene to be recorded' },
+        );
+    });
+
+    it('ignores a late image once the pupil has moved on', async () => {
+        const harness = createReloadHarness({ scenes: SCENES });
+
+        const { game, ready } = harness.bootDetached({ gameOpts: { sceneImageTimeoutMs: 20 } });
+        await img.waitForRequest('hall.jpg');
+        img.settle('hall.jpg');
+        await ready;
+
+        await game.goto('broken');
+        const back = game.goto('hall');
+        await img.waitForRequest('hall.jpg');
+        img.settle('hall.jpg');
+        await back;
+
+        expect(game._loadState().scene).toBe('hall');
+        expect(game.currentScene.id).toBe('hall');
+    });
+
     it('still runs the scene events and the hotspots of a scene it could not show', async () => {
         // Not persisting the scene must not mean pretending the pupil is not in
         // it. They are, and they have to be able to act.

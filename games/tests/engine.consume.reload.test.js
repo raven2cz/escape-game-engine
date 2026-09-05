@@ -36,6 +36,14 @@ const SCENES = {
                     onApply: { setFlags: ['token_used'] },
                     rect: { x: 10, y: 1, w: 5, h: 5 },
                 },
+                // A second target for the coin, with an effect, so that a coin
+                // that should no longer exist leaves a trace if it is spent.
+                {
+                    type: 'apply',
+                    acceptItems: [{ id: 'coin', consume: true }],
+                    onApply: { setFlags: ['coin_spent_twice'] },
+                    rect: { x: 20, y: 1, w: 5, h: 5 },
+                },
             ],
         },
     ],
@@ -82,10 +90,13 @@ describe('EI-011: a consumed item stays consumed', () => {
         const reloaded = await harness.reload();
         expect(reloaded.state.useItemId).toBeNull();
 
-        // And the phantom cannot be spent again.
-        document.querySelectorAll('#hotspotLayer .hotspot')[0].click();
+        // And the phantom cannot be spent again. The second target has an
+        // effect, so that spending it leaves something to assert on: an empty
+        // inventory would be true either way, because removing an item that is
+        // not there does nothing.
+        document.querySelectorAll('#hotspotLayer .hotspot')[2].click();
         await new Promise(res => setTimeout(res, 0));
-        expect(reloaded.state.inventory).toEqual([]);
+        expect(reloaded.state.flags.coin_spent_twice).toBeUndefined();
     });
 
     it('is still gone when a following action would have saved anyway', async () => {
