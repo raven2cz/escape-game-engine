@@ -165,7 +165,8 @@ export class Game {
             useItemId: null,
             hero: null,
             puzzleResults: [], // aggregateOnly results bucket
-            contentShown: {}  // tracks "once" content panels
+            contentShown: {}, // tracks "once" content panels
+            sceneImages: {}   // scene id -> image set by setSceneImage
         };
 
         // initialize hero (default → then URL override if present)
@@ -197,7 +198,7 @@ export class Game {
         this.state.visited[sceneId] = true;
         if (!opts.noSave) this._saveState();
 
-        this.sceneImage.src = this._resolveAsset(scene.image);
+        this.sceneImage.src = this._sceneImageSrc(scene);
         await new Promise(res => {
             if (this.sceneImage.complete && this.sceneImage.naturalWidth) res();
             else this.sceneImage.onload = () => res();
@@ -224,6 +225,20 @@ export class Game {
         }
 
         if (scene.end) this._msg(this._t('engine.endCongrats', '🎉 Gratulujeme! Našel si cestu ven!'));
+    }
+
+    /**
+     * Image to display for a scene, honouring a change made by setSceneImage.
+     *
+     * The override lives in the state rather than on `this.data`, because
+     * `this.data` is rebuilt from the game files on every load while the event
+     * that made the change is `once` and will not run again. Mutating the data
+     * only meant the chest in leeuwenhoek shut itself again after a reload,
+     * with `chest_opened` still set and the key still in the inventory. EI-006.
+     */
+    _sceneImageSrc(scene) {
+        const override = this.state?.sceneImages?.[scene.id];
+        return this._resolveAsset(override || scene.image);
     }
 
     // --- hero profile -----------------------------------------------------------
@@ -1384,6 +1399,44 @@ export class Game {
 
             // --- MATCH FOUND ---
 
+            const act = ev.then || {};
+
+            // Set Flags
+            //
+            // Runs before the event is marked as fired, and that order is the
+            // whole point. Everything else in `then` is presentation, and most
+            // of it blocks: the dialog and the video only return once the pupil
+            // has clicked through them. Flags are the durable consequence, the
+            // thing later scenes and hotspots are gated on, so they have to be
+            // in storage before the run can be interrupted. Marking the event
+            // first and setting the flags last meant a reload during the dialog
+            // left the event recorded as done with its effect never applied, and
+            // a once-event does not get a second chance. See EI-001.
+            //
+            // Safe to move up: unlike _applyActions, this block only writes
+            // state and saves. It does not call _stateChanged(), so it cannot
+            // re-enter _processEvents, which is what the marking below guards
+            // against.
+            if (act.setFlags) {
+                let changed = false;
+                if (Array.isArray(act.setFlags)) {
+                    for (const f of act.setFlags) {
+                        if (!this.state.flags[f]) {
+                            this.state.flags[f] = true;
+                            changed = true;
+                        }
+                    }
+                } else {
+                    for (const [k, v] of Object.entries(act.setFlags)) {
+                        if (!!this.state.flags[k] !== !!v) {
+                            this.state.flags[k] = !!v;
+                            changed = true;
+                        }
+                    }
+                }
+                if (changed) this._saveState();
+            }
+
             // Mark event as fired IMMEDIATELY before executing actions.
             // This prevents recursion loops if an action (like a dialog) triggers
             // a state change that would otherwise re-evaluate and re-trigger this
@@ -1394,8 +1447,6 @@ export class Game {
                 this._saveState();
             }
 
-            const act = ev.then || {};
-
             // 3. Execute Actions
 
             // Show Toast
@@ -1404,13 +1455,19 @@ export class Game {
             }
 
             // Change Scene Image
+            //
+            // Recorded in the state, not on this.data, and saved before the
+            // blocking actions below run. See _sceneImageSrc(). EI-006.
             if (act.setSceneImage?.sceneId && act.setSceneImage?.image) {
                 const sc = this.data.scenes.find(s => s.id === act.setSceneImage.sceneId);
                 if (sc) {
-                    sc.image = this._resolveAsset(act.setSceneImage.image);
+                    this.state.sceneImages = this.state.sceneImages || {};
+                    this.state.sceneImages[sc.id] = act.setSceneImage.image;
+                    this._saveState();
+
                     // If we are currently in this scene, update the DOM immediately
                     if (this.currentScene?.id === sc.id) {
-                        this.sceneImage.src = sc.image;
+                        this.sceneImage.src = this._sceneImageSrc(sc);
                         await new Promise(res => {
                             if (this.sceneImage.complete && this.sceneImage.naturalWidth) res();
                             else this.sceneImage.onload = () => res();
@@ -1471,27 +1528,8 @@ export class Game {
                     }
                 }
             }
-
-            // Set Flags
-            if (act.setFlags) {
-                let changed = false;
-                if (Array.isArray(act.setFlags)) {
-                    for (const f of act.setFlags) {
-                        if (!this.state.flags[f]) {
-                            this.state.flags[f] = true;
-                            changed = true;
-                        }
-                    }
-                } else {
-                    for (const [k, v] of Object.entries(act.setFlags)) {
-                        if (!!this.state.flags[k] !== !!v) {
-                            this.state.flags[k] = !!v;
-                            changed = true;
-                        }
-                    }
-                }
-                if (changed) this._saveState();
-            }
+            // Flags for this event were applied above, before it was marked as
+            // fired, so that an interrupted run cannot lose them.
         }
     }
 

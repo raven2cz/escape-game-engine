@@ -11,12 +11,12 @@ here is second-hand.
 
 | #      | prio | status | topic                                                          |
 |--------|------|--------|----------------------------------------------------------------|
-| EI-001 | P1   | OPEN   | Once-events can be marked done before their effects apply       |
+| EI-001 | P1   | DONE   | Once-events can be marked done before their effects apply       |
 | EI-002 | P1   | OPEN   | One saved state for every game and every team                   |
 | EI-003 | P1   | OPEN   | goto() hangs on a missing image and persists the broken scene   |
 | EI-004 | P1   | OPEN   | MIT licence also covers `games/`                                |
 | EI-005 | P2   | DONE   | `reset=1` stays in the URL and wipes progress on every reload   |
-| EI-006 | P2   | OPEN   | `setSceneImage` is not persisted                                |
+| EI-006 | P2   | DONE   | `setSceneImage` is not persisted                                |
 | EI-007 | P2   | OPEN   | Service worker precache is broken, and cache-first is unsafe    |
 | EI-008 | P2   | DONE   | Inventory items cannot be activated from the keyboard           |
 | EI-009 | P2   | DONE   | `runPuzzleList` is called but never defined                     |
@@ -68,21 +68,29 @@ is a full restart, which throws away the whole lesson. Milder version of the sam
 bug: intro dialogs and the heat-escape intro video are skipped forever after an
 interrupted first load.
 
-**Fix.** Split the event into durable effects and presentation. Apply and persist
-everything durable first (at minimum `setFlags`), then run the blocking,
-presentational actions. Keep the recursion guard, but base it on an in-memory
-set of currently running event ids rather than on persisted state, so an
-interrupted run is retried rather than silently swallowed.
+**Status:** DONE in S1.
 
-Open sub-question: whether an interrupted event should replay its dialog on the
-next load. Replaying is more correct but can repeat a video. Suggested answer:
-persist `eventsFired` only after the actions complete, and rely on the in-memory
-guard during the run.
+**Fix as applied.** The `setFlags` block in `_processEvents` was moved so that it
+runs *before* the event is marked as fired, and nothing else changed. Flags are
+the durable consequence of an event; everything else in `then` is presentation
+and most of it blocks on the pupil. Verified safe: unlike `_applyActions`, this
+block only writes state and calls `_saveState()`. It never calls
+`_stateChanged()`, so it cannot re-enter `_processEvents`, which is the only
+thing the early marking was there to prevent.
 
-**Test.** Regression test that fires a once-event whose `then` contains both
-`setFlags` and `openDialog`, simulates a reload by constructing a fresh Game from
-the persisted state while the dialog is still open, and asserts the flag is set.
-Plus a warp-engine specific test that walks to the exit after such a reload.
+**The alternative, and why it was not taken.** Persisting `eventsFired` only
+after all actions complete, with an in-memory `_runningEvents` guard, would also
+replay the dialog after an interrupted run. That is arguably more correct, and it
+was rejected because the action list contains things that are not idempotent:
+`playVideo` and `openPuzzle` would run again on every interrupted load. Losing a
+line of dialogue is a smaller failure in a classroom than replaying a video. The
+consequence is recorded as a test of its own, so the trade-off is deliberate
+rather than accidental.
+
+**Tests.** `games/tests/engine.events.reload.test.js` (flags survive; the event
+does not replay; the hotspot the flag gates is still usable) and
+`games/tests/warp-engine.reload.test.js`, which runs the real chain above against
+the real game data and walks to the exit. Both verified to fail before the fix.
 
 ---
 
@@ -226,13 +234,26 @@ closed again after a reload even though `chest_opened` is set and the key is in
 the inventory. In `warp-engine` the core is dark again although the engine is
 active.
 
-**Fix.** Either persist `state.sceneImages[sceneId]` and prefer it in `goto()`, or
-express the variant declaratively with `requireFlags`, the same mechanism hotspot
-states already use. The declarative route is preferable: it keeps the truth in the
-flags and survives any state loss that EI-001 might still leave behind.
+**Status:** DONE in S1.
 
-**Test.** Trigger the event, reconstruct the game from persisted state, assert the
-scene renders the changed image.
+**Fix as applied.** `state.sceneImages[sceneId]` is written and saved by the
+handler, and `goto()` reads it through a new `_sceneImageSrc(scene)`. The
+mutation of `this.data` was dropped: `this.data` is rebuilt from the game files
+on every load, so it was never the right place for it. Nothing else in the engine
+reads `scene.image`, verified.
+
+**The declarative route, and why it was not taken.** Expressing the variant with
+`requireFlags`, the way hotspot `states` do, keeps the truth in the flags and
+would be preferable in isolation. It was not taken here because scenes have no
+state mechanism today, so it would mean adding one to the engine, editing two
+games' data, and keeping `setSceneImage` alive anyway for compatibility: two
+mechanisms for one thing, in a batch whose diff has to stay reviewable against a
+game that must work in a classroom. With EI-001 fixed the state field is as
+durable as a flag. Worth revisiting when scene states are wanted for their own
+sake, not as a fix for this.
+
+**Tests.** `games/tests/engine.scene-image.reload.test.js`, against leeuwenhoek's
+real data, where the chest is the actual case. Verified to fail before the fix.
 
 ---
 

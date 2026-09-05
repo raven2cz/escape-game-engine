@@ -48,7 +48,15 @@ if (globalThis.HTMLImageElement) {
       this.setAttribute('src', value);
       // Asynchronously, like a real browser: code that assigns `src` and then
       // attaches `onload` must still see the event.
-      setTimeout(() => this.dispatchEvent(new Event('load')), 0);
+      setTimeout(() => {
+        // Reload tests deliberately abandon a run that is blocked on the player,
+        // so a suspended continuation can still assign `src` after the test file
+        // is done and jsdom has been torn down. Dispatching then throws, and the
+        // failure has nothing to do with the assertions. Swallow only that.
+        try {
+          this.dispatchEvent(new Event('load'));
+        } catch { /* environment already torn down */ }
+      }, 0);
     },
   });
 }
