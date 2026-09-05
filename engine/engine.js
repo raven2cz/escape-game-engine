@@ -1,7 +1,7 @@
 // engine/engine.js
 // Game engine core: scenes, i18n, dialogs, hero profile, inventory, puzzles, events, content panels.
 
-import {createPuzzleRunner, openListModal} from './puzzles/index.js';
+import {createPuzzleRunner} from './puzzles/index.js';
 import {DialogUI} from './dialogs.js';
 import {ContentPanel} from './content.js';
 
@@ -135,6 +135,19 @@ export class Game {
             forceReset = p.get('reset') === '1';
             urlHero = p.get('hero'); // may be null
         } catch { /* noop */
+        }
+
+        if (forceReset) {
+            // Consume the flag. It used to stay in the address bar and was
+            // re-evaluated on every start, so a pupil who reloaded mid-game lost
+            // everything. Every demo link in the README carries reset=1, so this
+            // was not a corner case.
+            try {
+                const url = new URL(location.href);
+                url.searchParams.delete('reset');
+                history.replaceState(null, '', url.pathname + url.search + url.hash);
+            } catch { /* noop */
+            }
         }
 
         const saved = forceReset ? null : this._loadState();
@@ -574,23 +587,6 @@ export class Game {
             } else {
                 if (h.onFail) await this._applyActions(h.onFail);
                 else this._msg(this._t('engine.puzzleFailed', 'Puzzle nevyřešeno.'));
-            }
-            return;
-        }
-
-        if (h.type === 'puzzleList') {
-            const ok = await openListModal(this, {
-                items: h.items || h.puzzleList?.items || [],
-                rect: h.rect || {x: 0, y: 0, w: 100, h: 100},
-                background: h.puzzleList?.background || h.background,
-                aggregateOnly: !!(h.options?.aggregateOnly),
-                blockUntilSolved: !!(h.options?.blockUntilSolved),
-                puzzlesById: this.data.puzzles
-            });
-            if (ok) {
-                if (h.onSuccess) await this._applyActions(h.onSuccess);
-            } else {
-                if (h.onFail) await this._applyActions(h.onFail);
             }
             return;
         }
@@ -1473,24 +1469,6 @@ export class Game {
                     } else {
                         if (ap.onFail) await this._applyActions(ap.onFail);
                     }
-                }
-            }
-
-            // Open Puzzle List
-            if (act.openPuzzleList) {
-                const apl = act.openPuzzleList;
-                const ok = await openListModal(this, {
-                    items: apl.items || [],
-                    rect: apl.rect || {x: 0, y: 0, w: 100, h: 100},
-                    background: apl.background || null,
-                    aggregateOnly: !!apl.aggregateOnly,
-                    blockUntilSolved: !!apl.blockUntilSolved,
-                    puzzlesById: this.data.puzzles
-                });
-                if (ok) {
-                    if (apl.onSuccess) await this._applyActions(apl.onSuccess);
-                } else {
-                    if (apl.onFail) await this._applyActions(apl.onFail);
                 }
             }
 

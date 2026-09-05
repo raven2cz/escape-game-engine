@@ -1,10 +1,10 @@
 {
-  "meta": { "id": "leeuwenhoek", "name": "Dialogs" },
+  "meta": { "id": "stop-train", "name": "Dialogs" },
 
   "characters": [
     {
       "id": "pruvodci",
-      "name": "@character.leeuwenhoek.name@Průvodčí",
+      "name": "Průvodčí",
       "poses": {
         "neutral": "assets/npc/pruvodci/neutral.webp",
         "smile":   "assets/npc/pruvodci/smile.webp"

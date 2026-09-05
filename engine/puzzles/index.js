@@ -171,36 +171,3 @@ export function createPuzzleRunner(args) {
 
     return {puzzle, mountInto, unmount};
 }
-
-/** Open list/sequence of puzzles. */
-export function openListModal(engine, cfg) {
-    const mountRoot = engine.hotspotLayer;
-    const i18n = (k, def = '') => engine._t?.(k, def) || def;
-
-    let puzzlesById = cfg.puzzlesById;
-    if (!puzzlesById) {
-        const raw = engine.data?.puzzles || engine.data?.puzzlesById || {};
-        puzzlesById = Array.isArray(raw) ? Object.fromEntries(raw.map(p => [p.id, p])) : raw;
-    }
-
-    const listItems = (cfg.items || []).map(it => ({
-        ...it,
-        background: it.background ? engine._resolveAsset(it.background) : undefined
-    }));
-
-    return new Promise((resolve) => {
-        runPuzzleList({
-            items: listItems,
-            rect: cfg.rect || {x: 0, y: 0, w: 100, h: 100},
-            background: cfg.background ? engine._resolveAsset(cfg.background) : undefined,
-            aggregateOnly: !!cfg.aggregateOnly,
-            blockUntilSolved: !!cfg.blockUntilSolved,
-            summary: cfg.summary || {show: true},
-            puzzlesById,
-            i18n,
-            engine,
-            mountRoot,
-            onDone: (res) => resolve(!!res.ok)
-        });
-    });
-}

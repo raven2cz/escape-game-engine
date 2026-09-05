@@ -216,6 +216,7 @@
     },
     {
       "id": "exit",
+      "end": true,
       "title": "Dokázal jsi to! SYSTÉM ZNOVU NASTARTOVÁN!",
       "image": "assets/exit.jpg",
       "hotspots": []

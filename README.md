@@ -344,8 +344,7 @@ Hotspots and puzzles support rich action chains in `onSuccess`, `onFail`, `onEnt
     { "openDialog": "victory_dialog" },
     { "setSceneImage": { "sceneId": "corridor", "image": "corridor_night.jpg" } },
     { "highlightHotspot": { "rect": { "x": 30, "y": 50, "w": 15, "h": 20 }, "ms": 3000 } },
-    { "openPuzzle": { "ref": "bonus_puzzle", "onSuccess": [...] } },
-    { "openPuzzleList": { "items": ["puzzle1", "puzzle2"], "aggregateOnly": true } }
+    { "openPuzzle": { "ref": "bonus_puzzle", "onSuccess": [...] } }
   ]
 }
 ```
