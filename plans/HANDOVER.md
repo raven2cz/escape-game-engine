@@ -9,7 +9,7 @@ where the work is and what comes next.
 
     branch    fix/stabilization-audit
     base      main @ 5dbca85
-    suite     166 passing, CI runs it on push and pull request
+    suite     176 passing, CI runs it on push and pull request
 
 | commit | what |
 |---|---|
@@ -19,6 +19,7 @@ where the work is and what comes next.
 | `5235db0` | S1: the reload harness, EI-001, EI-006 |
 | `21d8fb4` | S2: EI-003, EI-013 |
 | `7222b09` | S3: EI-002 step one, EI-011, EI-012 |
+| `076e654` | what the reviews of S1 to S3 found, three of them P1 |
 
 Every code batch in the plan is done. What is left is the owner's decisions
 (S5), one new defect found while fixing another (EI-021), and the items that were
@@ -62,10 +63,19 @@ decide them and do not work around them:
 
 **Code, in rough order of value:**
 
+- **EI-022**, the highest-value one left. Both warp-engine videos are
+  `allowSkip: false`, and `_playVideo()` resolves only on `ended` or `error`. A
+  `play()` that the browser refuses - autoplay policy, or iOS in Low Power Mode -
+  is caught, logged and then waited on forever, behind a full-screen overlay with
+  no way out. The intro video plays on the first tap of the game, which is the
+  least likely moment for a browser to allow it.
 - **EI-021**, found while fixing EI-013. A dialog opened from another dialog's
   ending cannot be advanced, because `DialogUI._busy` is still held by the
   advance that started the chain. Verified that none of the six shipped games can
   reach it, which is why it was recorded rather than fixed in the same batch.
+- **EI-023**, latent. A puzzle and a content panel both mount inside the hotspot
+  layer, and `_renderHotspots()` clears that layer without settling them. Same
+  reasoning: recorded because no shipped game can reach it.
 - **EI-018**, dead code and a README documenting an API the engine does not have.
   This one matters more than its priority suggests once the games move to their
   own repository, because the next author will follow the README.
@@ -91,6 +101,12 @@ decide them and do not work around them:
   claim turned out to be wrong when checked.
 - **Verify before you assert.** Three independent audits were run and each got
   something wrong.
+- **Have the work reviewed by something that is not you.** Fable 5.1 and codex
+  SOL reviewed S1 to S3 independently and both found the same two P1 defects in
+  the new code; SOL found a third that neither the audit nor the other reviewer
+  had. Two of the tests that were supposed to prove those fixes were passing for
+  the wrong reason. A green suite written by the same session that wrote the fix
+  is not enough on its own.
 - **Comments and commit messages in English.** The user writes Czech, the
   repository is English. Do not mix.
 - **Do not restructure beyond the item.** A large diff cannot be reviewed
