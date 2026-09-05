@@ -26,9 +26,9 @@ where the work is and what comes next.
 | `cbf860f` | closing review: EI-024, and corrections to EI-015/021/022 |
 
 Every code batch in the plan is done, so are the three defects the reviews turned
-up (EI-021, EI-022, EI-023), and so is the cleanup (EI-018, EI-015). What is left
-is the owner's decisions (S5) and the two items that were always meant to wait
-for the hosted runtime design.
+up (EI-021, EI-022, EI-023), so is the cleanup (EI-018, EI-015), and the owner
+has now taken the S5 decisions. What is left is one half-finished item (EI-017)
+and the two that were always meant to wait for the hosted runtime design.
 
 ## The reload harness
 
@@ -53,18 +53,30 @@ regression tests that should name the game they protect.
 
 ## What is left
 
-**Decisions that need the owner.** Tracked as S5 in `STABILIZATION.md`. Do not
-decide them and do not work around them:
+**Decisions the owner has taken.** All of S5, plus EI-020:
 
-- **EI-004**, the repository is MIT and the licence covers `games/`, which are
-  about to be sold.
-- **EI-007**, whether the service worker and PWA are removed from the hosted
-  runtime or repaired.
-- **EI-017**, 318 MB tracked in git that has to be dealt with before the games
-  are split into their own repository.
-- **EI-020**, whether `games/demo` is deleted or ported.
-- The oldest iPad that has to work, which decides whether `ResizeObserver` needs
-  a runtime fallback and not just a test stub.
+- **EI-004**: split the licence. Engine MIT, `games/` proprietary. Done.
+- **EI-007**: remove the service worker and the manifest rather than repair
+  them. Done.
+- **EI-017**: delete `plans/sessions/`, keep
+  `games/warp-engine/assets/resource/`. The first is done. See below for what is
+  left.
+- **EI-020**: delete `games/demo`. A demo of the framework is wanted eventually,
+  but as a deliberate separate thing, not as this leftover. Done.
+- **EI-002 step two** and **EI-010**: left where they were. EI-010 belongs to the
+  dashboard project, which is a day's work of its own.
+
+**Still open, and it needs the owner:**
+
+- **EI-017, the rest of it.** `resource/` was kept on the understanding that it
+  holds the game's films. It does not: 147 MB of source PNGs, no video, nothing
+  in the game references the path. The films are 13 MB and live elsewhere. Two
+  things follow that were not decided: `pages.yml` publishes those 147 MB to
+  GitHub Pages on every deploy, and deleting files in a commit does not shrink
+  history - `.git` is still 430 MB, and getting it back means a rewrite of a
+  public, pushed repository.
+- **The oldest iPad that has to work**, which decides whether `ResizeObserver`
+  needs a runtime fallback and not just a test stub.
 
 **Left undone inside finished items, both needing eyes on a screen rather than a
 test:**

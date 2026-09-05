@@ -24,10 +24,10 @@ pre-existing defect rather than a new one.
 | EI-001 | P1   | DONE   | Once-events can be marked done before their effects apply       |
 | EI-002 | P1   | PART   | One saved state for every game and every team                   |
 | EI-003 | P1   | DONE   | goto() hangs on a missing image and persists the broken scene   |
-| EI-004 | P1   | OPEN   | MIT licence also covers `games/`                                |
+| EI-004 | P1   | DONE   | MIT licence also covers `games/`                                |
 | EI-005 | P2   | DONE   | `reset=1` stays in the URL and wipes progress on every reload   |
 | EI-006 | P2   | DONE   | `setSceneImage` is not persisted                                |
-| EI-007 | P2   | OPEN   | Service worker precache is broken, and cache-first is unsafe    |
+| EI-007 | P2   | DONE   | Service worker precache is broken, and cache-first is unsafe    |
 | EI-008 | P2   | DONE   | Inventory items cannot be activated from the keyboard           |
 | EI-009 | P2   | DONE   | `runPuzzleList` is called but never defined                     |
 | EI-010 | P2   | OPEN   | Progress signal differs per game, no single source for a dashboard |
@@ -37,10 +37,10 @@ pre-existing defect rather than a new one.
 | EI-014 | P3   | DONE   | `reactor` is missing the `end` flag on its final scene          |
 | EI-015 | P3   | DONE   | Leftovers from the first game hardcoded as if they were generic |
 | EI-016 | P4   | DONE   | 5 of 113 tests fail on main and CI never runs them              |
-| EI-017 | P4   | OPEN   | 318 MB of material tracked in git that does not belong there    |
+| EI-017 | P4   | PART   | 318 MB of material tracked in git that does not belong there    |
 | EI-018 | P4   | DONE   | Dead code, and a README documenting an API the engine lacks     |
 | EI-019 | P3   | DONE   | Inspecting a second item showed the first item's name           |
-| EI-020 | P3   | OPEN   | `games/demo` is not playable and is excluded from the data tests |
+| EI-020 | P3   | DONE   | `games/demo` is not playable and is excluded from the data tests |
 | EI-021 | P3   | DONE   | A dialog opened from another dialog's ending cannot be advanced   |
 | EI-022 | P2   | DONE   | An unskippable video that never plays blocks the run forever     |
 | EI-023 | P3   | DONE   | Re-rendering hotspots can destroy a mounted puzzle or panel      |
@@ -168,7 +168,8 @@ old entry did not check whose it was, so a teacher opening game B with a reset
 link, or a team restarting game B, took game A's lesson with it. Reading and
 discarding now share one ownership test, `_readLegacyState()`.
 
-**Step two, deliberately not done here.** Run and team identity,
+**Step two: left for the hosted runtime, and the owner has agreed to leave the
+call here.** Run and team identity,
 `state:<sessionId>:<gameId>:<teamId>`. The identity has to come from the hosted
 runtime, which does not exist yet; inventing one now would mean the runtime
 contradicting it later. Until then, two teams on one tablet still share a slot.
@@ -274,10 +275,24 @@ written licence that is broader than the per-school licence being sold. Moving t
 games into a private repository does not undo it, because the licence text travels
 with the content that was published under it.
 
-**Fix.** A decision for the owner. The usual shape is: engine stays MIT, games and
-their assets get their own proprietary licence, with the split stated in both
-repositories and in the file headers. This should be settled before the games are
-separated, not after.
+**Status:** DONE. Decided by the owner: split the licence.
+
+**As applied.** `LICENSE` keeps the MIT text unchanged and gains a scope
+paragraph above it saying it covers everything except `games/`. `games/LICENSE`
+is a proprietary licence covering every game's data and assets: no copying,
+publishing, distribution, sublicensing or resale, and use only to the extent a
+purchased licence sets out, for the school or class it names. `games/tests/` is
+called out as engine test code and stays MIT. The README's licence section now
+states the split first and the MIT text second.
+
+**What this does not do.** It applies from here on. Copies already taken while
+the repository was wholly MIT keep the licence they were taken under; nothing in
+a repository can retract that. It does stop the set of such copies growing, which
+is why it was worth doing before the games are separated rather than after.
+
+**Not legal advice.** The wording is the usual shape for this split and is
+written to be clear, not to be authoritative. Worth a lawyer's eye before the
+first sale.
 
 **Test.** None. This is reviewed, not tested.
 
@@ -365,14 +380,22 @@ files would be pinned until `CACHE_NAME` changes. A licence check performed by t
 Worker would stop applying after the first load, and a later group on the same
 tablet could still be served content after the licence ended.
 
-**Fix.** Decision needed. Recommendation: drop the service worker and the manifest
-from the hosted runtime entirely. Offline play and a per-lesson licence are close
-to contradictory, and the current file is dead weight. If offline is wanted later,
-it needs a per-release asset manifest, a cache partitioned per session, and
-network-first for anything the licence gates.
+**Status:** DONE. Decided by the owner: remove it. "PWA never worked, and now
+that we want to run this online, I would drop it entirely."
 
-**Test.** If removed: none needed. If kept: an install test that fails when a
-precache path does not resolve, so this cannot silently rot again.
+**As applied.** `service-worker.js` and `manifest.webmanifest` are deleted, the
+`<link rel="manifest">` and the `?pwa=1` registration are out of `index.html`,
+and `pages.yml` no longer copies either file or rewrites `__CACHE_VERSION__`.
+The README section says there is no offline mode, why, and what a real one would
+need.
+
+**Nothing has to be unregistered on any device.** `register()` did run, but the
+`install` handler's `addAll` always rejected, so no worker ever reached the
+installed or activated state and none is controlling a page anywhere.
+
+**Test.** None needed now. If offline is ever built, the test that was suggested
+here still applies: an install test that fails when a precache path does not
+resolve, so it cannot silently rot again.
 
 ---
 
@@ -453,6 +476,13 @@ timestamp and a run id; the runtime keeps the authoritative snapshot.
 
 Do this together with the hosted runtime design, not before. The shape of the
 event has to match what the Durable Object stores and what the dashboard reads.
+
+**Owner's position, recorded so it is not rediscovered.** This is part of the
+dashboard project, not of the engine stabilization, and it is a day's work of its
+own. The engine and every game will have to report state, and some games will
+want something custom on top of whatever is generalised. Nothing is to be built
+for it now; the seam that already exists - `opts.storage`, plus the puzzle runner
+wrapper every kind goes through - is enough preparation until that day.
 
 **Test.** Deferred with the design.
 
@@ -766,9 +796,35 @@ the suite on push and on pull requests.
 by `pages.yml`. Removing files in a new commit does not remove them from history,
 so this has to be decided before the games are split out, not after.
 
-**Fix.** Decide per directory whether it moves elsewhere, is deleted, or requires
-a history rewrite. Add the right `.gitignore` entries. Exclude `resource/` from the
-Pages deployment regardless.
+**Status:** PART. Two of the three directories decided.
+
+**Done.**
+
+- `plans/sessions/` deleted, 68 files and 171 MB. Owner's decision: not needed.
+  Also `.gitignore`d, so it cannot come back by accident.
+- `.idea/` untracked and `.gitignore`d. `workspace.xml` is per-user and
+  per-machine state; nobody else can use it and it changes on every IDE action.
+
+**Kept, by the owner's decision:** `games/warp-engine/assets/resource/`, 147 MB.
+
+**With a correction to the premise it was decided on.** The decision was made on
+the understanding that the directory holds the game's films. Verified: it holds
+29 PNG, 6 JPG, 5 WEBP and one design document, no video at all. Individual PNGs
+are 6-7 MB. The films are in `games/warp-engine/assets/video/` and come to 13 MB
+between them. Nothing in the game references the path `resource/`; the same file
+names exist directly in `assets/` at a fraction of the size, so these are the
+source originals the shipped assets were exported from. All of warp-engine's
+assets excluding `resource/` come to 23 MB.
+
+**Still open.** `pages.yml` does `cp -R games out/`, so those 147 MB are
+published to GitHub Pages on every deploy even though no game asks for them.
+Excluding `resource/` from the deploy is independent of whether it stays in git
+and is worth doing either way, but it was not done without the owner's word.
+
+**Also still open, and the reason this is PART.** Deleting files in a commit does
+not remove them from history. `.git` is still 430 MB. Getting that back means a
+history rewrite on a repository that is public and pushed, which is destructive
+and needs coordinating rather than doing quietly.
 
 **Test.** None.
 
@@ -898,13 +954,16 @@ tests would measure the other games against. It is excluded from
 `games/tests/games.data.test.js` by name so the exclusion is visible rather than
 implicit.
 
-**Fix.** A decision: delete it, or port it to the current format. Porting is only
-worth it if a demo game is actually wanted once the games move to a private
-repository, which is an open question in itself, because a public demo of a paid
-product is a different thing from a leftover prototype.
+**Status:** DONE. Decided by the owner: delete it. A demo of the framework would
+be worth having, but as a deliberate separate thing later, not as this leftover.
 
-**Test.** The data tests already skip it. Removing it from `KNOWN_BROKEN` is the
-acceptance criterion for whichever decision is taken.
+**As applied.** `games/demo/` is deleted. `KNOWN_BROKEN` is gone from
+`games/tests/games.data.test.js` along with the filter that used it, so every
+directory under `games/` is now measured by the data tests with no exceptions.
+The comment that replaced it says what to do if a game ever has to be skipped
+again: name it with a reason rather than quietly loosening an assertion.
+
+**Test.** The data tests, which now cover every shipped game.
 
 ---
 

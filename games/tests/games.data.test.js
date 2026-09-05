@@ -11,16 +11,16 @@ import { join } from 'node:path';
 
 const GAMES_DIR = join(process.cwd(), 'games');
 
-// `demo` is the original leeuwenhoek prototype in the pre-puzzleRef format. It
-// has no meta, its puzzle hotspots cannot open, and it is not playable. It is
-// excluded here rather than silently passing, so that the exclusion is visible.
-// Deleting it or porting it is EI-020.
-const KNOWN_BROKEN = ['demo'];
+// Every directory here is a shipped game and every one of them is measured.
+// `demo` used to be excluded by name - the original leeuwenhoek prototype in the
+// pre-puzzleRef format, with no meta and three puzzle hotspots that could not
+// open. It was deleted rather than ported (EI-020), so there is nothing to
+// exclude any more. If a game ever has to be skipped again, name it here with
+// the reason rather than quietly loosening an assertion.
 
 const GAME_IDS = readdirSync(GAMES_DIR)
     .filter(name => name !== 'tests')
-    .filter(name => statSync(join(GAMES_DIR, name)).isDirectory())
-    .filter(name => !KNOWN_BROKEN.includes(name));
+    .filter(name => statSync(join(GAMES_DIR, name)).isDirectory());
 
 const readJson = (gameId, file) =>
     JSON.parse(readFileSync(join(GAMES_DIR, gameId, file), 'utf8'));

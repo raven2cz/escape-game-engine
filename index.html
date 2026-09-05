@@ -7,7 +7,6 @@
     <link rel="stylesheet" href="styles/puzzles.css">
     <link rel="stylesheet" href="styles/content.css">
     <link rel="stylesheet" href="styles/style.css">
-    <link rel="manifest" href="manifest.webmanifest">
     <meta name="theme-color" content="#17171c">
 </head>
 <body>
@@ -123,11 +122,6 @@
         // UI actions
         document.getElementById('btnRestart').addEventListener('click', () => game.restart());
         document.getElementById('btnEditor').addEventListener('click', () => editor.toggle());
-
-        // Optional PWA (activated only with ?pwa=1)
-        if ('serviceWorker' in navigator && params.get('pwa') === '1') {
-            navigator.serviceWorker.register('./service-worker.js').catch(console.error);
-        }
 
         // Init engine (loads scenes, renders first scene, runs enterScene events)
         await game.init();

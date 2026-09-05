@@ -30,8 +30,6 @@ jobs:
           mkdir -p out
           # Kopírovat všechny důležité soubory a složky
           cp index.html out/
-          cp service-worker.js out/
-          cp manifest.webmanifest out/
           
           # Kopírovat složky
           cp -R styles out/
@@ -40,12 +38,6 @@ jobs:
           
           # GitHub Pages bez Jekyllu
           touch out/.nojekyll
-          
-          # Pokud v SW existuje __CACHE_VERSION__, nahradíme krátkým SHA
-          if grep -q "__CACHE_VERSION__" out/service-worker.js; then
-            SHORT_SHA=${GITHUB_SHA::7}
-            sed -i "s/__CACHE_VERSION__/$SHORT_SHA/g" out/service-worker.js || true
-          fi
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

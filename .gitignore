@@ -2,3 +2,10 @@
 Thumbs.db
 node_modules/
 dist/
+
+# IDE state. workspace.xml in particular is per-user and per-machine.
+.idea/
+
+# Agent session transcripts. They were tracked once (171 MB, and they carried
+# working context from unrelated projects); keep them out. See EI-017.
+plans/sessions/

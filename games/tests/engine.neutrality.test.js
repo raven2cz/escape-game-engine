@@ -8,8 +8,8 @@
 //
 // Scope is `engine/`. `index.html` is the shell rather than the engine and
 // legitimately picks a game to open when the address bar does not say; that one
-// place is named and commented. `service-worker.js` is EI-007, an open decision
-// about whether it is repaired or removed.
+// place is named and commented. The service worker, which carried the last of
+// these names in its cache key, was removed entirely (EI-007).
 
 import { describe, it, expect } from 'vitest';
 import { readdirSync, readFileSync, statSync } from 'node:fs';

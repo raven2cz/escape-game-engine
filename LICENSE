@@ -1,5 +1,12 @@
 MIT License
 
+SCOPE. This licence covers the Escape Game Engine: everything in this repository
+EXCEPT the contents of the `games/` directory.
+
+The games under `games/`, together with their scenes, dialogs, puzzles, text,
+images, video and audio, are NOT covered by this licence. They are licensed
+separately and commercially. See `games/LICENSE`.
+
 Copyright (c) 2025 Antonin Fischer
 
 Permission is hereby granted, free of charge, to any person obtaining a copy

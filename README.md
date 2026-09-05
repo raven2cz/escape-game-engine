@@ -9,7 +9,6 @@ Create sophisticated point-and-click adventures with **Puzzles 2.0**, **dialogs*
   - https://raven2cz.github.io/escape-game-engine/index.html?game=stop-train&lang=cs&debug=1&reset=1 
   - https://raven2cz.github.io/escape-game-engine/index.html?game=time-factory&lang=cs&debug=1&reset=1
   - https://raven2cz.github.io/escape-game-engine/index.html?game=reactor&lang=cs&debug=1&reset=1
-- **PWA:** `?pwa=1` exists but does nothing today, see the note under iPad & Mobile (EI-007).
 
 ---
 
@@ -22,7 +21,6 @@ Create sophisticated point-and-click adventures with **Puzzles 2.0**, **dialogs*
 - **Event System**: Trigger action chains on entering a scene (`enterScene`) or on any state change (`stateChange`)
 - **Hero Profiles**: Support for multiple playable characters with custom avatars and names
 - **Internationalization (i18n)**: Multi-language support with `@key@fallback` syntax
-- **PWA Support**: present but not working today, see the note under iPad & Mobile (EI-007)
 
 ### Puzzles 2.0 System
 Nine built-in puzzle types with unified theming and layout system:
@@ -102,9 +100,7 @@ escape-game-engine/
 │   │   ├── game.css       # Per-game theme overrides (optional)
 │   │   └── assets/        # Images, video, backgrounds
 │   └── tests/             # Vitest suite, including the reload harness
-├── plans/                 # Defect registry and stabilization plan
-├── service-worker.js      # PWA offline cache (not working, see EI-007)
-└── manifest.webmanifest   # PWA manifest
+└── plans/                 # Defect registry and stabilization plan
 ```
 
 ---
@@ -319,26 +315,22 @@ Add `?lang=en` to URL or modify `index.html` default.
 - Drag-and-drop works on touch devices
 - Editor overlay supports touch drawing
 
-### PWA installation
+### No offline mode
 
-> **Not working today.** 15 of the 19 paths in the service worker's precache list
-> do not exist, and `cache.addAll()` is atomic, so installation always fails and
-> `?pwa=1` is a silent no-op. Whether the service worker is repaired or removed
-> is an open decision (EI-007 in `plans/OPEN-ITEMS.md`); offline play and a
-> per-lesson licence pull in opposite directions. Do not rely on any of this.
+There is no service worker and no web app manifest. There used to be both, and
+neither ever worked: 15 of the 19 paths in the precache list did not exist and
+`cache.addAll()` is atomic, so installation always failed and `?pwa=1` was a
+silent no-op from the first day.
 
-The intended flow, once that is settled:
+They were removed rather than repaired (EI-007). Offline play and a per-lesson
+licence pull in opposite directions: a cache-first service worker keeps serving
+the game after the licence has ended, and a licence check the server performs
+stops applying after the first load. The games are sold per lesson and played
+online, so the runtime is where access is decided.
 
-1. Add `?pwa=1` to the URL
-2. Open in Safari/Chrome
-3. Tap "Add to Home Screen"
-
-### Offline updates
-When updating code, bump `CACHE_NAME` in `service-worker.js`:
-
-```javascript
-const CACHE_NAME = 'escape-game-engine-v4'; // increment version
-```
+If offline is ever wanted, it needs a per-release asset manifest, a cache
+partitioned per session, and network-first for anything the licence gates. That
+is a different design, not a repair of the old file.
 
 ---
 
@@ -848,9 +840,19 @@ Contributions welcome! Areas for improvement:
 
 ## 📄 License
 
+**The engine is MIT. The games are not.**
+
+- Everything outside `games/` - the engine, the editor, the styles, the test
+  suite - is MIT licensed. See [`LICENSE`](LICENSE).
+- Everything inside `games/` - scenes, dialogs, puzzles, translations and all
+  assets - is proprietary and licensed commercially per school. See
+  [`games/LICENSE`](games/LICENSE).
+
+The MIT text below applies to the engine only.
+
 MIT License
 
-Copyright (c) 2024 Antonín Fischer (raven2cz)
+Copyright (c) 2025 Antonín Fischer (raven2cz)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

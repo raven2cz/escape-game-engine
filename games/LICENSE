@@ -1,0 +1,25 @@
+Proprietary License - Games and Game Content
+
+Copyright (c) 2025 Antonin Fischer. All rights reserved.
+
+SCOPE. This licence covers everything in this directory and below it: each
+game's `scenes.json`, `dialogs.json`, `puzzles.json`, translations, stylesheets
+and every asset under `assets/`, including images, video and audio.
+
+The MIT licence in the root of this repository covers the engine only and does
+NOT apply to any of the material described above.
+
+WHAT IS NOT GRANTED. No permission is given to copy, publish, distribute,
+sublicense, sell, rent, lend or make this material publicly available, in whole
+or in part, whether modified or not, and whether or not a fee is charged.
+
+WHAT IS GRANTED. Use is permitted only to the extent set out in a licence
+purchased from the copyright holder, and only for the school, class or group
+that licence names, for the period it names. A purchased licence permits use in
+teaching, including display to pupils and the local copies a lesson needs. It
+does not permit redistribution to anyone outside the licensed group.
+
+The test suite under `games/tests/` is engine test code rather than game
+content, and is covered by the MIT licence in the root instead.
+
+For licensing enquiries, contact the copyright holder.
