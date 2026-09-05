@@ -15,21 +15,22 @@ here is second-hand.
 | EI-002 | P1   | OPEN   | One saved state for every game and every team                   |
 | EI-003 | P1   | OPEN   | goto() hangs on a missing image and persists the broken scene   |
 | EI-004 | P1   | OPEN   | MIT licence also covers `games/`                                |
-| EI-005 | P2   | OPEN   | `reset=1` stays in the URL and wipes progress on every reload   |
+| EI-005 | P2   | DONE   | `reset=1` stays in the URL and wipes progress on every reload   |
 | EI-006 | P2   | OPEN   | `setSceneImage` is not persisted                                |
 | EI-007 | P2   | OPEN   | Service worker precache is broken, and cache-first is unsafe    |
 | EI-008 | P2   | DONE   | Inventory items cannot be activated from the keyboard           |
-| EI-009 | P2   | OPEN   | `runPuzzleList` is called but never defined                     |
+| EI-009 | P2   | DONE   | `runPuzzleList` is called but never defined                     |
 | EI-010 | P2   | OPEN   | Progress signal differs per game, no single source for a dashboard |
 | EI-011 | P3   | OPEN   | Consumed item removal is not saved                              |
 | EI-012 | P3   | OPEN   | Saved state has no schema, validation or migration              |
 | EI-013 | P3   | OPEN   | A double tap can open two dialogs or two puzzles                |
-| EI-014 | P3   | OPEN   | `reactor` is missing the `end` flag on its final scene          |
-| EI-015 | P3   | OPEN   | Leftovers from the first game hardcoded as if they were generic |
+| EI-014 | P3   | DONE   | `reactor` is missing the `end` flag on its final scene          |
+| EI-015 | P3   | PART   | Leftovers from the first game hardcoded as if they were generic |
 | EI-016 | P4   | DONE   | 5 of 113 tests fail on main and CI never runs them              |
 | EI-017 | P4   | OPEN   | 318 MB of material tracked in git that does not belong there    |
 | EI-018 | P4   | OPEN   | Dead code, and a README documenting an API the engine lacks     |
 | EI-019 | P3   | DONE   | Inspecting a second item showed the first item's name           |
+| EI-020 | P3   | OPEN   | `games/demo` is not playable and is excluded from the data tests |
 
 Where the fix lands is decided in [STABILIZATION.md](STABILIZATION.md).
 
@@ -607,3 +608,34 @@ item is inspected". Verified to fail before the fix.
 fragile, as is the regex over footer text used to hide buttons. `openModal()`
 should take a `hideFooter` option and the engine should not delete elements the
 shell owns. Kept with EI-018.
+
+---
+
+## EI-020: `games/demo` is not playable
+
+**Priority:** P3, and it is a decision as much as a defect.
+
+**Where:** `games/demo/`.
+
+**What it is.** The original leeuwenhoek prototype, kept as a demo and never
+ported. Verified:
+
+- All three `puzzle` hotspots use the old inline `puzzle: {...}` form with no
+  `puzzleRef`. `engine/engine.js` logs "Puzzle hotspot missing puzzleRef" and
+  opens nothing, so none of them can be solved.
+- There is no `meta` block at all, so the state signature is `unknown|0|cs`.
+- `games/demo/i18n/en.json` is a zero-byte file, which is not valid JSON.
+- 14 PNG files duplicate assets that exist elsewhere.
+
+**Why it matters.** It is reachable through `?game=demo` and it is what the data
+tests would measure the other games against. It is excluded from
+`games/tests/games.data.test.js` by name so the exclusion is visible rather than
+implicit.
+
+**Fix.** A decision: delete it, or port it to the current format. Porting is only
+worth it if a demo game is actually wanted once the games move to a private
+repository, which is an open question in itself, because a public demo of a paid
+product is a different thing from a leftover prototype.
+
+**Test.** The data tests already skip it. Removing it from `KNOWN_BROKEN` is the
+acceptance criterion for whichever decision is taken.
