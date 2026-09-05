@@ -12,7 +12,7 @@ here is second-hand.
 | #      | prio | status | topic                                                          |
 |--------|------|--------|----------------------------------------------------------------|
 | EI-001 | P1   | DONE   | Once-events can be marked done before their effects apply       |
-| EI-002 | P1   | OPEN   | One saved state for every game and every team                   |
+| EI-002 | P1   | PART   | One saved state for every game and every team                   |
 | EI-003 | P1   | DONE   | goto() hangs on a missing image and persists the broken scene   |
 | EI-004 | P1   | OPEN   | MIT licence also covers `games/`                                |
 | EI-005 | P2   | DONE   | `reset=1` stays in the URL and wipes progress on every reload   |
@@ -21,8 +21,8 @@ here is second-hand.
 | EI-008 | P2   | DONE   | Inventory items cannot be activated from the keyboard           |
 | EI-009 | P2   | DONE   | `runPuzzleList` is called but never defined                     |
 | EI-010 | P2   | OPEN   | Progress signal differs per game, no single source for a dashboard |
-| EI-011 | P3   | OPEN   | Consumed item removal is not saved                              |
-| EI-012 | P3   | OPEN   | Saved state has no schema, validation or migration              |
+| EI-011 | P3   | DONE   | Consumed item removal is not saved                              |
+| EI-012 | P3   | DONE   | Saved state has no schema, validation or migration              |
 | EI-013 | P3   | DONE   | A double tap can open two dialogs or two puzzles                |
 | EI-014 | P3   | DONE   | `reactor` is missing the `end` flag on its final scene          |
 | EI-015 | P3   | PART   | Leftovers from the first game hardcoded as if they were generic |
@@ -117,22 +117,36 @@ into the same slot.
 - Two tabs of the same game: each holds its own copy of the object and the last
   `_saveState()` wins.
 
-**Fix.** Namespace the key. Short term `state:<gameId>` already removes the
-cross-game destruction. For classroom use the key needs a run identity, at minimum
-`state:<sessionId>:<gameId>:<teamId>`, where the identity comes from the runtime
-rather than from the page.
+**Status:** step one DONE in S3. Step two is not this repository's to decide yet.
 
-Pull `_loadState` and `_saveState` behind an injectable storage interface
-(`{load(), save(state)}`) so the hosted runtime can put the authoritative copy in
-a Durable Object and keep localStorage as a local cache only. That seam is also
-what EI-010 needs.
+**Step one, as applied.**
 
-Drop `lang` from the signature. Language does not change progress, and today
-switching it behaves like switching to a different game.
+- The key is `state:<gameId>`, from `_storageKey()`. Two games on one tablet no
+  longer overwrite each other.
+- `_loadState` and `_saveState` go through `opts.storage`, an object with
+  `load()`, `save(state)` and `clear()`. The default is localStorage behind that
+  same interface. This is the seam the hosted runtime needs for a Durable Object
+  copy, and the one EI-010 will emit progress through.
+- `lang` is out of the signature. `version` stays: a state from an older build
+  can name scenes and items that no longer exist.
+- A state left under the old shared key is adopted once if its signature names
+  this game, and the old entry is then removed. It is left alone otherwise,
+  because another game may still be entitled to it. Somebody may be mid-lesson
+  when this ships.
 
-**Test.** Two Game instances with different game ids write and read independent
-state. Switching language preserves progress. A saved state from game A is still
-intact after game B has been played and closed.
+**Step two, deliberately not done here.** Run and team identity,
+`state:<sessionId>:<gameId>:<teamId>`. The identity has to come from the hosted
+runtime, which does not exist yet; inventing one now would mean the runtime
+contradicting it later. Until then, two teams on one tablet still share a slot.
+The key is shaped so that the run and team can be added without moving anything
+else.
+
+**Tests.** `games/tests/engine.state-identity.test.js`: two games stay apart, the
+key is per game, changing language preserves progress, a republished version
+still starts fresh, the legacy key is adopted once and only for its own game, and
+a caller can substitute its own storage. `engine.assets.persistence.test.js` was
+updated: it asserted the old behaviour, that changing language produces a fresh
+state, and now asserts the version case instead.
 
 ---
 
@@ -410,11 +424,17 @@ by such an action, so nothing is visibly wrong today. The first game that uses
 `consume: true` with only a message will have the item back after a reload, and
 the puzzle it was consumed by will already be solved.
 
-**Fix.** Make item removal part of one atomic state mutation that always persists.
-The same applies to anything else that edits `this.state` directly.
+**Status:** DONE in S3.
 
-**Test.** Consume an item with no `onApply`, reconstruct from persisted state,
-assert the item is gone.
+**Fix as applied.** `_removeItemFromInventory()` calls `_saveState()`, which now
+goes through the storage seam introduced by EI-002. One line, done in this batch
+rather than earlier because the call site is what EI-002 moved.
+
+**Test.** `games/tests/engine.consume.reload.test.js`, with its own fixture: a
+hotspot that consumes an item and has no `onApply` at all, so nothing else can
+trigger the save. The second test in the file is the shape every shipped game
+uses, kept so that the accidental save is not what the first one is measuring.
+Verified to fail before the fix.
 
 ---
 
@@ -434,11 +454,26 @@ first navigation. A tampered or truncated entry does the same. Because the state
 is also the thing a pupil can edit in devtools, this doubles as an input
 validation gap.
 
-**Fix.** A separate `stateSchemaVersion` independent of the game version, defaults
-filled in for every field, type checks, and an explicit migration path. An
-unknown scene id should fall back to the start scene rather than freeze.
+**Status:** DONE in S3.
 
-**Test.** Load a state missing each field in turn and assert the game still starts.
+**Fix as applied.** `STATE_SCHEMA_VERSION`, independent of the game version and
+stamped on everything written. `_freshState()` is the single list of every field
+the engine reads. `_restoreState()` decides whether a stored object belongs to
+this game at all; `_normalizeState()` fills defaults for what is missing and
+drops what is the wrong type; `_migrateState()` is the place a real migration
+step goes and is empty on purpose, because v1 is the first numbered schema and
+anything older differs only by fields that were not there yet. A scene id that
+no longer exists falls back to the start scene, which on a tablet is the
+difference between a game and a crash.
+
+**Test.** `games/tests/engine.state-schema.test.js`: every field deleted in turn,
+a state that predates `puzzleResults` taking one, a removed scene, wrong types,
+a stored value that is not an object, a truncated entry, a partial state keeping
+what it can, and the version being stamped. Three of these failed before the fix
+outright. The type-checking ones could not, because before namespacing the engine
+was reading a different key entirely and never saw the state at all; they were
+verified separately by disabling `_normalizeState()` in the fixed engine, which
+fails five of the eight.
 
 ---
 

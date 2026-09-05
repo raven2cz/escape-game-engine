@@ -71,7 +71,11 @@ describe('Engine helpers: _resolveAsset + persistence signature', () => {
     expect(game._resolveAsset('https://cdn/x.png')).toBe('https://cdn/x.png');
   });
 
-  it('reuses saved state only when signature (game|version|lang) matches', async () => {
+  it('reuses saved state only when the signature (game|version) matches', async () => {
+    // The language was part of the signature until EI-002. It does not change
+    // what a team has done, and having it there meant switching language wiped
+    // the lesson. That case is covered in engine.state-identity.test.js; what
+    // this one still holds down is that the game version is enough on its own.
     // First run: create save
     const gameA = new Game({
       baseUrl: './games/test/',
@@ -115,12 +119,18 @@ describe('Engine helpers: _resolveAsset + persistence signature', () => {
     expect(gameB.state.inventory.includes('golden_key')).toBe(true);
     expect(gameB.state.scene).toBe('room2');
 
-    // Third run, different lang → signature mismatch → fresh state
+    // Third run, republished game → signature mismatch → fresh state
+    vi.stubGlobal('fetch', async (url) => {
+      if (String(url).endsWith('scenes.json')) {
+        return { ok:true, json: async () => ({ ...SCENES, meta: { id:'test', version:'2.0.0' } }) };
+      }
+      return { ok:true, json: async () => ({}) };
+    });
     const gameC = new Game({
       baseUrl: './games/test/',
       scenesUrl: './games/test/scenes.json',
       dialogsUrl: './games/test/dialogs.json',
-      lang: 'en', // changed
+      lang: 'cs',
       i18n: { engine:{}, game:{} },
       sceneImage: document.getElementById('sceneImage'),
       hotspotLayer: document.getElementById('hotspotLayer'),

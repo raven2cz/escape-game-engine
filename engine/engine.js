@@ -5,6 +5,28 @@ import {createPuzzleRunner} from './puzzles/index.js';
 import {DialogUI} from './dialogs.js';
 import {ContentPanel} from './content.js';
 
+/**
+ * Shape of the persisted state, versioned independently of the game.
+ *
+ * The game version says "this content changed"; this says "the engine reads the
+ * state differently now". They move for different reasons, and conflating them
+ * meant a state written by an older build was adopted whole, missing whatever
+ * fields had been added since. See EI-012.
+ *
+ * Adding a field needs no new version: _normalizeState() fills a default for
+ * anything absent. Bump this, and add a step to _migrateState(), when a field
+ * that already exists changes meaning, because normalisation cannot tell an old
+ * meaning from a current one.
+ */
+const STATE_SCHEMA_VERSION = 1;
+
+/**
+ * The one key every game and every team on a device used to share, named after
+ * the first game ever written with this engine. Kept only to hand a lesson that
+ * is already in progress over to the namespaced key. See EI-002.
+ */
+const LEGACY_STATE_KEY = 'leeuwenhoek_escape_state';
+
 export class Game {
     constructor(opts) {
         // DOM refs
@@ -24,6 +46,12 @@ export class Game {
         this.dialogsUrl = opts.dialogsUrl || null; // ./games/<id>/dialogs.json (optional)
         this.lang = (opts.lang || 'cs').toLowerCase();
         this.i18n = opts.i18n || {engine: {}, game: {}};
+
+        // Where the state is kept. localStorage by default; the hosted runtime
+        // will pass its own, with the authoritative copy in a Durable Object and
+        // localStorage as a local cache. This is the seam the runtime and the
+        // teacher's dashboard both need, which is why it exists before either.
+        this.storage = opts.storage || this._localStorage();
 
         // How long to wait for a scene image before carrying on without it.
         // A school network drops requests, and a request that is dropped rather
@@ -81,11 +109,18 @@ export class Game {
 
     // --- version signature for safe restore ------------------------------------
 
+    /**
+     * What a saved state has to match to be reused: this game, this build of it.
+     *
+     * The language used to be part of it, so switching language behaved like
+     * switching to a different game and wiped the lesson. It does not change
+     * what a team has done. The version stays: a state from an older build can
+     * name scenes and items that no longer exist. See EI-002.
+     */
     _signature() {
         const gid = this.meta?.id || 'unknown';
         const gver = this.meta?.version || '0';
-        const lang = this.lang || 'cs';
-        return `${gid}|${gver}|${lang}`;
+        return `${gid}|${gver}`;
     }
 
     // --- i18n helpers -----------------------------------------------------------
@@ -157,24 +192,13 @@ export class Game {
             }
         }
 
-        const saved = forceReset ? null : this._loadState();
-        const okSaved = !!saved && saved.signature === this._signature();
-
-        // fresh state if signature changed or reset requested
-        this.state = okSaved ? saved : {
-            signature: this._signature(),
-            inventory: [],
-            solved: {},
-            flags: {},
-            visited: {},
-            eventsFired: {},
-            scene: this.data.startScene || this.data.scenes[0]?.id,
-            useItemId: null,
-            hero: null,
-            puzzleResults: [], // aggregateOnly results bucket
-            contentShown: {}, // tracks "once" content panels
-            sceneImages: {}   // scene id -> image set by setSceneImage
-        };
+        // Fresh state if the signature does not match or a reset was requested.
+        // A state left under the old shared key is adopted once, so that this
+        // change does not end a lesson that is already running.
+        const saved = forceReset
+            ? null
+            : (this._loadState() ?? this._adoptLegacyState());
+        this.state = this._restoreState(saved);
 
         // initialize hero (default → then URL override if present)
         if (!this.state.hero) {
@@ -192,7 +216,7 @@ export class Game {
     }
 
     restart() {
-        localStorage.removeItem('leeuwenhoek_escape_state');
+        this.storage.clear?.();
         location.reload();
     }
 
@@ -374,6 +398,14 @@ export class Game {
         if (i >= 0) {
             this.state.inventory.splice(i, 1);
             this._renderInventory();
+            // Persist. The item disappeared from the screen but not from
+            // storage, and was saved only by accident when a following onApply
+            // happened to change a flag or the scene. Every use in the shipped
+            // games has such an action, which is why nothing looked wrong; the
+            // first game to consume an item and only say so would have had it
+            // back after a reload, with the puzzle it was consumed by already
+            // solved. See EI-011.
+            this._saveState();
         }
     }
 
@@ -1737,17 +1769,173 @@ export class Game {
 
     // --- persistence ------------------------------------------------------------
 
+    /**
+     * One entry per game. It used to be one entry per origin, so opening a
+     * second game destroyed the first one's progress. See EI-002.
+     *
+     * Not yet one entry per team: that needs a run identity, which has to come
+     * from the hosted runtime rather than be invented here. The key is shaped so
+     * the run and team can be added to it without moving anything else.
+     */
+    _storageKey() {
+        return `state:${this.meta?.id || 'unknown'}`;
+    }
+
+    /** Default storage: the browser's, behind the same interface as any other. */
+    _localStorage() {
+        return {
+            load: () => {
+                try {
+                    const raw = localStorage.getItem(this._storageKey());
+                    return raw ? JSON.parse(raw) : null;
+                } catch {
+                    return null;
+                }
+            },
+            save: (state) => {
+                try {
+                    localStorage.setItem(this._storageKey(), JSON.stringify(state));
+                } catch { /* quota, private mode: losing a save beats throwing */
+                }
+            },
+            clear: () => {
+                try {
+                    localStorage.removeItem(this._storageKey());
+                } catch { /* noop */
+                }
+            },
+        };
+    }
+
     _saveState() {
         this.state.signature = this._signature();
-        localStorage.setItem('leeuwenhoek_escape_state', JSON.stringify(this.state));
+        this.state.stateSchemaVersion = STATE_SCHEMA_VERSION;
+        this.storage.save(this.state);
     }
 
     _loadState() {
+        return this.storage.load();
+    }
+
+    /** The state a game starts from. Every field the engine reads is listed here. */
+    _freshState() {
+        return {
+            stateSchemaVersion: STATE_SCHEMA_VERSION,
+            signature: this._signature(),
+            inventory: [],
+            solved: {},
+            flags: {},
+            visited: {},
+            eventsFired: {},
+            scene: this._startSceneId(),
+            useItemId: null,
+            hero: null,
+            puzzleResults: [], // aggregateOnly results bucket
+            contentShown: {},  // tracks "once" content panels
+            sceneImages: {},   // scene id -> image set by setSceneImage
+        };
+    }
+
+    _startSceneId() {
+        return this.data?.startScene || this.data?.scenes?.[0]?.id || null;
+    }
+
+    /**
+     * Decide whether a stored state belongs to this game, and make it safe to
+     * use if it does.
+     */
+    _restoreState(saved) {
+        if (!saved || typeof saved !== 'object' || Array.isArray(saved)) return this._freshState();
+        if (saved.signature !== this._signature()) return this._freshState();
+        return this._normalizeState(this._migrateState(saved));
+    }
+
+    /**
+     * Bring a state written under an older schema up to the current one.
+     *
+     * Empty on purpose: v1 is the first numbered schema, and everything written
+     * before it differs only by fields that were not there yet, which
+     * _normalizeState() already handles. A step belongs here when a field
+     * changes meaning rather than appearing.
+     */
+    _migrateState(saved) {
+        return saved;
+    }
+
+    /**
+     * Fill in what is missing and drop what is the wrong type.
+     *
+     * Everything here was previously taken on trust because the signature
+     * matched, and a signature says which game wrote the state, not which build
+     * of the engine. `puzzleResults` is the case that actually bites:
+     * _appendPuzzleResult() fails on undefined.push against a state from a build
+     * that predates the field. The state is also the one thing a pupil can edit
+     * in devtools, so this is input validation as much as it is a migration.
+     */
+    _normalizeState(saved) {
+        const fresh = this._freshState();
+        const asList = (v) => (Array.isArray(v) ? v : null);
+        const asMap = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
+
+        const state = {
+            ...fresh,
+            inventory: asList(saved.inventory)?.filter(id => typeof id === 'string') ?? fresh.inventory,
+            solved: asMap(saved.solved) ?? fresh.solved,
+            flags: asMap(saved.flags) ?? fresh.flags,
+            visited: asMap(saved.visited) ?? fresh.visited,
+            eventsFired: asMap(saved.eventsFired) ?? fresh.eventsFired,
+            scene: typeof saved.scene === 'string' ? saved.scene : fresh.scene,
+            useItemId: typeof saved.useItemId === 'string' ? saved.useItemId : null,
+            hero: asMap(saved.hero) ?? null,
+            puzzleResults: asList(saved.puzzleResults) ?? fresh.puzzleResults,
+            contentShown: asMap(saved.contentShown) ?? fresh.contentShown,
+            sceneImages: asMap(saved.sceneImages) ?? fresh.sceneImages,
+        };
+
+        // A scene that no longer exists must not strand the team. goto() would
+        // report "scene not found" and leave them with no image and no hotspots,
+        // which on a tablet is indistinguishable from a crash.
+        if (!this.data?.scenes?.some(s => s.id === state.scene)) {
+            state.scene = fresh.scene;
+        }
+
+        return state;
+    }
+
+    /**
+     * Hand over a lesson that is already in progress under the old shared key.
+     *
+     * Only this game's own state is taken, and only then is the old entry
+     * removed: another game may still be entitled to it. The old signature
+     * carried the language as a third segment, which is why the comparison is
+     * on the prefix rather than the whole string.
+     */
+    _adoptLegacyState() {
+        let raw = null;
         try {
-            const raw = localStorage.getItem('leeuwenhoek_escape_state');
-            return raw ? JSON.parse(raw) : null;
+            raw = localStorage.getItem(LEGACY_STATE_KEY);
         } catch {
             return null;
         }
+        if (!raw) return null;
+
+        let legacy = null;
+        try {
+            legacy = JSON.parse(raw);
+        } catch {
+            return null;
+        }
+
+        const signature = this._signature();
+        const ours = typeof legacy?.signature === 'string'
+            && (legacy.signature === signature || legacy.signature.startsWith(signature + '|'));
+        if (!ours) return null;
+
+        try {
+            localStorage.removeItem(LEGACY_STATE_KEY);
+        } catch { /* noop */
+        }
+
+        return {...legacy, signature};
     }
 }
