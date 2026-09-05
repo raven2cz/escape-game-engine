@@ -62,6 +62,32 @@ describe('EI-011: a consumed item stays consumed', () => {
         expect(reloaded.state.inventory).not.toContain('coin');
     });
 
+    it('does not leave the consumed item selected for use', async () => {
+        // Saving the removal is only half of it. The save happened while the
+        // item was still the one held for use, so after a reload the inventory
+        // was empty but useItemId still named the coin - and _activateHotspot
+        // checks the held item against acceptItems without looking in the
+        // inventory, so the same coin could be spent a second time.
+        const harness = createReloadHarness({ scenes: SCENES });
+        const game = await harness.boot();
+
+        game.state.inventory.push('coin');
+        game._saveState();
+        game._renderInventory();
+        game.enterUseMode('coin');
+
+        document.querySelectorAll('#hotspotLayer .hotspot')[0].click();
+        await waitFor(() => !game.state.inventory.includes('coin'), { label: 'the coin to be consumed' });
+
+        const reloaded = await harness.reload();
+        expect(reloaded.state.useItemId).toBeNull();
+
+        // And the phantom cannot be spent again.
+        document.querySelectorAll('#hotspotLayer .hotspot')[0].click();
+        await new Promise(res => setTimeout(res, 0));
+        expect(reloaded.state.inventory).toEqual([]);
+    });
+
     it('is still gone when a following action would have saved anyway', async () => {
         // The case every shipped game happens to use, kept so the accidental
         // save is not what the first test is really measuring.

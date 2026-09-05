@@ -38,6 +38,47 @@ async function reachWarpCore(harness) {
     return game;
 }
 
+describe('warp-engine: the exit is not reachable before the victory plays out', () => {
+    // EI-001 makes warp_engine_active durable by setting it before the event's
+    // presentation runs. The exit hotspot is gated on exactly that flag, so from
+    // then until the victory dialog is on screen there is a window in which the
+    // flag is set and nothing covers the hotspots: the replacement scene image
+    // and the dialog's portraits both have to load first.
+    //
+    // Clicking a hotspot is behind the EI-013 lock, but the six module slots are
+    // filled by dragging, and the drop path had no lock. A team that dropped the
+    // last module and immediately tapped the exit would leave for the exit scene
+    // mid-event, its exit.victory dialog would be refused because the victory
+    // dialog was already claiming, and the game_completed flag that dialog sets
+    // would be lost for good.
+    beforeEach(() => {
+        localStorage.clear();
+    });
+
+    it('ignores a tap on the exit while the last module is still being applied', async () => {
+        const harness = createReloadHarness(fixtures, { baseUrl: './games/warp-engine/' });
+        const game = await reachWarpCore(harness);
+
+        const core = game.currentScene;
+        const slot = core.hotspots.find(h => h.acceptItems?.some(a => a.id === 'relativistic-clock'));
+        game.state.inventory.push('relativistic-clock');
+        for (const flag of SLOT_FLAGS.filter(f => f !== 'slot_rel_ok')) game.state.flags[flag] = true;
+
+        // The drop, not a click: this is how the game tells the pupil to do it.
+        game._handleItemDropOnHotspot('relativistic-clock', slot);
+        await waitFor(() => game.state.flags.warp_engine_active, { label: 'the engine to come alive' });
+
+        const exitEl = [...document.querySelectorAll('#hotspotLayer .hotspot')].find(
+            el => core.hotspots[Number(el.dataset.index)]?.target === 'exit',
+        );
+        exitEl.click();
+        await new Promise(res => setTimeout(res, 0));
+
+        expect(game.currentScene.id).toBe('warp-core');
+        expect(game.state.eventsFired['exit-sequence']).toBeUndefined();
+    });
+});
+
 describe('warp-engine: reload during the victory dialog (EI-001)', () => {
     beforeEach(() => {
         localStorage.clear();

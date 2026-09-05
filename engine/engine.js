@@ -51,6 +51,7 @@ export class Game {
         // will pass its own, with the authoritative copy in a Durable Object and
         // localStorage as a local cache. This is the seam the runtime and the
         // teacher's dashboard both need, which is why it exists before either.
+        this._ownsLocalStorage = !opts.storage;
         this.storage = opts.storage || this._localStorage();
 
         // How long to wait for a scene image before carrying on without it.
@@ -195,10 +196,25 @@ export class Game {
         // Fresh state if the signature does not match or a reset was requested.
         // A state left under the old shared key is adopted once, so that this
         // change does not end a lesson that is already running.
-        const saved = forceReset
-            ? null
-            : (this._loadState() ?? this._adoptLegacyState());
+        let saved = forceReset ? null : this._loadState();
+        let adopted = false;
+        if (forceReset) {
+            // The old entry has to go too, or a later restart() finds it and
+            // resurrects the lesson the teacher just reset away.
+            this._discardLegacyState();
+        } else if (!saved) {
+            saved = this._adoptLegacyState();
+            adopted = !!saved;
+        }
+
         this.state = this._restoreState(saved);
+
+        if (adopted) {
+            // Adoption removed the old entry, so until this write the progress
+            // exists only in memory. A pupil whose tablet looks stuck reloads
+            // twice, and the second reload would have found neither key.
+            this._saveState();
+        }
 
         // initialize hero (default → then URL override if present)
         if (!this.state.hero) {
@@ -217,6 +233,7 @@ export class Game {
 
     restart() {
         this.storage.clear?.();
+        this._discardLegacyState();
         location.reload();
     }
 
@@ -227,8 +244,6 @@ export class Game {
         const token = ++this._navToken;
 
         this.currentScene = scene;
-        this.state.scene = sceneId;
-        this.state.visited[sceneId] = true;
 
         const outcome = await this._loadSceneImage(this._sceneImageSrc(scene));
 
@@ -241,9 +256,15 @@ export class Game {
         this._msg(this._text(scene.title) || '');
 
         if (outcome === 'ok') {
-            // Persisted only now. Recording the scene before the image was known
-            // to load meant a scene that cannot be displayed became the place
-            // the pupil returns to after a reload. See EI-003.
+            // `state.scene` moves only now, and this is the whole of "the scene
+            // is not recorded until it displays". Skipping just the save below
+            // is not enough: the enter events that run a few lines down save the
+            // state for their own reasons the moment a once-event marks itself,
+            // and almost every scene in the shipped games has one. `state.scene`
+            // is the resume point, so it stays on the last scene that worked.
+            // Where the pupil actually is, is `currentScene`. See EI-003.
+            this.state.scene = sceneId;
+            this.state.visited[sceneId] = true;
             if (!opts.noSave) this._saveState();
         } else {
             // Say something. A blank screen with no explanation is the worst
@@ -284,6 +305,11 @@ export class Game {
      * only meant the chest in leeuwenhoek shut itself again after a reload,
      * with `chest_opened` still set and the key still in the inventory. EI-006.
      */
+    /** The scene the pupil is looking at, which is not always the saved one. */
+    _hereId() {
+        return this.currentScene?.id ?? this.state?.scene;
+    }
+
     _sceneImageSrc(scene) {
         const override = this.state?.sceneImages?.[scene.id];
         return this._resolveAsset(override || scene.image);
@@ -397,6 +423,12 @@ export class Game {
         const i = this.state.inventory.indexOf(id);
         if (i >= 0) {
             this.state.inventory.splice(i, 1);
+            // An item that no longer exists must not stay selected for use. The
+            // save below would otherwise record a useItemId naming an item the
+            // pupil no longer has, and _activateHotspot checks the held item
+            // against acceptItems without looking in the inventory, so after a
+            // reload the same item could be spent a second time.
+            if (this.state.useItemId === id) this.exitUseMode();
             this._renderInventory();
             // Persist. The item disappeared from the screen but not from
             // storage, and was saved only by accident when a following onApply
@@ -1208,17 +1240,30 @@ export class Game {
             return;
         }
 
-        const accepts = hs.acceptItems.map(x => typeof x === 'string' ? { id: x, consume: false } : x);
-        const match = accepts.find(a => a.id === itemId);
+        // Under the same lock as a hotspot click, and for the same reason. This
+        // is not the secondary path: dragging an item onto a target is what the
+        // inventory tooltip tells the pupil to do, and the six warp-engine
+        // module slots are only reachable this way. Without it, the actions a
+        // drop sets off run unguarded, and a flag set early by an event (EI-001)
+        // can be acted on by a tap before that event has finished presenting
+        // itself. See EI-013.
+        if (this._hotspotBusy) return;
+        this._hotspotBusy = true;
+        try {
+            const accepts = hs.acceptItems.map(x => typeof x === 'string' ? { id: x, consume: false } : x);
+            const match = accepts.find(a => a.id === itemId);
 
-        if (match) {
-            if (match.consume) this._removeItemFromInventory(itemId);
+            if (match) {
+                if (match.consume) this._removeItemFromInventory(itemId);
 
-            if (hs.onApply) {
-                await this._applyActions(hs.onApply);
-            } else {
-                this.toast(this._t('engine.use.applied', 'Předmět byl použit.'), 2200);
+                if (hs.onApply) {
+                    await this._applyActions(hs.onApply);
+                } else {
+                    this.toast(this._t('engine.use.applied', 'Předmět byl použit.'), 2200);
+                }
             }
+        } finally {
+            this._hotspotBusy = false;
         }
     }
 
@@ -1495,7 +1540,10 @@ export class Game {
             if (w.on && w.on !== trigger.on) continue;
 
             // b) Scene match (current scene or specified scene)
-            if (w.scene && w.scene !== (trigger.scene || this.state.scene)) continue;
+            // Where the pupil is, is `currentScene`. `state.scene` is the resume
+            // point and lags behind it when a scene image failed to load, so it
+            // is only the last resort here. See EI-003.
+            if (w.scene && w.scene !== (trigger.scene || this._hereId())) continue;
 
             // c) Inventory requirements
             if (w.requireItems && !this._hasAll(w.requireItems)) continue;
@@ -1599,7 +1647,7 @@ export class Game {
             if (act.highlightHotspot?.rect) {
                 const h = act.highlightHotspot;
                 this._enqueueOrShowHighlight({
-                    sceneId: h.sceneId || (w.scene || this.state.scene),
+                    sceneId: h.sceneId || (w.scene || this._hereId()),
                     rect: h.rect,
                     ms: h.ms ?? 3500,
                     outline: !!h.outline
@@ -1895,8 +1943,17 @@ export class Game {
             hero: asMap(saved.hero) ?? null,
             puzzleResults: asList(saved.puzzleResults) ?? fresh.puzzleResults,
             contentShown: asMap(saved.contentShown) ?? fresh.contentShown,
-            sceneImages: asMap(saved.sceneImages) ?? fresh.sceneImages,
+            sceneImages: Object.fromEntries(
+                Object.entries(asMap(saved.sceneImages) ?? fresh.sceneImages)
+                    .filter(([, image]) => typeof image === 'string'),
+            ),
         };
+
+        // Holding an item you do not have is not a state the engine can act on
+        // sensibly: the acceptItems check never looks in the inventory.
+        if (state.useItemId && !state.inventory.includes(state.useItemId)) {
+            state.useItemId = null;
+        }
 
         // A scene that no longer exists must not strand the team. goto() would
         // report "scene not found" and leave them with no image and no hotspots,
@@ -1917,6 +1974,11 @@ export class Game {
      * on the prefix rather than the whole string.
      */
     _adoptLegacyState() {
+        // Only when this engine owns the browser's storage. The old key is an
+        // artefact of the unhosted engine, and a runtime that supplies per-team
+        // storage must not be handed whatever was left on the tablet.
+        if (!this._ownsLocalStorage) return null;
+
         let raw = null;
         try {
             raw = localStorage.getItem(LEGACY_STATE_KEY);
@@ -1937,11 +1999,16 @@ export class Game {
             && (legacy.signature === signature || legacy.signature.startsWith(signature + '|'));
         if (!ours) return null;
 
+        this._discardLegacyState();
+
+        return {...legacy, signature};
+    }
+
+    _discardLegacyState() {
+        if (!this._ownsLocalStorage) return;
         try {
             localStorage.removeItem(LEGACY_STATE_KEY);
         } catch { /* noop */
         }
-
-        return {...legacy, signature};
     }
 }

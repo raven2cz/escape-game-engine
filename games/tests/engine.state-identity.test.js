@@ -31,6 +31,7 @@ const beta = () => createReloadHarness({ scenes: gameData('beta') }, { baseUrl: 
 describe('EI-002: saved state has an identity', () => {
     beforeEach(() => {
         localStorage.clear();
+        history.replaceState(null, '', '/');
     });
 
     it('keeps two games on one tablet apart', async () => {
@@ -92,15 +93,21 @@ describe('EI-002: saved state has an identity', () => {
         expect(second.state.scene).toBe('start');
     });
 
+    // A real legacy state always has a hero: the old init() set one on the first
+    // start and saved it. Getting that wrong in the fixture hides the whole
+    // defect, because a null hero makes init() save for its own reasons.
+    const legacyState = () => ({
+        signature: 'alpha|1.0.0|cs',
+        inventory: ['alpha_key'],
+        solved: {}, flags: {}, visited: {}, eventsFired: {},
+        scene: 'deeper', useItemId: null,
+        hero: { id: 'adam', gender: 'm', name: 'Adam', assetsBase: 'assets/npc/adam/' },
+        puzzleResults: [], contentShown: {},
+    });
+
     it('adopts a state left under the old key, once', async () => {
         // Somebody may be in the middle of a lesson when this ships.
-        localStorage.setItem(LEGACY_KEY, JSON.stringify({
-            signature: 'alpha|1.0.0|cs',
-            inventory: ['alpha_key'],
-            solved: {}, flags: {}, visited: {}, eventsFired: {},
-            scene: 'deeper', useItemId: null, hero: null,
-            puzzleResults: [], contentShown: {},
-        }));
+        localStorage.setItem(LEGACY_KEY, JSON.stringify(legacyState()));
 
         const harness = alpha();
         const adopted = await harness.boot();
@@ -110,6 +117,48 @@ describe('EI-002: saved state has an identity', () => {
 
         const later = await harness.boot();
         expect(later.state.inventory).toEqual(['alpha_key']);
+    });
+
+    it('writes an adopted state down before anything else can happen', async () => {
+        // Adoption deletes the old entry, so until the new one is written the
+        // team's progress exists only in memory. A tablet that reloads twice in
+        // a row - which is exactly what a pupil does when a game looks stuck -
+        // would lose the lesson at the second reload.
+        localStorage.setItem(LEGACY_KEY, JSON.stringify(legacyState()));
+
+        const harness = alpha();
+        await harness.boot();
+
+        expect(JSON.parse(localStorage.getItem('state:alpha')).inventory).toEqual(['alpha_key']);
+    });
+
+    it('does not adopt the old key when the caller brought its own storage', async () => {
+        // The legacy key is a localStorage artefact of the unhosted engine. A
+        // runtime that supplies per-team storage must not have whatever was left
+        // on the tablet handed to it.
+        localStorage.setItem(LEGACY_KEY, JSON.stringify(legacyState()));
+        const storage = { load: () => null, save: () => {}, clear: () => {} };
+
+        const started = await alpha().boot({ gameOpts: { storage } });
+
+        expect(started.state.inventory).toEqual([]);
+        expect(localStorage.getItem(LEGACY_KEY)).not.toBeNull();
+    });
+
+    it('does not let a restart resurrect a lesson from the old key', async () => {
+        // reset=1 skips adoption but used to leave the old entry in place, and
+        // restart() only cleared the new one. The next start then found the old
+        // key and adopted a lesson the teacher had just reset away.
+        localStorage.setItem(LEGACY_KEY, JSON.stringify(legacyState()));
+        history.replaceState(null, '', '/?reset=1');
+
+        const harness = alpha();
+        const fresh = await harness.boot();
+        expect(fresh.state.inventory).toEqual([]);
+        expect(localStorage.getItem(LEGACY_KEY)).toBeNull();
+
+        const afterReload = await harness.boot();
+        expect(afterReload.state.inventory).toEqual([]);
     });
 
     it('does not adopt another game\'s state left under the old key', async () => {

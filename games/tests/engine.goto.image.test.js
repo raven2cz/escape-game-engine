@@ -13,7 +13,7 @@
 // School networks lose requests, so all three are ordinary Tuesday afternoon.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { createReloadHarness, waitFor } from './helpers/reload.js';
+import { createReloadHarness, takeOverImageLoading, waitFor } from './helpers/reload.js';
 
 const SCENES = {
     meta: { id: 'ei003', version: '1.0.0' },
@@ -39,46 +39,18 @@ const SCENES = {
         { id: 'library', title: 'Library', image: 'scenes/library.jpg', hotspots: [] },
         { id: 'attic', title: 'Attic', image: 'scenes/attic.jpg', hotspots: [] },
     ],
+    events: [
+        // Almost every scene in the shipped games has one of these. It is what
+        // makes "the scene is not persisted" hard: the event saves for its own
+        // reasons the moment it fires.
+        {
+            id: 'broken-intro',
+            once: true,
+            when: { on: 'enterScene', scene: 'broken' },
+            then: { toast: { text: 'Vítej.' } },
+        },
+    ],
 };
-
-/**
- * Take over image loading for this file. The shared setup fires `load` on every
- * src assignment, which is what most tests want and is exactly what a test about
- * a failing or stalled image must not have.
- */
-function takeOverImageLoading() {
-    const original = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'src');
-    const pending = [];
-
-    Object.defineProperty(HTMLImageElement.prototype, 'src', {
-        configurable: true,
-        get() { return this.getAttribute('src') || ''; },
-        set(value) {
-            this.setAttribute('src', value);
-            pending.push({ el: this, src: value });
-        },
-    });
-
-    return {
-        pending,
-        /** Fire `type` on the pending request whose src contains `match`. */
-        settle(match, type = 'load') {
-            const i = pending.findIndex(p => p.src.includes(match));
-            if (i < 0) throw new Error(`no pending image request matching ${match}`);
-            const [req] = pending.splice(i, 1);
-            req.el.dispatchEvent(new Event(type));
-        },
-        waitForRequest(match) {
-            return waitFor(
-                () => pending.some(p => p.src.includes(match)),
-                { label: `image request for ${match}` },
-            );
-        },
-        restore() {
-            Object.defineProperty(HTMLImageElement.prototype, 'src', original);
-        },
-    };
-}
 
 describe('EI-003: goto() and the scene image', () => {
     let img;
@@ -141,8 +113,39 @@ describe('EI-003: goto() and the scene image', () => {
         // In memory the pupil is in the broken scene and can navigate out of it.
         // Storage still points at the last scene that actually displayed, so a
         // reload does not drop them straight back into the same dead end.
+        //
+        // The scene has a once enter-event, which fires after the image fails
+        // and saves the whole state as it marks itself. Skipping the direct save
+        // is therefore not enough on its own: state.scene itself must not have
+        // moved yet.
         expect(game.currentScene.id).toBe('broken');
+        expect(game.state.eventsFired['broken-intro']).toBe(true);
         expect(game._loadState().scene).toBe('hall');
+    });
+
+    it('still runs the scene events and the hotspots of a scene it could not show', async () => {
+        // Not persisting the scene must not mean pretending the pupil is not in
+        // it. They are, and they have to be able to act.
+        const harness = createReloadHarness({ scenes: SCENES });
+
+        const { game, ready } = harness.bootDetached();
+        await img.waitForRequest('hall.jpg');
+        img.settle('hall.jpg');
+        await ready;
+
+        const done = game.goto('broken');
+        await img.waitForRequest('missing.jpg');
+        img.settle('missing.jpg', 'error');
+        await done;
+
+        expect(game.state.eventsFired['broken-intro']).toBe(true);
+        expect(document.querySelectorAll('#hotspotLayer .hotspot')).toHaveLength(1);
+
+        // And the way back out still works.
+        document.querySelector('#hotspotLayer .hotspot').click();
+        await img.waitForRequest('hall.jpg');
+        img.settle('hall.jpg');
+        await waitFor(() => game.currentScene.id === 'hall', { label: 'the hall again' });
     });
 
     it('settles both of two navigations in a row, and the later one wins', async () => {

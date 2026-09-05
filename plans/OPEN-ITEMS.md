@@ -9,6 +9,12 @@ Source: audit on 2026-09-05 by three independent passes (Claude Opus 5, Fable 5.
 codex SOL). Every item below was then verified by hand in the code, so no entry
 here is second-hand.
 
+The fixes in S1 to S3 were reviewed the same way, by Fable 5.1 and codex SOL
+independently. Both found the same two P1 defects in the new code, and SOL found
+a third that neither the audit nor the first review had. What they turned up is
+recorded in the item it belongs to, under "Corrected after review", and as
+EI-022 and EI-023 where it was a pre-existing defect rather than a new one.
+
 | #      | prio | status | topic                                                          |
 |--------|------|--------|----------------------------------------------------------------|
 | EI-001 | P1   | DONE   | Once-events can be marked done before their effects apply       |
@@ -32,6 +38,8 @@ here is second-hand.
 | EI-019 | P3   | DONE   | Inspecting a second item showed the first item's name           |
 | EI-020 | P3   | OPEN   | `games/demo` is not playable and is excluded from the data tests |
 | EI-021 | P3   | OPEN   | A dialog opened from another dialog's ending cannot be advanced   |
+| EI-022 | P2   | OPEN   | An unskippable video that never plays blocks the run forever     |
+| EI-023 | P3   | OPEN   | Re-rendering hotspots can destroy a mounted puzzle or panel      |
 
 Where the fix lands is decided in [STABILIZATION.md](STABILIZATION.md).
 
@@ -134,6 +142,22 @@ into the same slot.
   because another game may still be entitled to it. Somebody may be mid-lesson
   when this ships.
 
+**Corrected after review, and this one was serious.** Adoption deleted the old
+entry and wrote nothing in its place: `init()` saves only as a side effect of
+hero initialisation, and a real legacy state already has a hero, because the old
+`init()` always set one. So the adopted lesson lived in memory alone, and the
+second reload - which is exactly what a pupil does when a tablet looks stuck -
+started fresh. The adopted state is now written immediately. The test had passed
+for the wrong reason: its fixture had `hero: null`, which triggered the
+incidental save.
+
+Two smaller holes from the same review: `reset=1` skipped adoption but left the
+old entry in place, and `restart()` cleared only the new key, so a restart after
+a reset would find the old entry and resurrect the lesson the teacher had just
+reset away; and adoption read device-wide localStorage even when a caller had
+supplied its own storage, which would have handed a hosted per-team store
+whatever happened to be on the tablet. Both fixed, both tested.
+
 **Step two, deliberately not done here.** Run and team identity,
 `state:<sessionId>:<gameId>:<teamId>`. The identity has to come from the hosted
 runtime, which does not exist yet; inventing one now would mean the runtime
@@ -190,11 +214,15 @@ test does not have to wait for it.
 The same loader is now used by the `setSceneImage` event action, which had an
 identical copy of the original three-line hang.
 
-**Note on what "persisted only on success" means.** `state.scene` in memory does
-follow the pupil into a scene whose image failed, because that is where they are
-and they have to be able to leave it. What does not happen is the immediate
-write, so a reload puts them back in the last scene that actually displayed
-rather than into the same dead end.
+**Corrected after review.** The first attempt only made the direct `_saveState()`
+conditional, and left `state.scene` moving before the image loaded. That was not
+enough and the claim in this file was wrong: the enter events run a few lines
+later and a `once` event saves the whole state as it marks itself, so the failed
+scene was persisted anyway. Almost every scene in the shipped games has such an
+event, `reactor`'s `main-room` among them. `state.scene` now moves only on a
+successful load; it is the resume point, and where the pupil actually is, is
+`currentScene`. The two places that read `state.scene` as a stand-in for "here"
+were changed to `_hereId()`, which prefers `currentScene`.
 
 **Tests.** `games/tests/engine.goto.image.test.js`: a 404 still finishes and
 renders hotspots, a request that never answers finishes within the timeout, a
@@ -204,6 +232,12 @@ later one winning. All four verified to fail before the fix.
 Two older test files carried their own image stub that called `this.onload`
 directly. Those stubs were deleted rather than repaired; image loading is
 simulated once, in `games/tests/setup.localstorage.js`.
+
+**Same defect, one file over.** `DialogUI.open()` preloads portraits and handled
+`onerror` but had no timeout, so a dropped request hung it in the same way. Since
+EI-013 that also held the dialog claim and the hotspot lock, which turned one
+stuck dialog into a game where no tap does anything. `DialogUI._preload()` now
+has the same bound. Tested in `games/tests/engine.dialog.preload.test.js`.
 
 ---
 
@@ -430,6 +464,15 @@ the puzzle it was consumed by will already be solved.
 goes through the storage seam introduced by EI-002. One line, done in this batch
 rather than earlier because the call site is what EI-002 moved.
 
+**Corrected after review.** Saving the removal alone created a worse bug than the
+one it fixed. The save happened while the item was still the one held for use, so
+the persisted state had an empty inventory and a `useItemId` naming the consumed
+item; `_activateHotspot()` checks the held item against `acceptItems` without
+looking in the inventory, so after a reload the same item could be spent a second
+time. Removal now clears use mode when it takes the item that is held, and
+`_normalizeState()` refuses a `useItemId` that is not in the inventory, which also
+closes the devtools version of it.
+
 **Test.** `games/tests/engine.consume.reload.test.js`, with its own fixture: a
 hotspot that consumes an item and has no `onApply` at all, so nothing else can
 trigger the save. The second test in the file is the shape every shipped game
@@ -497,12 +540,13 @@ continues but a step is silently skipped.
 
 **Fix as applied.** Three changes, all small:
 
-- `Game._hotspotBusy` is claimed in the hotspot click handler and released when
-  the activation finishes. The flag lives on the Game, not the element, because
-  `_renderHotspots()` replaces those elements while an activation is still
-  running. It holds for exactly as long as the activation does, which for a
-  dialog or a puzzle means until it is closed, so a second tap during it is
-  dropped and a deliberate second tap afterwards is not.
+- `Game._hotspotBusy` is claimed in the hotspot click handler **and in
+  `_handleItemDropOnHotspot()`**, and released when the activation finishes. The
+  flag lives on the Game, not the element, because `_renderHotspots()` replaces
+  those elements while an activation is still running. It holds for exactly as
+  long as the activation does, which for a dialog or a puzzle means until it is
+  closed, so a second tap during it is dropped and a deliberate second tap
+  afterwards is not.
 - `DialogUI.open()` refuses a second call instead of taking over. The claim is
   made synchronously, because `open()` awaits a portrait preload before it
   installs the resolver and a second call could otherwise slip past the check
@@ -530,6 +574,20 @@ One existing test in `engine.use.test.js` fired two hotspot activations in a
 single turn of the event loop, which is now correctly refused. It was given a
 tick between the two taps rather than weakened: two deliberate taps by a pupil are
 never in the same turn.
+
+**Corrected after review: the drop path had no lock, and EI-001 made that
+matter.** Dragging an item onto a target is what the inventory tooltip tells the
+pupil to do, and the six warp-engine module slots can only be filled that way.
+The drop went straight into `_applyActions` with nothing held. Combined with
+EI-001 setting `warp_engine_active` before the victory event presents itself,
+there was a window - the replacement scene image and the dialog's portraits both
+have to load - in which the flag was set, the exit hotspot was gated on it, and
+nothing covered the screen. A team that dropped the last module and tapped the
+exit would leave mid-event, `exit-sequence` would mark itself fired, its
+`exit.victory` dialog would be refused because the victory dialog was already
+claiming, and the `game_completed` flag that dialog sets would be gone for good.
+Reproduced against the real warp-engine data;
+`games/tests/warp-engine.reload.test.js` holds it down.
 
 ---
 
@@ -778,3 +836,63 @@ synchronous part, or make it per-dialog rather than per-DialogUI.
 lets a dialog open one from its own onEnd", closes the second dialog through
 `close()` and says why. Change it to close by clicking, and it is the regression
 test for this item.
+
+---
+
+## EI-022: An unskippable video that never plays blocks the run forever
+
+**Priority:** P2. Found in review of S1-S3, not by an audit pass.
+
+**Where:** `engine/engine.js`, `_playVideo()`. `games/warp-engine/scenes.json`,
+the `intro` hotspot and the `dlg-hertz-outro` event.
+
+**What happens.** `_playVideo()` resolves on `ended` or `error` and on nothing
+else. `video.play()` returning a rejected promise is caught and logged, and then
+the engine waits for an `ended` that is never coming. Both warp-engine videos are
+`allowSkip: false`, so there is no skip button either, and the overlay covers the
+screen.
+
+**Why it matters.** Autoplay is refused for a video with sound until the page has
+been interacted with, and iOS refuses it outright in Low Power Mode. The
+warp-engine intro video plays on the first tap of the game, which is the least
+likely moment for a browser to allow it. The result is a black screen that the
+lesson cannot get past. heat-escape's two videos are `allowSkip: true` and
+therefore recoverable.
+
+**Fix.** Two parts, and the first is enough on its own. Treat a rejected `play()`
+as an end rather than a warning, and give the overlay a way out regardless of
+`allowSkip`: a skip button that appears after a few seconds costs nothing and
+removes a whole class of stuck lesson. Reconsider `allowSkip: false` in
+warp-engine while you are there.
+
+**Test.** A video whose `play()` rejects still resolves `_playVideo()`. A video
+that never fires `ended` can still be dismissed.
+
+---
+
+## EI-023: Re-rendering hotspots can destroy a mounted puzzle or panel
+
+**Priority:** P3, latent.
+
+**Where:** `engine/engine.js`, `_renderHotspots()` clears `hotspotLayer.innerHTML`.
+`engine/puzzles/index.js` mounts the puzzle container into that same layer, and
+`engine/content.js` mounts the panel there too.
+
+**What happens.** A puzzle and a content panel both live inside the hotspot
+layer. Anything that re-renders hotspots while one is open removes it from the
+DOM without calling `onResolve`, so `_openPuzzleByRef()` never settles. Since
+EI-013 that also means the activation lock is never released, and no tap does
+anything afterwards.
+
+**Why it is not urgent.** Reaching it needs a state change while a puzzle is
+mounted, and the only unlocked path into `_applyActions` is a touch drop. Checked
+all six shipped games: only leeuwenhoek's treasure room has a puzzle and an
+item-accepting hotspot in the same scene, and the item it accepts is the reward
+for solving that puzzle, so it cannot be held while the puzzle is open.
+
+**Fix.** Either mount modal surfaces outside the hotspot layer, or have
+`_renderHotspots()` refuse to run while one is mounted. The first is better; the
+layer is a hit-testing surface and should not also be a modal host.
+
+**Test.** Mount a puzzle, trigger a hotspot re-render, assert the puzzle promise
+settles and the activation lock is released.

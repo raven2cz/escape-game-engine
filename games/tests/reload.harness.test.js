@@ -93,6 +93,38 @@ describe('reload harness', () => {
         expect(document.querySelector('.dlg-overlay:not(.hidden)')).toBeNull();
     });
 
+    it('does not let the retired run write over the live one', async () => {
+        // The retired Game is unreachable through the DOM, but not through
+        // `document`. An abandoned ContentPanel leaves an Escape handler that
+        // calls _saveState() on the Game it belonged to, and both runs use the
+        // same storage key, so that write would land on the live run.
+        const h = createReloadHarness({ scenes: SCENES });
+
+        const first = await h.boot();
+        first.state.inventory.push('from_the_first_run');
+
+        const second = await h.reload();
+        second.state.inventory.push('from_the_second_run');
+        second._saveState();
+
+        first._saveState(); // whatever is still holding a reference to it
+
+        const third = await h.reload();
+        expect(third.state.inventory).toEqual(['from_the_second_run']);
+    });
+
+    it('clears attributes left on the body, not just its children', async () => {
+        // `editor-on` makes every hotspot tap a no-op, and it lives on the body
+        // rather than inside it.
+        const h = createReloadHarness({ scenes: SCENES });
+
+        await h.boot();
+        document.body.classList.add('editor-on', 'use-on');
+
+        await h.reload();
+        expect(document.body.className).toBe('');
+    });
+
     it('refuses to reload before anything has booted', async () => {
         const h = createReloadHarness({ scenes: SCENES });
         await expect(h.reload()).rejects.toThrow(/before any boot/);

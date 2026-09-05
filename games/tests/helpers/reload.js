@@ -21,10 +21,13 @@
 //
 // What is deliberately *not* torn down: listeners the engine attaches to
 // `document` and `window` (the Escape handler in the Game constructor, the
-// resize handler in DialogUI). The engine has no teardown API and adding one is
-// outside the scope of these fixes. They cannot affect an assertion, because
-// the retired Game's overlay is detached with the old body and its Escape
-// handler is a no-op unless a test dispatches Escape itself.
+// resize handler in DialogUI, the Escape handler an open ContentPanel installs).
+// The engine has no teardown API and adding one is outside the scope of these
+// fixes. What those listeners could still do is reach the retired Game and make
+// it write - ContentPanel._closeImmediate() calls _saveState() - and both runs
+// share a storage key, so the retired run's storage is redirected to a sink
+// instead. Its DOM is detached with the old body, so nothing else it does is
+// visible.
 
 import { vi } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -57,8 +60,56 @@ export const GAME_DOM = `
 
 /** Replace the document body with a fresh skeleton and return the engine's DOM refs. */
 export function mountDom() {
+    // Attributes as well as children. `use-on`, `item-dragging` and `editor-on`
+    // all live on the body, and a leftover `editor-on` would make every tap in
+    // the next run a silent no-op.
+    for (const name of [...document.body.getAttributeNames()]) {
+        document.body.removeAttribute(name);
+    }
     document.body.innerHTML = GAME_DOM;
     return domRefs();
+}
+
+/**
+ * Take over image loading for one test file, so that a test can decide when a
+ * request succeeds, fails, or never answers at all.
+ *
+ * The shared setup fires `load` on every src assignment, which is what most
+ * tests want and exactly what a test about a failing or stalled image must not
+ * have. Call `restore()` in afterEach.
+ */
+export function takeOverImageLoading() {
+    const original = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'src');
+    const pending = [];
+
+    Object.defineProperty(HTMLImageElement.prototype, 'src', {
+        configurable: true,
+        get() { return this.getAttribute('src') || ''; },
+        set(value) {
+            this.setAttribute('src', value);
+            pending.push({el: this, src: value});
+        },
+    });
+
+    return {
+        pending,
+        /** Fire `type` on the pending request whose src contains `match`. */
+        settle(match, type = 'load') {
+            const i = pending.findIndex(p => p.src.includes(match));
+            if (i < 0) throw new Error(`no pending image request matching ${match}`);
+            const [req] = pending.splice(i, 1);
+            req.el.dispatchEvent(new Event(type));
+        },
+        waitForRequest(match) {
+            return waitFor(
+                () => pending.some(p => p.src.includes(match)),
+                {label: `image request for ${match}`},
+            );
+        },
+        restore() {
+            Object.defineProperty(HTMLImageElement.prototype, 'src', original);
+        },
+    };
 }
 
 function domRefs() {
@@ -156,8 +207,14 @@ export function createReloadHarness(fixtures, options = {}) {
             ...(overrides.gameOpts || {}),
         });
 
-        if (previous && previous.data && game.data && previous.data === game.data) {
-            throw new Error('reload harness: the new Game shares its data with the retired one');
+        if (previous) {
+            // The retired run can still hold a suspended continuation and
+            // listeners on `document` that nothing can detach: an abandoned
+            // ContentPanel keeps an Escape handler that calls _saveState() on
+            // the Game it belonged to. Both runs use the same storage key, so
+            // that write would land on top of the live run. Point the retired
+            // one at a sink instead, which is what the storage seam is for.
+            previous.storage = {load: () => null, save: () => {}, clear: () => {}};
         }
         previous = game;
         boots++;

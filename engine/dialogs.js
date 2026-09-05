@@ -28,6 +28,9 @@ export class DialogUI {
         /** True between the start of open() and the resolver being installed. */
         this._opening = false;
 
+        /** Bound on the portrait preload. Same reasoning as Game.sceneImageTimeoutMs. */
+        this.preloadTimeoutMs = game?.sceneImageTimeoutMs ?? 8000;
+
         /** * Input lock to prevent race conditions during async transitions.
          * Prevents "double-click" skipping issues.
          * @type {boolean}
@@ -279,14 +282,7 @@ export class DialogUI {
         }
 
         if (assetsToLoad.length > 0) {
-            await Promise.all(assetsToLoad.map(src => {
-                return new Promise(resolve => {
-                    const img = new Image();
-                    img.onload = resolve;
-                    img.onerror = resolve; // Nechceme zaseknout hru, když obrázek chybí
-                    img.src = src;
-                });
-            }));
+            await Promise.all(assetsToLoad.map(src => this._preload(src)));
         }
         // --- PRELOAD PHASE END ---
 
@@ -332,6 +328,35 @@ export class DialogUI {
         this._renderStep();
 
         return closed;
+    }
+
+    /**
+     * Wait for a portrait, but not forever.
+     *
+     * `onerror` has always been handled here, with a comment saying the game
+     * must not get stuck on a missing image. A request that is dropped rather
+     * than refused fires neither event, and a school network drops requests.
+     * Without the timeout that hangs open(): the resolver is never installed, so
+     * _opening stays claimed, every later dialog is refused, and if the dialog
+     * was opened from a hotspot the activation lock is held too and no tap does
+     * anything. The scene loader got this treatment in EI-003; this one is the
+     * same defect one file over.
+     */
+    _preload(src) {
+        return new Promise(resolve => {
+            const img = new Image();
+            let settled = false;
+            const done = () => {
+                if (settled) return;
+                settled = true;
+                clearTimeout(timer);
+                resolve();
+            };
+            const timer = setTimeout(done, this.preloadTimeoutMs);
+            img.onload = done;
+            img.onerror = done; // Nechceme zaseknout hru, když obrázek chybí
+            img.src = src;
+        });
     }
 
     /**
