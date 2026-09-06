@@ -88,6 +88,10 @@ escape-game-engine/
 │           ├── group.js   # Category sorting puzzle
 │           ├── cloze.js   # Fill-in-the-blank puzzle
 │           └── list.js    # Puzzle sequence manager
+├── docs/
+│   └── DEVELOPING.md      # running locally, adding a game, tests
+├── scripts/
+│   └── dev-server.mjs     # npm run dev
 ├── games/
 │   ├── demo/
 │   │   ├── scenes.json    # Scenes, hotspots, items, events, content
@@ -109,12 +113,13 @@ escape-game-engine/
 
 ### 1. Local Development
 ```bash
-# Serve locally (Python 3)
-python3 -m http.server 5500
-
-# Or use any static server
-# Open http://localhost:5500/
+npm install
+npm run dev          # http://localhost:5500/?game=demo
 ```
+
+Not `python3 -m http.server`: it answers `200` to a Range request, and iOS Safari
+will not play a video from a server that does. See
+[`docs/DEVELOPING.md`](docs/DEVELOPING.md).
 
 ### 2. Create a Hotspot
 1. Toggle **✎ Edit** mode
@@ -548,15 +553,20 @@ For puzzles with `layout: { mode: "manual" }`:
 ## 🚢 Running a game
 
 ### Locally
-Serve the repository with any static server and pick the game with `?game=`:
 
-```
-http://localhost:5500/?game=leeuwenhoek
-http://localhost:5500/?game=warp-engine&lang=cs&debug=1
+```bash
+npm install
+npm run dev
 ```
 
-Each game lives in `games/<game-id>/`. Without `?game=`, `index.html` opens the
-one named in its `DEFAULT_GAME` constant, which is a convenience for local work.
+Then `http://localhost:5500/?game=demo`. The dev server also serves the private
+games repository when it is cloned beside this one, so `?game=warp-engine` works
+with nothing copied anywhere. `npm run dev -- --host 0.0.0.0` makes it reachable
+from a tablet, which is worth doing, because Range requests and MIME types only
+fail there.
+
+See [`docs/DEVELOPING.md`](docs/DEVELOPING.md) for the options, the query
+parameters, and how to add a game.
 
 ### In a lesson
 The commercial games live in a separate private repository and are delivered by

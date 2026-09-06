@@ -20,6 +20,7 @@
         "vitest": "^2.0.0"
     },
     "scripts": {
-        "test": "vitest run"
+        "test": "vitest run",
+        "dev": "node scripts/dev-server.mjs"
     }
 }
