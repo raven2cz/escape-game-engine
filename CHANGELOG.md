@@ -1,13 +1,13 @@
 # Changelog
 
-Write what changed under `## 1.0.0 - 2026-09-06`, and commit it. `npm version` refuses to
+Write what changed under `## Unreleased`, and commit it. `npm version` refuses to
 start without it, and renames that heading to the version it is cutting - so the
 entry is written while the change is fresh, and nobody has to predict a number.
 
 Versions are the engine's own. Games are versioned separately, in their own
 repository; see `docs/RELEASING.md` for which version means what.
 
-## Unreleased
+## 1.0.0 - 2026-09-06
 
 The first tagged release, cut after the stabilization audit of September 2026.
 `plans/OPEN-ITEMS.md` has the full registry with the reasoning for each fix;
