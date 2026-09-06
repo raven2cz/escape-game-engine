@@ -50,6 +50,7 @@ pre-existing defect rather than a new one.
 | EI-027 | P2   | DONE   | An unsupported tablet shows a blank page and says nothing        |
 | EI-028 | P1   | DONE   | Redrawing the match lines never terminates once a pair exists    |
 | EI-029 | P3   | DONE   | A list puzzle did not close the step it had started              |
+| EI-030 | P1   | DONE   | One dropped puzzles.json makes every puzzle unopenable           |
 
 Where the fix lands is decided in [STABILIZATION.md](STABILIZATION.md).
 
@@ -1490,3 +1491,47 @@ it, in a `try` so that a half-built step cannot stop the rest of the teardown.
 
 **Test.** `games/tests/puzzles.list.teardown.test.js`: the step is closed, and a
 step that throws while closing does not break the list. Both fail before the fix.
+
+---
+
+## EI-030: One dropped puzzles.json makes every puzzle unopenable
+
+**Priority:** P1. Found by Fable 5.1 while designing EI-010, fixed on its own
+branch because it is independent of the dashboard work.
+
+**Where:** `engine/engine.js`, `_ensurePuzzlesLoaded()`.
+
+**What happened.** The loader fetched `puzzles.json`, and on any failure - a
+network error, a non-`ok` response - swallowed it and carried on with `json = {}`.
+Falling through to the third accepted shape, it then assigned
+`this.data.puzzles = {}`.
+
+The guard at the top of the function is `if (this.data?.puzzles && typeof
+... === 'object' && !Array.isArray(...)) return;`. An empty object satisfies all
+three. So the failure was cached as a valid answer, and every later call returned
+immediately without retrying.
+
+**Why it mattered.** Every puzzle in the game became unopenable for the rest of
+the run. A team taps a puzzle hotspot and nothing happens, again and again, with
+no message. Only a reload clears it - and a reload restores the state, so the
+lesson is not lost, but nobody knows that reloading is the answer.
+
+This is the same class as EI-003: **a school network drops requests, and a
+dropped request is not an error anyone sees.** It is worse than EI-003 in reach -
+that one broke a scene image, this broke all 71 puzzles - and better in that it
+is recoverable without losing progress.
+
+**Fix as applied.** A failed fetch no longer counts as an answer. A `loaded` flag
+is set only when the response is `ok` and its body parsed; when it is false the
+loader returns without assigning `this.data.puzzles`, so the next puzzle-open
+tries again. A fetch that succeeds but returns an unrecognised body (null, a
+number) is still cached as an empty map, because that will not parse differently
+on a retry - only a genuine transient failure is retried.
+
+**Test.** `games/tests/engine.puzzles.load.test.js`, four cases: a dropped
+request is retried and the second attempt loads the map; a non-200 is retried the
+same way; a genuinely empty `puzzles.json` is cached rather than refetched
+forever; and the happy path still loads in one fetch. The two retry cases fail
+before the fix - verified by reverting the fix in a throwaway copy - with the map
+left empty and no second attempt. No prior test caught this because the suite's
+fetch stub always succeeds.
