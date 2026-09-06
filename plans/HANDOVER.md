@@ -7,10 +7,10 @@ where the work is and what comes next.
 
 ## Where things stand
 
-    branch    fix/stabilization-audit
-    base      main @ 5dbca85
+    branch    main - the audit was merged as 94fd2cd on 2026-09-06
+    released  engine v1.0.0, games games-2026.09.1, both with published artifacts
     games     moved to raven2cz/escape-games (private); this repo keeps games/demo
-    suite     275 here, 15 in the games repository; CI runs both on push and PR
+    suite     288 here, 25 in the games repository; CI runs both on push and PR
 
 | commit | what |
 |---|---|
@@ -83,20 +83,24 @@ repository.
   but as a deliberate separate thing, not as this leftover. Done.
 - **EI-002 step two** and **EI-010**: left where they were. EI-010 belongs to the
   dashboard project, which is a day's work of its own.
-
-**Still open, and it needs the owner:**
-
+- **Merging to `main`**: done on 2026-09-06 as `94fd2cd`, one merge commit over
+  thirty-nine. `main` is where work continues; the branch is kept but finished.
 - **Whether an iPad older than iOS 13.4 is supported.** EI-027 gave the match
   puzzle a fallback for the missing `ResizeObserver`, but the engine's own syntax
   has the same floor: 285 uses of optional chaining and 80 of `??`, all Safari
-  13.1. Such an iPad cannot parse the engine at all. Supporting it means a build
-  step that transpiles, against the no-build design; the alternative is to say
-  those devices are out of scope. The fallback was kept because a transpiler
-  would not polyfill the DOM API.
-- **The first tag.** `v1.0.0` cannot be cut with `npm version` - package.json
-  already says 1.0.0 - so it is `git tag -a v1.0.0` by hand, once, after the
-  branch is merged to `main`. The games repository has no tag either. Both were
-  left for the owner, since the branch was to go to main together.
+  13.1. Such an iPad cannot parse the engine at all. **Decided: those devices are
+  out of scope.** The minimum is iPadOS 15 / Safari 15, which costs no hardware -
+  every iPad that can run 13.4 can run 15 - and is the first clean line for the
+  CSS actually shipped. The fallback was removed and the shell now says so from a
+  classic ES5 script. See EI-027; the standing rule is in `docs/RELEASING.md`.
+- **The first tag.** Done. `v1.0.0` could not be cut with `npm version` -
+  package.json already said 1.0.0 - so it was `git tag -a v1.0.0` by hand, once.
+  Every release after this one is `npm version <patch|minor|major>`; see
+  `docs/RELEASING.md`. The games repository is at `games-2026.09.1`, and is
+  versioned as one unit for all six games.
+
+**Still open, and it needs the owner:**
+
 - **How the games repository depends on the engine.** Deliberately unbound: a git
   dependency does not install on npm 12, and a submodule would pull 430 MB of
   history. The hosted runtime is what will put an engine version and a set of
