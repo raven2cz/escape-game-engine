@@ -10,6 +10,7 @@ where the work is and what comes next.
     branch    fix/stabilization-audit
     base      main @ 5dbca85
     games     moved to raven2cz/escape-games (private); this repo keeps games/demo
+    suite     213 here, 7 in the games repository
     suite     215 passing, CI runs it on push and pull request
 
 | commit | what |
@@ -70,6 +71,14 @@ regression tests that should name the game they protect.
 
 **Still open, and it needs the owner:**
 
+- **EI-026: two puzzle backdrops that have never existed**, in `games/demo` and
+  therefore in the `leeuwenhoek` that is sold. Needs artwork, so only the owner
+  can close it. The references are left in place and listed by name in the data
+  test, so a new missing asset still fails.
+- **How the games repository depends on the engine.** Deliberately unbound: a git
+  dependency does not install on npm 12, and a submodule would pull 430 MB of
+  history. The hosted runtime is what will put an engine version and a set of
+  games together. Until then the two repositories are cloned side by side.
 - **Whether `games/demo` should stay content-identical to a game that is sold.**
   It is the old `leeuwenhoek`, renamed. As a fixture it is worth more than
   anything purpose-built - 22 scenes, 7 events, 2 heroes, all nine puzzle kinds -

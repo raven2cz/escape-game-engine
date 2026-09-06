@@ -6,7 +6,7 @@
 // happened, see EI-014 and EI-015.
 
 import { describe, it, expect } from 'vitest';
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 const GAMES_DIR = join(process.cwd(), 'games');
@@ -82,6 +82,55 @@ describe('shipped games', () => {
             }
         }
     });
+    // Three puzzle backgrounds in `demo` name a file that has never existed. The
+    // puzzles render with no backdrop, which is what a missing background looks
+    // like either way, so nobody noticed. The references are left in place
+    // rather than deleted, because somebody meant there to be a backdrop and
+    // deleting the reference would delete the intent; they are listed here so
+    // that a *new* missing asset still fails. See EI-026.
+    const MISSING_ARTWORK = [
+        'assets/puzzles/bg-paper.jpg',
+        'assets/puzzles/bg-board.jpg',
+    ];
+
+    it('every asset a game references exists', () => {
+        // A missing image is not a code defect and no unit test sees it. It is
+        // seen in a classroom, on a projector, by thirty people at once.
+        const assetLike = /^assets\/.+\.(jpg|jpeg|png|svg|webp|mp4|mp3|ogg)$/i;
+        const missing = [];
+
+        for (const id of GAME_IDS) {
+            const scenes = readJson(id, 'scenes.json');
+            // A pose path may contain `/hero/`, which the engine replaces with
+            // the selected hero's id at runtime. Accept any of them.
+            const heroes = Object.keys(scenes.heroes ?? {});
+
+            const walk = (node) => {
+                if (Array.isArray(node)) return node.forEach(walk);
+                if (node && typeof node === 'object') return Object.values(node).forEach(walk);
+                if (typeof node !== 'string' || !assetLike.test(node)) return;
+                if (MISSING_ARTWORK.includes(node)) return;
+
+                const candidates = node.includes('/hero/') && heroes.length
+                    ? heroes.map(h => node.replace('/hero/', `/${h}/`))
+                    : [node];
+                if (!candidates.some(c => existsSync(join(GAMES_DIR, id, c)))) {
+                    missing.push(`${id}: ${node}`);
+                }
+            };
+
+            for (const file of ['scenes.json', 'dialogs.json', 'puzzles.json']) {
+                try {
+                    walk(readJson(id, file));
+                } catch {
+                    // not every game has every file
+                }
+            }
+        }
+
+        expect(missing).toEqual([]);
+    });
+
     it('no game uses the removed puzzleList feature', () => {
         // `puzzleList` and `openPuzzleList` called a function that was never
         // defined, so they threw a ReferenceError. They were removed rather than

@@ -46,6 +46,7 @@ pre-existing defect rather than a new one.
 | EI-023 | P3   | DONE   | Re-rendering hotspots can destroy a mounted puzzle or panel      |
 | EI-024 | P2   | DONE   | A single flag name set one flag per character instead           |
 | EI-025 | P1   | DONE   | Proprietary games sat in a public repository                     |
+| EI-026 | P3   | OPEN   | Three demo puzzles name a backdrop that has never existed        |
 
 Where the fix lands is decided in [STABILIZATION.md](STABILIZATION.md).
 
@@ -1194,9 +1195,17 @@ player, not the source. A licence that says "you may not copy this" over files
 anyone can clone is a statement, not a control.
 
 **Fix as applied.** The six games moved to a new private repository,
-`raven2cz/escape-games`, which takes the engine as a dependency
-(`github:raven2cz/escape-game-engine`) rather than copying it. Its history starts
-there.
+`raven2cz/escape-games`. Its history starts there.
+
+**How it depends on the engine, and why not yet.** The first attempt declared the
+engine as a git dependency in `package.json`. Verified that it does not install:
+npm 12 refuses git dependencies by default (`EALLOWGIT`) and the engine is on no
+registry, so it was a dependency that fails on a clean machine. Vendoring it as a
+submodule would pull 430 MB of engine history for a few hundred kilobytes of
+code. The binding was therefore left where it belongs - the hosted runtime is
+what puts an engine version and a set of games together - and until then the two
+repositories are cloned side by side. The games repository's own test needs no
+engine at all and runs in plain node, which is what lets it be checked alone.
 
 `games/leeuwenhoek` stays in the engine repository, renamed to `games/demo`. It
 was always the demo, it is the first game this engine ever had, and as a fixture
@@ -1230,3 +1239,36 @@ public copy being the current one; it does not erase the old one.
 demo licence forbids using it in paid or institutional teaching, but the file is
 there. If that is not wanted, the demo should be trimmed - the first few scenes,
 or a game written for the purpose. Recorded rather than decided.
+
+---
+
+## EI-026: Three demo puzzles name a backdrop that has never existed
+
+**Priority:** P3. Found by the asset-existence check written while handing over.
+
+**Where:** `games/demo/puzzles.json`, puzzles `code-lab-door`,
+`match-bio-drag` and `cloze-with-background`. They set `background` to
+`assets/puzzles/bg-paper.jpg` or `assets/puzzles/bg-board.jpg`. Neither file
+exists, and neither has ever existed: verified against the history from before
+the game was renamed. The same three puzzles ship commercially as `leeuwenhoek`.
+
+**What happens.** The background is applied as a CSS `url()`, so a missing file
+renders as nothing at all. The puzzle opens and works; it simply has no backdrop
+where somebody meant it to have one. That is why it went unnoticed: a missing
+backdrop and no backdrop look the same.
+
+**Why it is worth an entry.** It is the only class of defect in this whole
+registry that no unit test could ever have found, because nothing is wrong with
+the code. It is seen in a classroom, on a projector, by thirty people at once.
+Only the owner can fix it, because it needs artwork.
+
+**Fix.** Either supply the two images, or drop the `background` key from the
+three puzzles. The references were left in place on purpose: deleting them would
+delete the intent, and somebody clearly wanted a backdrop there.
+
+**Test.** `games/tests/games.data.test.js`, "every asset a game references
+exists", with these two paths listed by name in `MISSING_ARTWORK` and the reason
+written next to them. A *new* missing asset fails; verified by pointing a scene
+at a file that is not there. The same test in the games repository lists two more
+known gaps, both in `stop-train`, which carries a `hero` character template
+nothing references.
