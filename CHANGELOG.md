@@ -1,6 +1,6 @@
 # Changelog
 
-Write what changed under `## Unreleased`, and commit it. `npm version` refuses to
+Write what changed under `## 1.0.0 - 2026-09-06`, and commit it. `npm version` refuses to
 start without it, and renames that heading to the version it is cutting - so the
 entry is written while the change is fresh, and nobody has to predict a number.
 
