@@ -6,6 +6,13 @@ dist/
 # IDE state. workspace.xml in particular is per-user and per-machine.
 .idea/
 
-# Agent session transcripts. They were tracked once (171 MB, and they carried
-# working context from unrelated projects); keep them out. See EI-017.
-plans/sessions/
+# Agent session transcripts. They were tracked once as a 40 MB zip of 68
+# sessions from three unrelated projects, and EI-017 removed them for that
+# reason - not because a handover is unwelcome.
+#
+# So: the compressed transcript of the session being handed over is tracked, and
+# nothing else. One file, gzipped, this project only. A raw .jsonl is seven
+# megabytes and must not be committed; use the .gz.
+plans/sessions/*
+!plans/sessions/README.md
+!plans/sessions/*.jsonl.gz
