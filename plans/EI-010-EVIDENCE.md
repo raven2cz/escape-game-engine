@@ -55,8 +55,16 @@ Every game has exactly one scene with `end: true`.
 where the teaching actually is: `reactor`'s `puzzle-quiz-list-1` is nine physics
 questions in a row, `heat-escape` has four lists of three. The per-step result is
 built (`list.js:97`, `{ref, ok, ...}` per step) and resolved to the caller, and
-then discarded. **The question a teacher would most want answered - which
-question did the class get wrong - is computed and thrown away.**
+then discarded.
+
+**Corrected by Fable 5.1, and the correction is worse than the original claim.**
+A wrong answer is not computed and thrown away - it is mostly never computed. A
+kind with `blockUntilSolved` returns a hold, and `puzzles/index.js:87` returns
+early on a hold without ever calling `onResolve`, so the puzzle stays open and
+nothing downstream learns anything. Re-measured: **47 of the 62 leaf puzzles
+block**, including all nine steps of `reactor`'s quiz list. Only 7 of the 28 list
+steps can ever resolve a wrong answer to their list. The one place that does see
+every evaluation is the `onOk` wrapper, one line above the hold check.
 
 ---
 
@@ -125,9 +133,15 @@ Four properties of this that a design has to work around:
 
   *Corrects `OPEN-ITEMS.md` EI-010*, which described `openPuzzle` as an event path
   that writes no `solved`. It is an action rather than an event, and no game uses
-  it. `leeuwenhoek`'s `list-lab-demo` does set `aggregateOnly` on its five steps,
-  but that option is read by `list.js` for display and never reaches
-  `_appendPuzzleResult`.
+  it.
+
+  *And corrected in turn by Fable 5.1: `aggregateOnly` is not rare.* An earlier
+  draft of this document reported zero, having looked one level too high. It
+  occurs 56 times across five of the six games and is true at puzzle level on 16
+  puzzles. The conclusion survives intact, because the two write sites read the
+  **hotspot's** options (`engine.js:830`) and no hotspot in any game sets it.
+  Puzzle-level options do reach the kind - `base.js:26` spreads `config.options`
+  last, so they win - but not the append.
 
 ---
 
@@ -148,9 +162,11 @@ kind of progress already funnels through one function:
 
 Navigation is worth one note: it is written two ways in the data - a hotspot of
 `type: "goTo"` with a `target`, and an action `goTo: "<scene>"` - and both call
-the same `goto()`. Counted across the six games: 85 `target`, 104 `goTo`. So the
-*data* has no single spelling for "the team moved", but the *engine* has exactly
-one place where it happens. That asymmetry is the argument for emitting from the
+the same `goto()`. Counted properly across the six games - *an earlier draft gave
+104 `goTo`, which was a raw string count conflating the two uses; caught by
+Fable 5.1* - there are **85 hotspots of `type: "goTo"`** with a `target`, and
+**19 `goTo` actions**. So the *data* has no single spelling for "the team moved",
+but the *engine* has exactly one place where it happens. That asymmetry is the argument for emitting from the
 engine rather than deriving from game data.
 
 ---
@@ -168,7 +184,12 @@ which nobody has done yet and which is the biggest gap in this document.
 3. **Which question the class got wrong** - per-step results from the lists,
    aggregated across teams. This is the one that turns a game into a lesson: 22
    of the 71 puzzles are quizzes, and 28 are list steps.
-4. **Who has finished**, distinguished from who has navigated to the exit scene.
+4. **Who has finished.** *An earlier draft wanted this distinguished from
+   navigating to the exit scene. Fable 5.1 checked all six games: every exit is
+   behind that game's last gate, so reaching it is a legitimate finish and there
+   is nothing to distinguish.* The `game_completed` flag turns out to be
+   redundant - set once in three games' dialogs, required as a condition zero
+   times, read by nothing.
 5. **Attempts and mistakes per puzzle**, as the input to 2 and 3.
 
 None of 2, 3, 4 or 5 is derivable from the current state.
@@ -184,9 +205,12 @@ defects to learn.
   lesson routinely - it is the first thing anyone does when a game looks stuck.
   Anything held only in memory is lost, which is exactly how the list steps are
   lost today. `games/tests/helpers/reload.js` is the harness for testing this.
-- **A change to the saved shape is a `saveVersion` decision** and ends every
-  lesson in progress. `_signature()` and `_storageKey()` are the wipe switch. See
-  `docs/RELEASING.md`.
+- **Only the signature ends a lesson**, not the shape. *Corrected by Fable 5.1:
+  an earlier draft of this document said any change to the saved shape forces a
+  `saveVersion` bump. It does not. `_restoreState()` compares `saved.signature`
+  and nothing else; `stateSchemaVersion` is stamped and never compared. Adding
+  whitelisted fields ends nothing.* `_signature()` and `_storageKey()` remain the
+  wipe switch, and `docs/RELEASING.md` had this right.
 - **`_normalizeState()` is a whitelist**, so a field it does not know is dropped
   on the next load - including by an older engine. Rolling back past a release
   that added a field loses that field.
@@ -240,3 +264,26 @@ Stated so nobody mistakes an assumption for a finding.
   not designed either.
 - **Class size, lesson length and number of tablets** are not recorded anywhere in
   this repository, and they determine how much data a dashboard is aggregating.
+
+
+---
+
+## 10. Corrections after the design pass
+
+Fable 5.1 re-measured this document while designing against it and found five
+errors. All five were re-verified here against the code and the data before being
+folded in above, and all five held:
+
+| # | what this document said | what is true |
+|---|---|---|
+| 1 | wrong answers computed and discarded | mostly never computed - 47 of 62 leaf puzzles hold instead of resolving |
+| 2 | any saved-shape change ends every lesson | only the signature does; the schema version is never compared |
+| 3 | `aggregateOnly` used by one game | 56 occurrences in five games, 16 puzzles - conclusion survives, no hotspot sets it |
+| 4 | 104 `goTo` | 85 hotspots of that type plus 19 actions; 104 was a raw string count |
+| 5 | finishing must be told apart from reaching the exit | every exit is behind the last gate, so it cannot be faked |
+
+One defect was found that this document missed and that is not about dashboards
+at all: **EI-030**, a dropped `puzzles.json` request poisons the cache for the
+rest of the run.
+
+The design itself is [EI-010-DESIGN.md](EI-010-DESIGN.md).

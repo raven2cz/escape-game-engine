@@ -50,6 +50,7 @@ pre-existing defect rather than a new one.
 | EI-027 | P2   | DONE   | An unsupported tablet shows a blank page and says nothing        |
 | EI-028 | P1   | DONE   | Redrawing the match lines never terminates once a pair exists    |
 | EI-029 | P3   | DONE   | A list puzzle did not close the step it had started              |
+| EI-030 | P1   | OPEN   | One dropped puzzles.json makes every puzzle unopenable           |
 
 Where the fix lands is decided in [STABILIZATION.md](STABILIZATION.md).
 
@@ -1490,3 +1491,45 @@ it, in a `try` so that a half-built step cannot stop the rest of the teardown.
 
 **Test.** `games/tests/puzzles.list.teardown.test.js`: the step is closed, and a
 step that throws while closing does not break the list. Both fail before the fix.
+
+---
+
+## EI-030: One dropped puzzles.json makes every puzzle unopenable
+
+**Priority:** P1. Found by Fable 5.1 while designing EI-010, verified here.
+
+**Where:** `engine/engine.js`, `_ensurePuzzlesLoaded()`.
+
+**What happens.** The loader fetches `puzzles.json`, and on any failure - a
+network error, a non-`ok` response - swallows it and carries on with `json = {}`.
+Falling through to the third accepted shape, it then assigns
+`this.data.puzzles = {}`.
+
+The guard at the top of the function is `if (this.data?.puzzles && typeof
+... === 'object' && !Array.isArray(...)) return;`. An empty object satisfies all
+three. So the failure is cached as a valid answer, and every later call returns
+immediately without retrying.
+
+**Why it matters.** Every puzzle in the game becomes unopenable for the rest of
+the run. A team taps a puzzle hotspot and nothing happens, again and again, with
+no message. Only a reload clears it - and a reload restores the state, so the
+lesson is not lost, but nobody knows that reloading is the answer.
+
+This is the same class as EI-003: **a school network drops requests, and a
+dropped request is not an error anyone sees.** It is worse than EI-003 in reach -
+that one broke a scene image, this breaks all 71 puzzles - and better in that it
+is recoverable without losing progress.
+
+**Not related to dashboards.** It surfaced during the EI-010 audit because that
+audit had to read the puzzle loader, not because it has anything to do with the
+system state.
+
+**Fix.** Do not treat a failed fetch as an answer. Distinguish "not loaded yet"
+from "loaded and empty", and let a later attempt retry. Fable's plan folds this
+into step 3 of the EI-010 implementation, which also prefetches `puzzles.json`
+without awaiting it at `init()`; it is independent of that plan and could ship on
+its own.
+
+**Test.** Not yet written. It needs a fetch that fails once and then succeeds,
+and an assertion that the second puzzle open works - which no current test does,
+because the suite's fetch stub always succeeds.
