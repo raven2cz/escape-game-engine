@@ -94,8 +94,8 @@ tablets:
 
 ## Tests
 
-    npm test                 # in the engine repository, 224 tests
-    cd ../escape-games && npm test    # 7 tests, needs no engine
+    npm test                          # in the engine repository, 275 tests
+    cd ../escape-games && npm test    # 15 tests, needs no engine
 
 CI runs both on every push and pull request.
 

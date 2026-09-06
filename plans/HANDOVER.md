@@ -10,7 +10,7 @@ where the work is and what comes next.
     branch    fix/stabilization-audit
     base      main @ 5dbca85
     games     moved to raven2cz/escape-games (private); this repo keeps games/demo
-    suite     222 here, 7 in the games repository; CI runs both on push and PR
+    suite     275 here, 15 in the games repository; CI runs both on push and PR
 
 | commit | what |
 |---|---|
@@ -29,6 +29,14 @@ where the work is and what comes next.
 | `c055410` | GitHub Pages closed |
 | `2ac0ba7` | EI-025: games moved to the private repository |
 | `6f12df0` | EI-026: every asset a game references must exist |
+| `41b87c3` | EI-026, EI-027, EI-023 and the dead CSS |
+| `f9d582f` | EI-028, EI-029 and the correction to EI-027 |
+| `58f8bdc` | plans/RELEASE.md, reviewed by Fable |
+| `6b4d014` | `npm run dev`, serving both repositories |
+| `47793f6` | `meta.saveVersion` |
+| `3699742` | `engine/version.js` and the release mechanics |
+| `0a014fd` | `docs/RELEASING.md` |
+| `079fff4` | `engine/boot.js` |
 
 Twenty-six items are on the registry and twenty-four are closed. Every code batch
 in the plan is done, so are the defects the three review rounds turned up, so is
@@ -85,10 +93,16 @@ repository.
   step that transpiles, against the no-build design; the alternative is to say
   those devices are out of scope. The fallback was kept because a transpiler
   would not polyfill the DOM API.
+- **The first tag.** `v1.0.0` cannot be cut with `npm version` - package.json
+  already says 1.0.0 - so it is `git tag -a v1.0.0` by hand, once, after the
+  branch is merged to `main`. The games repository has no tag either. Both were
+  left for the owner, since the branch was to go to main together.
 - **How the games repository depends on the engine.** Deliberately unbound: a git
   dependency does not install on npm 12, and a submodule would pull 430 MB of
   history. The hosted runtime is what will put an engine version and a set of
-  games together. Until then the two repositories are cloned side by side.
+  games together, and `plans/RELEASE.md` section 4 states the contract it has to
+  honour. Until then the two repositories are cloned side by side and
+  `npm run dev` serves both.
 - **Whether `games/demo` should stay content-identical to a game that is sold.**
   It is the old `leeuwenhoek`, renamed. As a fixture it is worth more than
   anything purpose-built - 22 scenes, 7 events, 2 heroes, all nine puzzle kinds -

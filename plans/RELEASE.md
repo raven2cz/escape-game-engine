@@ -1,6 +1,10 @@
 # Versioning, release and local development
 
-Plan. Nothing here is implemented yet; `HANDOVER.md` says what is.
+**Status: implemented.** Steps 0 to 7 are done; see `HANDOVER.md` for the
+commits. What is left of this document is the reasoning behind the shape, which
+is worth keeping: `docs/RELEASING.md` says what to do, this says why. Section 4
+(what a deployment consumes) and section 10 (what is deliberately not here) are
+the parts the runtime design still has to honour.
 
 This exists because the games moved to their own private repository (EI-025) and
 nothing yet says how an engine version and a set of games are put together, how a
