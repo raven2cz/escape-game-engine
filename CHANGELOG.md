@@ -9,6 +9,12 @@ repository; see `docs/RELEASING.md` for which version means what.
 
 ## Unreleased
 
+- **A dropped puzzle file no longer breaks every puzzle for the rest of the
+  run.** When the network dropped the request for a game's puzzle definitions,
+  the engine cached the empty result as if it had loaded, so every puzzle became
+  unopenable - a tap did nothing, with no message - until a reload. It now
+  retries on the next puzzle instead. A school network drops requests and a drop
+  is not an error anyone sees, which is why this went unnoticed. (EI-030)
 - **A tablet too old to run the game now says so.** Below iPadOS 15 the engine
   fails on syntax before any of its own code runs, so the page simply stayed
   blank. `index.html` now shows "Načítám hru…" immediately and, if the engine has

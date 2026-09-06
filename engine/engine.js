@@ -884,13 +884,28 @@ export class Game {
         }
 
         const url = this._resolveAsset('puzzles.json');
-        let json = {};
+        let json;
+        let loaded = false;
         try {
             const r = await fetch(url, {cache: 'no-cache'});
-            if (r.ok) json = await r.json();
+            if (r.ok) {
+                json = await r.json();
+                loaded = true;
+            }
         } catch {
-            // ignore
+            // network error: leave `loaded` false
         }
+
+        // A failed fetch is not an answer. Returning without assigning
+        // `this.data.puzzles` leaves it unset, so the next puzzle-open tries
+        // again. The bug this guards against (EI-030): a dropped request left
+        // `json = {}`, which fell through to shape 3 and was stored as an empty
+        // map; the guard at the top of this function accepts an empty object as
+        // "already loaded", so every later call returned it without retrying,
+        // and every puzzle in the game became unopenable until a reload - with
+        // nothing on screen to say why. Same class as EI-003: a school network
+        // drops requests and a drop is not an error anyone sees.
+        if (!loaded) return;
 
         // 1) { byId: { ... } }
         if (json && typeof json === 'object' && json.byId && typeof json.byId === 'object') {
@@ -908,7 +923,9 @@ export class Game {
             return;
         }
 
-        // fallback, empty map
+        // Fetch succeeded but the body was not a shape we understand (null, a
+        // number, a bare string). Cache an empty map: unlike a dropped request,
+        // this will not parse differently on a retry.
         this.data.puzzles = {};
     }
 
