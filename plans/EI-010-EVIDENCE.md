@@ -113,8 +113,9 @@ puzzleResults[]     {ref, ok, detail}
 
 Four properties of this that a design has to work around:
 
-- **There is no time anywhere.** `Date.now()` appears five times in `engine.js`
+- **There is no time anywhere.** `Date.now()` appears four times in `engine.js`
   and every one is pointer-gesture handling (`:1090`, `:1106`, `:1209`, `:1221`).
+  *An earlier draft said five, from a combined grep; corrected.*
   No run start, no per-scene time, no timestamp on any recorded fact. So "which
   team is stuck" cannot be derived from the current state at all - not
   imprecisely, not at all.
@@ -286,4 +287,9 @@ One defect was found that this document missed and that is not about dashboards
 at all: **EI-030**, a dropped `puzzles.json` request poisons the cache for the
 rest of the run.
 
-The design itself is [EI-010-DESIGN.md](EI-010-DESIGN.md).
+A sixth was found afterwards and is corrected above: `Date.now()` occurs four
+times, not five.
+
+The design itself is [EI-010-DESIGN.md](EI-010-DESIGN.md), and
+[EI-010-MYSLENKA.md](EI-010-MYSLENKA.md) is the same design written for the owner
+in Czech, in terms of what a teacher does with it.
