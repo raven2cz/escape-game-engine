@@ -1,7 +1,17 @@
 # EI-010: the dashboard API and services, designed
 
-**Author: Claude (Opus 4.8), 2026-09-06. Status: design, for codex SOL review.**
+**Author: Claude (Opus 4.8), 2026-09-06. Status: reviewed by codex SOL; revised.**
 Not implemented. Fable does the implementation review later, once this is built.
+
+> **Read the [Revision after SOL review](#revision-after-sol-review) at the end
+> first.** SOL ([EI-010-SOL-REVIEW.md](EI-010-SOL-REVIEW.md)) endorsed the
+> architecture — private `RunProgress`, projected into a public `DashboardReport`,
+> synchronous cheap mutation with a deferred report — but found load-bearing gaps
+> that make the body below wrong or incomplete in specific places. The revision
+> is authoritative where it and the body disagree. The most important corrections:
+> the internal state has a *second* exit (the injected `storage`) that the no-leak
+> guarantee missed; held wrong answers neither carry `ok` nor trigger a save;
+> `openPuzzle` is never closed; and "off the render thread" was overclaimed.
 
 This is the implementation design for the dashboard-facing part of EI-010. It
 **supersedes the projection/transport recommendation** in
@@ -422,3 +432,202 @@ in this engine release; step 5 delivers the contract they consume.
 2. Class size / tablets / lesson length — sizes the server, not this engine work.
 3. Who and when builds the hosted runtime — without it the board does not run, and
    it is not in this repository.
+
+---
+
+## Revision after SOL review
+
+codex SOL reviewed the design above against the code and returned "sound
+architecture, not sound to implement as written". Its full text is
+[EI-010-SOL-REVIEW.md](EI-010-SOL-REVIEW.md). Every finding below was checked
+against the code before being accepted; the three sharpest were re-verified and
+held. This section is authoritative where it disagrees with the body above.
+
+What survives unchanged: the boundary (private `RunProgress` → pure projector →
+public `DashboardReport`), the report as the only thing a transport ever sees,
+and synchronous O(1) progress mutation followed by a deferred, coalesced report.
+SOL endorsed all of that. The rest is corrections.
+
+### 1. The internal state has a second exit — the injected `storage` (the important one)
+
+The no-leak guarantee was not structural. `_saveState()` hands the **raw live
+internal state** to the injected storage (`engine.js:2051`,
+`this.storage.save(this.state)`), and the storage is caller-supplied
+(`engine.js:69`), envisaged for a hosted/remote backend. Such an implementation
+could POST the private object to a server without ever touching
+`ReportTransport`. Verified.
+
+Correction, and it is a **product rule, not just a code one**:
+
+- `storage` is **local-only** — `localStorage` on the tablet, a cache. It is the
+  reload seam, not a network seam. The hosted runtime **must not** inject a
+  storage that transmits `this.state`.
+- The **only** sanctioned server exit is `ReportTransport`, which receives a
+  `DashboardReport`, never `this.state`.
+- The guarantee is scoped honestly: structural within the engine's supported
+  persistence and reporting paths. It is **not** protection against arbitrary
+  host-page JavaScript, which can still read `game.state` via the `onGame`
+  handle. That is the embedder's trust boundary, and `docs/DASHBOARD-API.md` will
+  say so.
+
+### 2. Held wrong answers carry no `ok`, and are not saved
+
+Two verified facts break the mistake counter as designed:
+
+- Every kind's held branch returns `{hold: true}` with **no `ok`** — and returns
+  the same shape when the puzzle is *locked* (`quiz.js:142` locked, `:181` wrong;
+  `code.js:87` locked, `:99` wrong). So a `{ref, ok}` hook cannot tell a wrong
+  answer from a lock. Treating every hold as wrong is unsafe.
+- A held wrong answer does not resolve the puzzle, so **no `_saveState()` runs**.
+  A plain dialog end with no flags or navigation is the same. The increment would
+  live in memory and a reload would lose it — so "reload-safe mistakes" was false.
+
+Corrections:
+
+- The eight kinds' evaluation must return an **explicit result**: wrong is
+  `{ok: false}` (held or not), locked is a distinct non-answer the hook ignores.
+  This is a small change in each kind's `evaluate`/`onOk`, so the honest cost is
+  **one hook plus a one-line result change in eight kinds** — not "one hook, no
+  other intrusion" as the body claimed. Still surgical, but say it plainly.
+- Split the two guarantees the body ran together:
+  - **Lesson continuity** — verified and safe, and untouched by all of this.
+  - **Telemetry continuity** — best-effort. A no-save transition (held wrong,
+    plain dialog end, `item:used` emitted after its own save at `engine.js:526`)
+    must schedule a **deferred persistence commit** so the next flush and the next
+    reload both see it. This is not absolute crash-durability, and the doc must
+    not pretend it is. The rule: **emit before any existing transition save; for
+    transitions with no save, schedule a commit.** The reload test reloads
+    immediately after each such transition, not after a later solve.
+
+### 3. `openPuzzle` is never closed → activity lies
+
+There is `puzzle:opened` but no close. `openPuzzle` clears only on scene entry, so
+`activity` claims a solved/failed/cancelled puzzle is still open until the team
+moves. Add a runner-level **`puzzle:settled`** covering all four completion
+routes — `resolveOk`, `resolveFail`, a non-held `onOk`, and `onRequestClose` — and
+clear `openPuzzle` on it. It needs runner identity/stack discipline because list
+containers nest their child runners, and the contract must define whether
+`activity` during a list means the current step, the container during its summary,
+or null. Lifecycle and `solved` hooks wrap `resolveOk`/`resolveFail`
+(`list.js:223`), not only `onOk`.
+
+### 4. The choke points, corrected against the code
+
+- **No `giveItem()` method.** Items enter at `engine.js:811` (pickup) and
+  `engine.js:1006`/`:1011` (`actions.giveItem`). Both sites emit.
+- **Scene commit is two sites** — the immediate image-success branch
+  (`engine.js:323`) and the late-load handler after a timeout (`:344`).
+  `scene:entered` emits before the save in both.
+- **Do not emit completion from the `scene.end` message** (`engine.js:378`): that
+  line also runs after an image error or timeout when `state.scene` has not moved.
+  `run:completed` fires from the successful entry to an `end` scene, once.
+- **Dialog id before the clear.** `_end()` clears `active` before running end
+  actions (`dialogs.js:652`); capture the canonical id first, and decide
+  explicitly whether it is `dlg.id` or the requested alias.
+
+### 5. "Off the render thread" was overclaimed
+
+`setTimeout` still runs on Safari's main thread, and `queueMicrotask` drains
+**before** the browser paints, so neither yields to rendering. The honest,
+testable claim:
+
+- Signal mutation is O(1) and bounded.
+- Projection and serialization do **not** run in the engine's transition stack —
+  they run in a deferred **timer task** (not a microtask).
+- The flush has a **measured maximum synchronous budget on the floor iPad**
+  (iPadOS 15), and report size is bounded and tested against it.
+- A literal "never blocks the render thread" is only achievable by moving
+  projection/serialization to a Worker, which itself has hand-off cost. We are
+  **not** doing that; we are committing to a small measured budget instead. The
+  body's wording is replaced by this.
+
+### 6. Identity and ordering: `run` + `revision`
+
+`updatedAt` is a tablet clock and cannot order concurrent sends, retries and a
+terminal beacon, nor tell a restart that reused `session/game/team`. Add:
+
+- a public **`run`** id (minted at run start, re-minted on restart) and a
+  persisted **monotonic `revision`** (incremented per report);
+- the idempotency/order key `(session, game, team, run, revision)`, which the
+  server uses to keep the latest and drop stale arrivals;
+- a transport that **retains and retries the latest unsent report even if no
+  later signal occurs** — "retry on the next flush" is not enough for a failed
+  final report.
+
+### 7. Transport owns URL/auth/lifecycle; server does not trust the tablet
+
+`send(report)` with the reporter calling `sendBeacon(url, json)` itself was split
+wrong. Instead:
+
+- `ReportTransport.send(report, { terminal }) → void | Promise<void>`. URL, auth
+  and the beacon-vs-fetch choice live **inside** the transport; `terminal: true`
+  is the unload path.
+- The reporter catches both a synchronous throw and a rejected promise.
+- **The server binds `session`/`team` from authenticated runtime context**, not
+  from fields the tablet supplied. The report's `session`/`team` are hints for
+  correlation, not trust.
+
+### 8. Lifecycle beaconing is best-effort, not a guarantee
+
+Remove the body's claim that the handlers make the final mistake or completion
+"actually arrive". `visibilitychange → hidden` is primary, `pagehide` a backup,
+and **neither is guaranteed** on iOS — WebKit documents cases where no unload
+event fires before the process is killed, and `sendBeacon` can return `false` and
+shares a ~64 KiB queue. So: continuous sending is what limits loss; the beacon is
+a best-effort last flush that dedupes on `revision`, checks its return value,
+handles bfcache restore, and is never the only retry. (`requestIdleCallback` is
+indeed absent on iPadOS 15 Safari — SOL confirmed — so avoiding it stands.)
+
+### 9. Deep, allow-listed serialization
+
+`Object.freeze` is shallow and a value object could retain a reference into
+internal state. The wire boundary serializes a **fresh, deeply independent plain
+object whose nested keys and primitive types are explicitly allow-listed**. The
+no-leak test inspects the **actual serialized request body recursively**, not the
+report's top-level keys.
+
+### 10. Catalogue is not available at boot
+
+`init()` loads only `scenes.json`; puzzles load lazily via
+`_ensurePuzzlesLoaded()` (`engine.js:880`) — the same loader EI-030 just fixed.
+So `puzzlesTotal` is not known at first render. The design:
+
+- starts the puzzle fetch **without delaying first render**;
+- defines a **catalogue-ready** signal; until it fires, `scenesTotal`/
+  `puzzlesTotal` are **`null` (unknown)**, never `0` — a zero would read as "no
+  puzzles" and make every team look finished;
+- after a load failure the totals stay `null` (explicit unknown), and EI-030's
+  retry eventually fills them.
+
+### 11. The flags/milestone contradiction
+
+The body promised flags "in a details drawer", but a `DashboardReport` with no
+flags field and a ban on shipping internal state cannot supply that drawer.
+Resolved: the report gains an optional, **declared** `milestones: string[]` — ids
+a game names in `meta.dashboard` as milestones (e.g. `met_leeuwenhoek`), projected
+as reached/not. The internal flags map is **never** shipped. If a game declares no
+milestones, the field is empty and the board shows none.
+
+### 12. Smaller specifics to pin before coding
+
+- `STATE_SCHEMA_VERSION` stays **1**: the repo's own convention (`engine.js:18`)
+  is that additive fields do not bump it; a bump means a migration. The body's
+  "bump for cleanliness" is dropped.
+- Dedup: `{ref, ok}` cannot tell a double-tap from two genuine rapid wrong
+  answers. The `puzzle:evaluated` signal carries an **interaction id** (one per
+  distinct submit gesture); the model dedupes on that, not on a 1 s window.
+- Define exactly: what "touched" means (a puzzle appears in `puzzles` once it has
+  a first evaluation); that a list container is not itself a task, its steps are;
+  that an empty submission is not a mistake; whether `attempts` counts a solve;
+  array ordering (stable, by first-touch); and a maximum UTF-8 wire size with the
+  beacon's ~64 KiB in mind.
+
+### Net effect on the plan
+
+Architecture and build order (§4, §11) stand. The additions are: `run`/`revision`
+and a settled-puzzle lifecycle in step 1; explicit evaluation results across the
+eight kinds and deferred-commit persistence in step 2; deep allow-listed
+serialization and the no-leak-on-the-wire test in step 3; the transport lifecycle
+API, retry-latest, and best-effort beacon in step 4; catalogue-ready and the
+`storage` local-only rule documented in step 5. No `saveVersion` still moves, and
+it is still one release. SOL should see this revision before any code is written.
