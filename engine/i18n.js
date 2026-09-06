@@ -20,6 +20,10 @@ export const ENGINE_I18N = {
         'engine.use.notApplicable': 'Tento předmět tady nelze použít.',
         'engine.video.skip': 'Přeskočit video',
         'engine.video.play': '▶ Přehrát',
+        'engine.appTitle': 'Úniková hra',
+        'engine.restart': '↺ Restart',
+        'engine.editor': '✎ Edit',
+        'engine.aspectDrift': 'Pozor: tento obrázek má jiný poměr stran než ostatní. Doporučeno sjednotit.',
     },
     en: {
         'engine.sceneNotFound': 'Scene not found: {id}',
@@ -41,5 +45,9 @@ export const ENGINE_I18N = {
         'engine.use.notApplicable': 'You cannot use this item here.',
         'engine.video.skip': 'Skip video',
         'engine.video.play': '▶ Play',
+        'engine.appTitle': 'Escape game',
+        'engine.restart': '↺ Restart',
+        'engine.editor': '✎ Edit',
+        'engine.aspectDrift': 'This image has a different aspect ratio from the others. Worth making them consistent.',
     }
 };
