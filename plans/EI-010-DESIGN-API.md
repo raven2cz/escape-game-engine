@@ -425,13 +425,17 @@ in this engine release; step 5 delivers the contract they consume.
 - The no-leak guarantee is structural (the projector names fields) — is there any
   path where a value object carries a back-reference to internal state?
 
-## Open, still the owner's
+## Decided by the owner
 
-1. Delete leeuwenhoek's seven unreachable puzzles? (Affects `puzzlesTotal`; nothing
-   restarts — unreachable puzzles are in no saved state.)
-2. Class size / tablets / lesson length — sizes the server, not this engine work.
-3. Who and when builds the hosted runtime — without it the board does not run, and
-   it is not in this repository.
+1. **Do not delete leeuwenhoek's seven unreachable puzzles.** It is the demo and
+   may still be used; nothing structural is to be done there. This costs the
+   engine work nothing: `puzzlesTotal` counts *reachable* leaf puzzles, so the
+   seven orphans are excluded whether or not they exist in the file. No design
+   change.
+2. **Class size / tablets / lesson length, and who builds the hosted runtime, are
+   out of scope here.** They belong to the server and dashboard, a separate
+   repository and a later phase. This engine work builds the system state and the
+   key data it projects into the API; it does not build or size the board.
 
 ---
 
