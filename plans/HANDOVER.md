@@ -10,7 +10,7 @@ where the work is and what comes next.
     branch    fix/stabilization-audit
     base      main @ 5dbca85
     games     moved to raven2cz/escape-games (private); this repo keeps games/demo
-    suite     213 here, 7 in the games repository; CI runs both on push and PR
+    suite     222 here, 7 in the games repository; CI runs both on push and PR
 
 | commit | what |
 |---|---|
@@ -78,6 +78,13 @@ repository.
 
 **Still open, and it needs the owner:**
 
+- **Whether an iPad older than iOS 13.4 is supported.** EI-027 gave the match
+  puzzle a fallback for the missing `ResizeObserver`, but the engine's own syntax
+  has the same floor: 285 uses of optional chaining and 80 of `??`, all Safari
+  13.1. Such an iPad cannot parse the engine at all. Supporting it means a build
+  step that transpiles, against the no-build design; the alternative is to say
+  those devices are out of scope. The fallback was kept because a transpiler
+  would not polyfill the DOM API.
 - **How the games repository depends on the engine.** Deliberately unbound: a git
   dependency does not install on npm 12, and a submodule would pull 430 MB of
   history. The hosted runtime is what will put an engine version and a set of

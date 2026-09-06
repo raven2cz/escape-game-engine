@@ -43,6 +43,53 @@ const mount = () => {
     return runner;
 };
 
+describe('redrawing the connection lines', () => {
+    beforeEach(() => {
+        document.body.innerHTML = '';
+    });
+
+    afterEach(() => {
+        document.body.innerHTML = '';
+    });
+
+    it('terminates when there is a pair on screen', async () => {
+        // _updateConnectionLines() walked `_connectionLines` with Map.forEach,
+        // deleting each entry and immediately having _drawConnectionLine() put
+        // the same key back. A Map visits entries added during iteration, and a
+        // delete followed by a set appends the key at the end, so the loop
+        // visits it again, forever. It is synchronous and inside a
+        // requestAnimationFrame, so it does not just fail: it takes the main
+        // thread with it and the tablet stops responding.
+        //
+        // It needs a pair to exist first, which is why nothing caught it: with
+        // no lines drawn the map is empty and the loop has nothing to spin on.
+        // Rotating a tablet after connecting one pair is all it takes.
+        const runner = mount();
+        const puzzle = runner.puzzle;
+
+        puzzle._drawConnectionLine('a', 'b', 'rgba(1,2,3,0.4)', 0);
+        expect(puzzle._connectionLines.size).toBe(1);
+
+        // Bound the damage: a runaway loop would spin the CPU and no test
+        // timeout can interrupt it, so make the redraw itself give up loudly.
+        const real = puzzle._drawConnectionLine.bind(puzzle);
+        let calls = 0;
+        puzzle._drawConnectionLine = (...args) => {
+            if (++calls > 50) throw new Error(`_updateConnectionLines did not terminate (${calls} redraws for 1 pair)`);
+            return real(...args);
+        };
+
+        puzzle._updateConnectionLines();
+        await new Promise(res => requestAnimationFrame(res));
+
+        expect(calls).toBe(1);
+        expect(puzzle._connectionLines.size).toBe(1);
+        expect(document.querySelectorAll('.pz-match-connections path')).toHaveLength(1);
+
+        runner.unmount();
+    });
+});
+
 describe('match puzzle in columns mode, on a browser without ResizeObserver', () => {
     let saved;
 

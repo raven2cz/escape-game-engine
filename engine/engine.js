@@ -369,10 +369,17 @@ export class Game {
      * against the same box either way. Same host as the dialog overlay uses.
      */
     _modalHost() {
-        return this.sceneImage?.closest('#sceneContainer')
-            || this.hotspotLayer?.parentElement
-            || this.hotspotLayer
-            || document.body;
+        const container = this.sceneImage?.closest('#sceneContainer');
+        if (container) return container;
+
+        // No scene container: a bare test DOM, or the engine embedded in
+        // something else. Fall back to the hotspot layer rather than to
+        // document.body. A surface here is positioned in percentages, and on
+        // the body they would resolve against the viewport, so an embedded
+        // 800x450 game would open a puzzle the size of the screen. Mounting in
+        // the layer is no longer destructive: _renderHotspots() removes only
+        // the children it drew.
+        return this.hotspotLayer || document.body;
     }
 
     /** The scene the pupil is looking at, which is not always the saved one. */

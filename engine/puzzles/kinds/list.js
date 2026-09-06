@@ -119,11 +119,17 @@ export default class ListPuzzle extends BasePuzzle {
 
                 // Progress to next
                 runner.unmount();
+                this._activeRunner = null;
                 this._currentIdx++;
                 this._runSequence(steps);
             }
         });
 
+        // Held so that unmount() can close it. A step that is still open when
+        // the list itself is torn down would otherwise never be cleaned up: its
+        // DOM goes with the list's container, but anything it registered
+        // outside itself - a window listener, a timer - stays behind.
+        this._activeRunner = runner;
         runner.mountInto(this.container);
     }
 
@@ -227,6 +233,15 @@ export default class ListPuzzle extends BasePuzzle {
     }
 
     unmount() {
+        // Close the step that is still running, if there is one.
+        if (this._activeRunner) {
+            try {
+                this._activeRunner.unmount();
+            } catch { /* a half-built step must not stop the rest of the teardown */
+            }
+            this._activeRunner = null;
+        }
+
         if (this._bgOverlay?.parentNode) {
             this._bgOverlay.parentNode.removeChild(this._bgOverlay);
         }

@@ -47,7 +47,9 @@ pre-existing defect rather than a new one.
 | EI-024 | P2   | DONE   | A single flag name set one flag per character instead           |
 | EI-025 | P1   | DONE   | Proprietary games sat in a public repository                     |
 | EI-026 | P3   | DONE   | Three demo puzzles name a backdrop that has never existed        |
-| EI-027 | P2   | DONE   | Match puzzles do not open on an iPad older than iOS 13.4         |
+| EI-027 | P2   | PART   | Match puzzles do not open on an iPad older than iOS 13.4         |
+| EI-028 | P1   | DONE   | Redrawing the match lines never terminates once a pair exists    |
+| EI-029 | P3   | DONE   | A list puzzle did not close the step it had started              |
 
 Where the fix lands is decided in [STABILIZATION.md](STABILIZATION.md).
 
@@ -1328,3 +1330,90 @@ the browser has one. The first three fail before the fix, with the same
 while this defect was live: it made every test run look like a modern iPad. The
 new test deletes the stub for its own cases, which is the only way to see the
 old one.
+
+**Status corrected to PART after review: the fallback cannot fire on any real
+browser, and it does not deliver what it was asked to.** codex SOL pointed out
+that the engine's own syntax has the same floor as the API it works around.
+Counted: 285 uses of optional chaining and 80 of `??` across `engine/`. Both
+landed in Safari 13.1, which is iOS 13.4, the same release that brought
+`ResizeObserver`. So an iPad too old for `ResizeObserver` cannot parse the engine
+at all - it fails at the first module, before any of this runs. The same holds
+elsewhere: Chrome had `ResizeObserver` in 64 and optional chaining only in 80, so
+every browser that can read the engine already has the observer.
+
+**The fallback was kept anyway**, because supporting those iPads means adding a
+build step that transpiles the syntax, and a transpiler does not polyfill a DOM
+API - `ResizeObserver` would still be missing and this code would then be the
+thing that makes the puzzle open. It is necessary but not sufficient, and this
+entry says so rather than letting a future session assume the question is closed.
+
+**What is actually still open.** Supporting an iPad older than iOS 13.4 requires
+a build step for the engine, which is a decision against its no-build design, or
+a decision that those devices are out of scope. That is the owner's, and it is
+the real content of the iPad question the audit raised.
+
+---
+
+## EI-028: Redrawing the match lines never terminates once a pair exists
+
+**Priority:** P1. Found by codex SOL while reviewing EI-027.
+
+**Where:** `engine/puzzles/kinds/match.js`, `_updateConnectionLines()`.
+
+**What happened.** The method walked `this._connectionLines` with
+`Map.prototype.forEach`, deleting each entry and letting `_drawConnectionLine()`
+put the same key straight back. A `Map` visits entries added while it is being
+iterated, and a delete followed by a set appends the key at the end, so `forEach`
+reached it again. And again. Confirmed directly: the same one-line pattern loops
+without end.
+
+**Why it is P1.** The loop is synchronous and runs inside a
+`requestAnimationFrame` callback, so it does not merely fail - **it takes the
+main thread with it.** The tablet stops responding: no taps, no scrolling, no way
+out but closing the tab, which for a team means the lesson.
+
+Reaching it took one connected pair and anything that fires the redraw. On a
+current iPad that is the `ResizeObserver`, so: connect a pair, rotate the tablet.
+Four of the six games use `columns` mode.
+
+**Why nothing caught it.** With no pair connected the map is empty and the loop
+has nothing to spin on, so every test that resized an untouched puzzle passed.
+`_isUpdatingLines` looks like it should have helped and does not: it guards a
+second call arriving while a frame is outstanding, not this loop.
+
+**Fix as applied.** Take a copy of the values, clear the map, then redraw from
+the copy. The iteration no longer walks the structure it is rebuilding.
+
+**Test.** `games/tests/puzzles.match.resize.test.js`, "terminates when there is a
+pair on screen". It draws one line, then bounds the damage before triggering the
+redraw: a runaway loop would spin the CPU and no test timeout can interrupt it,
+so `_drawConnectionLine` is wrapped to give up loudly after 50 calls. Before the
+fix it reported 51 redraws for one pair.
+
+---
+
+## EI-029: A list puzzle did not close the step it had started
+
+**Priority:** P3. Found by codex SOL in the same review.
+
+**Where:** `engine/puzzles/kinds/list.js`.
+
+**What happened.** A `list` puzzle runs other puzzles as its steps, creating a
+runner for each. It did not keep hold of that runner, and its own `unmount()`
+only removed its background overlay. Normal progression was safe, because each
+step unmounts the previous one as it resolves; tearing the list down while a step
+was still open was not. The step's DOM went with the list's container, but
+anything the step had registered outside itself stayed behind - a `window`
+listener, a pending timer.
+
+**Why it is P3.** Nothing in production reaches it today: the leak SOL traced it
+through is EI-027's fallback, which cannot fire on a real browser. It is a
+structural gap rather than a live defect - a parent that spawns children and does
+not own their teardown - and it will matter in the hosted runtime, where one page
+may serve several lessons in a row.
+
+**Fix as applied.** `_activeRunner` holds the current step and `unmount()` closes
+it, in a `try` so that a half-built step cannot stop the rest of the teardown.
+
+**Test.** `games/tests/puzzles.list.teardown.test.js`: the step is closed, and a
+step that throws while closing does not break the list. Both fail before the fix.

@@ -237,19 +237,29 @@ export default class MatchPuzzle extends BasePuzzle {
 
         // Use requestAnimationFrame to batch updates
         requestAnimationFrame(() => {
-            this._connectionLines.forEach((line, key) => {
+            // Take the lines out first, then redraw from the copy.
+            //
+            // This used to walk the live Map: delete the entry, then let
+            // _drawConnectionLine() put the same key straight back. A Map visits
+            // entries added while it is being iterated, and a delete followed by
+            // a set appends the key at the end, so forEach reached it again and
+            // again. Nothing broke out of it. It runs synchronously inside this
+            // animation frame, so it did not merely fail: it took the main
+            // thread with it and the tablet stopped responding. One connected
+            // pair and a rotation was enough. _isUpdatingLines never covered
+            // this - it guards a second call, not this loop.
+            const lines = [...this._connectionLines.values()];
+            this._connectionLines.clear();
+
+            for (const line of lines) {
                 const id1 = line.getAttribute('data-id1');
                 const id2 = line.getAttribute('data-id2');
                 const color = line.getAttribute('stroke');
                 const pairIndex = parseInt(line.getAttribute('data-pair-index'), 10);
 
-                // Remove old line
                 line.remove();
-                this._connectionLines.delete(key);
-
-                // Redraw with current positions
                 this._drawConnectionLine(id1, id2, color, pairIndex);
-            });
+            }
 
             // Reset flag after updates complete
             this._isUpdatingLines = false;
