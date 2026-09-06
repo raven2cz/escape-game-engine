@@ -1,12 +1,13 @@
 # Changelog
 
-One section per release. `npm version` refuses to cut a release that has no
-section here, so this is written before the tag, not after it.
+Write what changed under `## Unreleased`, and commit it. `npm version` refuses to
+start without it, and renames that heading to the version it is cutting - so the
+entry is written while the change is fresh, and nobody has to predict a number.
 
 Versions are the engine's own. Games are versioned separately, in their own
 repository; see `docs/RELEASING.md` for which version means what.
 
-## 1.0.0
+## Unreleased
 
 The first tagged release, cut after the stabilization audit of September 2026.
 `plans/OPEN-ITEMS.md` has the full registry with the reasoning for each fix;

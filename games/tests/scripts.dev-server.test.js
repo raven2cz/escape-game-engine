@@ -10,13 +10,14 @@
 // they need a test on a desktop.
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve, sep } from 'node:path';
 import {
     createDevServer,
     findGames,
     mimeFor,
+    parseArgs,
     parseRange,
     resolveRequest,
 } from '../../scripts/dev-server.mjs';
@@ -212,5 +213,64 @@ describe('over an actual socket', () => {
         expect(r.status).toBe(200);
         expect(r.headers.get('content-length')).toBe('10');
         expect(await r.text()).toBe('');
+    });
+});
+
+describe('symlinks', () => {
+    // The prefix check is on the text of a path. A symlink inside a game
+    // pointing at a home directory has a perfectly innocent-looking path and
+    // createReadStream follows it, so the text is not the boundary - what the
+    // path resolves to is. This matters because the server is meant to be opened
+    // to the LAN with --host 0.0.0.0 so a tablet can reach it.
+    let sneaky;
+    let secretDir;
+    let sneakyGames;
+
+    beforeAll(() => {
+        secretDir = mkdtempSync(join(tmpdir(), 'secret-'));
+        writeFileSync(join(secretDir, 'private.txt'), 'not yours');
+
+        sneaky = mkdtempSync(join(tmpdir(), 'sneaky-'));
+        mkdirSync(join(sneaky, 'trap', 'assets'), { recursive: true });
+        writeFileSync(join(sneaky, 'trap', 'scenes.json'), JSON.stringify({ meta: { id: 'trap' } }));
+        writeFileSync(join(sneaky, 'trap', 'assets', 'ok.txt'), 'fine');
+        symlinkSync(secretDir, join(sneaky, 'trap', 'assets', 'out'), 'dir');
+
+        ({ games: sneakyGames } = findGames([sneaky]));
+    });
+
+    afterAll(() => {
+        rmSync(sneaky, { recursive: true, force: true });
+        rmSync(secretDir, { recursive: true, force: true });
+    });
+
+    it('refuses to follow a link out of a game', () => {
+        const hit = resolveRequest('/games/trap/assets/out/private.txt', sneakyGames);
+        expect(hit.file).toBeUndefined();
+        expect(hit.status).toBe(403);
+    });
+
+    it('still serves the game itself', () => {
+        expect(resolveRequest('/games/trap/assets/ok.txt', sneakyGames).file).toBeTruthy();
+    });
+});
+
+describe('the options', () => {
+    it('refuses an option with no value instead of crashing', () => {
+        // `npm run dev -- --games` is a typo, and a stack trace is a poor way to
+        // say so.
+        expect(() => parseArgs(['--games'])).toThrow(/--games needs a value/);
+        expect(() => parseArgs(['--port', '--host', 'x'])).toThrow(/--port needs a value/);
+    });
+
+    it('refuses a port that is not one', () => {
+        expect(() => parseArgs(['--port', 'abc'])).toThrow(/--port must be a number/);
+        expect(() => parseArgs(['--port', '99999'])).toThrow(/--port must be a number/);
+    });
+
+    it('takes several game roots', () => {
+        const opts = parseArgs(['--games', 'a', '--games', 'b', '--port', '8080']);
+        expect(opts.games).toEqual(['a', 'b']);
+        expect(opts.port).toBe(8080);
     });
 });

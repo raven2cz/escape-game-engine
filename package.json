@@ -22,7 +22,7 @@
     "scripts": {
         "test": "vitest run",
         "dev": "node scripts/dev-server.mjs",
-        "preversion": "npm test",
+        "preversion": "npm test && node scripts/version-sync.mjs --check",
         "version": "node scripts/version-sync.mjs && git add engine/version.js CHANGELOG.md"
     }
 }

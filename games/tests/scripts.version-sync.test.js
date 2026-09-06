@@ -11,11 +11,11 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { syncVersion } from '../../scripts/version-sync.mjs';
+import { checkUnreleased, syncVersion } from '../../scripts/version-sync.mjs';
 
 let root;
 
-const build = ({ version = '1.2.3', engineVersion = '0.0.0', changelog = '## 1.2.3\n' } = {}) => {
+const build = ({ version = '1.2.3', engineVersion = '0.0.0', changelog = '## Unreleased\n\n- something\n' } = {}) => {
     writeFileSync(join(root, 'package.json'), JSON.stringify({ version }));
     mkdirSync(join(root, 'engine'), { recursive: true });
     writeFileSync(
@@ -43,22 +43,44 @@ describe('version-sync', () => {
             .toContain("ENGINE_VERSION = '1.2.3'");
     });
 
-    it('refuses a release with nothing written in the changelog', () => {
-        // The entry is written before the tag or it is written never.
-        build({ changelog: '# Changelog\n\n## 1.0.0\n' });
-        const result = syncVersion(root);
+    it('gives the Unreleased section its number', () => {
+        // Written under Unreleased while the change is fresh, numbered here, so
+        // nobody has to predict what npm will call it.
+        build();
+        syncVersion(root);
+
+        const changelog = readFileSync(join(root, 'CHANGELOG.md'), 'utf8');
+        expect(changelog).toContain('## 1.2.3');
+        expect(changelog).not.toContain('## Unreleased');
+        expect(changelog).toContain('- something');
+    });
+
+    it('refuses to start a release with nothing written down', () => {
+        // This runs in `preversion`, before npm has touched anything, so the
+        // repository is left exactly as it was rather than half-bumped.
+        build({ changelog: '# Changelog\n\n## 1.0.0\n\n- old news\n' });
+        const result = checkUnreleased(root);
 
         expect(result.ok).toBe(false);
-        expect(result.problems.join(' ')).toContain('no "## 1.2.3" section');
+        expect(result.problems.join(' ')).toContain('no "## Unreleased" section');
+    });
+
+    it('refuses an Unreleased section with nothing under it', () => {
+        build({ changelog: '# Changelog\n\n## Unreleased\n\n## 1.0.0\n\n- old news\n' });
+        const result = checkUnreleased(root);
+
+        expect(result.ok).toBe(false);
+        expect(result.problems.join(' ')).toContain('is empty');
     });
 
     it('refuses a release with no changelog at all', () => {
         build({ changelog: null });
+        expect(checkUnreleased(root).ok).toBe(false);
         expect(syncVersion(root).ok).toBe(false);
     });
 
-    it('accepts the changelog heading in either form', () => {
-        build({ changelog: '## [1.2.3] - 2026-09-06\n' });
+    it('accepts a changelog that already names the version', () => {
+        build({ changelog: '## [1.2.3] - 2026-09-06\n\n- done\n' });
         expect(syncVersion(root).ok).toBe(true);
     });
 
@@ -69,7 +91,7 @@ describe('version-sync', () => {
     });
 
     it('says nothing changed when it is already in step', () => {
-        build({ engineVersion: '1.2.3' });
+        build({ engineVersion: '1.2.3', changelog: '## 1.2.3\n\n- done\n' });
         const result = syncVersion(root);
 
         expect(result.ok).toBe(true);

@@ -94,10 +94,11 @@ tablets:
 
 ## Tests
 
-    npm test                          # in the engine repository, 275 tests
-    cd ../escape-games && npm test    # 15 tests, needs no engine
+    npm test                          # in the engine repository, 283 tests
+    cd ../escape-games && npm test    # 19 tests, needs no engine
 
-CI runs both on every push and pull request.
+CI runs both on every push and pull request. The games repository had no workflow
+until codex SOL pointed out that this sentence was not true there.
 
 The engine's suite lives in `games/tests/`. Two things to know before adding to
 it:

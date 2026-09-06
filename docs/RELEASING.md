@@ -40,10 +40,18 @@ nothing on screen to say so.
 
 So:
 
-- **Releasing an engine never loses anything.** The engine version is not in the
-  signature. A team reloads onto the new code and their progress is still there,
-  which is what makes an engine fix safe to ship during a school day - and useful,
-  because reloading is exactly what somebody does when a game looks stuck.
+- **Changing `ENGINE_VERSION` alone never loses anything.** The engine version is
+  not in the signature. A team reloads onto the new code and their progress is
+  still there, which is what makes an engine fix safe to ship during a school day
+  - and useful, because reloading is exactly what somebody does when a game looks
+  stuck.
+
+  Note the "alone". It is the *version number* that is harmless, not every engine
+  change: `_restoreState()` runs `_migrateState()` and `_normalizeState()` on
+  load, and `init()` saves the result immediately. A release that makes
+  normalisation stricter can therefore drop fields and write the smaller state
+  back, without touching either function named below. Treat a change to those two
+  as a change to the save format.
 - **A content fix loses nothing either**, as long as `saveVersion` is untouched.
 - **Bumping `saveVersion` restarts every team of that game.** Schedule it outside
   school hours and write it in the games repository's `CHANGELOG.md`;
@@ -60,7 +68,8 @@ The engine cannot detect this and the failure is silent, so it is a rule rather
 than a check.
 
 **Safe, no `saveVersion` bump:** adding scenes, items, flags, puzzles, events;
-changing any text, translation, image, rect, hint or theme.
+changing any text, translation, rect, hint or theme; replacing an image **at the
+same path**.
 
 **Needs a `saveVersion` bump:** renaming or removing any id a save can hold - a
 scene, item, flag, puzzle ref, event id or content id - or changing what an
@@ -77,8 +86,10 @@ Three more that surprise people:
 - `state.hero` is a **copy** of the hero profile taken at first load. Fixing a
   hero's name or `assetsBase` never reaches a team already playing.
 - `state.sceneImages` stores the **raw path** given to `setSceneImage`. Renaming
-  that asset gives those teams an eight second timeout on every visit to the
-  scene, not the new picture.
+  or moving that asset gives those teams an eight second timeout on every visit
+  to the scene rather than the new picture, and if the `once` event that set it
+  has already fired the new path is never installed at all. That is why "changing
+  an image" is only safe when the path stays.
 - An unknown scene id falls back to the **start scene**. Not a wipe - inventory
   and flags survive - but in a 22-scene game it will be reported as one.
 
@@ -92,16 +103,34 @@ Three more that surprise people:
 That is the whole procedure. The checks are in npm's lifecycle, so they run
 **before** the commit and the tag rather than after:
 
-- `preversion` runs the suite. npm already refuses a dirty tree.
-- `version` writes `engine/version.js` from `package.json`, refuses if
-  `CHANGELOG.md` has no `## <version>` section, and stages both. npm folds them
-  into the version commit.
+- `preversion` runs the suite and checks `CHANGELOG.md` has an `## Unreleased`
+  section with something under it. npm already refuses a dirty tree. **Nothing
+  has been changed at this point**, so a failure here leaves the repository
+  exactly as it was.
+- `version` renames `## Unreleased` to `## <version>`, writes `engine/version.js`
+  from `package.json`, and stages both. npm folds them into the version commit.
 
-A non-zero exit from either aborts before anything is committed. So a release
-that would have been wrong leaves no tag to clean up.
+A non-zero exit from either aborts before the commit and the tag.
 
-Write the changelog entry **first**. The hook will not let you tag without it,
-which is deliberate: the entry is written while you remember what changed.
+Write the changelog entry **first, under `## Unreleased`, and commit it.** npm
+refuses a dirty tree, so an uncommitted entry stops the release before it starts;
+`preversion` then checks the section exists and has something under it. The
+`version` hook renames the heading to the number being cut, so nobody has to
+predict what npm will call it.
+
+**If the `version` hook does reject something**, npm has already rewritten
+`package.json` and `package-lock.json`, and there is no commit and no tag. The
+tree is left dirty. Undo it with:
+
+    git checkout package.json package-lock.json
+
+That is why the substantive check lives in `preversion`, where a failure changes
+nothing at all.
+
+**`git push && git push --tags` is two operations.** If the second fails, the
+version commit is on the remote without its tag: push the tag again. If the
+release workflow fails, the tag is there with no GitHub Release; fix the cause
+and re-run the workflow rather than moving the tag.
 
 Pushing the tag runs `.github/workflows/release.yml`, which re-runs the suite as
 a guard against a hand-made tag, refuses a tag that disagrees with
@@ -111,8 +140,10 @@ a guard against a hand-made tag, refuses a tag that disagrees with
     escape-game-engine-<version>.tar.gz.sha256
 
 The tarball contains `engine/ styles/ index.html LICENSE README.md` and **no
-games**. Its file list comes from `package.json#files`, so the archive and an npm
-pack cannot disagree about what the engine is.
+games**. Its file list comes from `package.json#files`, so there is one list
+rather than two to keep in step. (It is not byte-identical to `npm pack`, which
+always adds `package.json` whatever the list says. Nothing consumes an npm pack
+of this project; the tarball is what a deployment takes.)
 
 ### The first tag is different
 
@@ -137,8 +168,14 @@ six games, named `games-<year>.<month>.<counter>`.
     git push --tags
 
 `release:check` refuses a dirty tree, a game with no `meta.saveVersion`, and a
-`saveVersion` that moved since the given tag without `CHANGELOG.md` mentioning
-that game. Pass the previous tag or it can only do the shape checks.
+`saveVersion` that moved since the last release without `CHANGELOG.md` announcing
+it **by game and by number** - "leeuwenhoek … saveVersion 2 …". The id alone is
+not enough, because every game is already named in the entry that introduced it.
+
+Without an argument it finds the last `games-*` tag itself and says which one it
+used. A ref that does not resolve is refused rather than passed over: it would
+make every game look new, and a new game has no lessons to restart, so the check
+would pass by saying nothing.
 
 One tag for six games because the alternative is six version streams, six
 conventions and six chances to miss one - the same argument as pinning one engine

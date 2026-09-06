@@ -26,7 +26,7 @@
 // and `/.git/`.
 
 import { createServer } from 'node:http';
-import { createReadStream, existsSync, statSync, readdirSync } from 'node:fs';
+import { createReadStream, existsSync, statSync, readdirSync, realpathSync } from 'node:fs';
 import { dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { networkInterfaces } from 'node:os';
@@ -127,11 +127,29 @@ export function resolveRequest(rawPath, games) {
     if (!rest.length) return { status: 404 }; // no directory listings
 
     const file = resolve(root, ...rest);
-    // Belt and braces: the traversal check above is on segments, this one is on
-    // the resolved path, which also catches a symlink pointing outside.
-    if (file !== root && !file.startsWith(root + sep)) return { status: 403 };
+    // Lexical check first: cheap, and it catches a `..` that survived decoding.
+    if (!isInside(file, root)) return { status: 403 };
 
-    return { file };
+    // Then the real one. The check above is on the *text* of the path, so a
+    // symlink inside a game pointing at /home would sail through it and
+    // createReadStream would follow it. Compare what the paths actually are.
+    // Both sides are resolved, so a game directory that is itself a symlink
+    // still works - that is deliberate - while a link out of one does not.
+    let realFile;
+    let realRoot;
+    try {
+        realFile = realpathSync(file);
+        realRoot = realpathSync(root);
+    } catch {
+        return { status: 404 }; // no such file, which is not worth distinguishing
+    }
+    if (!isInside(realFile, realRoot)) return { status: 403 };
+
+    return { file: realFile };
+}
+
+function isInside(path, root) {
+    return path === root || path.startsWith(root + sep);
 }
 
 function send(res, status, headers = {}, body = null) {
@@ -212,15 +230,33 @@ export function createDevServer(games) {
     });
 }
 
-function parseArgs(argv) {
+export function parseArgs(argv) {
     const opts = { port: 5500, host: '127.0.0.1', games: [] };
+    // Every value is checked here rather than failing later as a stack trace.
+    // `npm run dev -- --games` with nothing after it is a typo, not a crash.
+    const value = (i, name) => {
+        const v = argv[i];
+        if (v === undefined || v.startsWith('--')) throw new Error(`${name} needs a value`);
+        return v;
+    };
+
     for (let i = 0; i < argv.length; i++) {
         const a = argv[i];
-        if (a === '--port') opts.port = Number(argv[++i]);
-        else if (a === '--host') opts.host = argv[++i];
-        else if (a === '--games') opts.games.push(argv[++i]);
-        else if (a === '--help' || a === '-h') opts.help = true;
-        else throw new Error(`unknown option: ${a}`);
+        if (a === '--port') {
+            const raw = value(++i, '--port');
+            opts.port = Number(raw);
+            if (!Number.isInteger(opts.port) || opts.port < 0 || opts.port > 65535) {
+                throw new Error(`--port must be a number from 0 to 65535, not "${raw}"`);
+            }
+        } else if (a === '--host') {
+            opts.host = value(++i, '--host');
+        } else if (a === '--games') {
+            opts.games.push(value(++i, '--games'));
+        } else if (a === '--help' || a === '-h') {
+            opts.help = true;
+        } else {
+            throw new Error(`unknown option: ${a}`);
+        }
     }
     return opts;
 }
