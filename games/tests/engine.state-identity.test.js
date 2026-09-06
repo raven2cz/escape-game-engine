@@ -105,6 +105,59 @@ describe('EI-002: saved state has an identity', () => {
         puzzleResults: [], contentShown: {},
     });
 
+    it('signs a game that declares no saveVersion exactly as before', async () => {
+        // The change to _signature() must be a no-op for a game that has not
+        // opted in, or shipping it would itself have been the wipe it exists to
+        // prevent.
+        const game = await alpha().boot();
+        expect(game.state.signature).toBe('alpha|1.0.0');
+    });
+
+    it('keeps progress when only meta.version changes', async () => {
+        // The point of the split. A typo fix must not end a lesson.
+        const versioned = (version) => createReloadHarness(
+            { scenes: { ...gameData('alpha'), meta: { id: 'alpha', version, saveVersion: 1 } } },
+            { baseUrl: './games/alpha/' },
+        );
+
+        const first = await versioned('1.0.0').boot();
+        first.state.inventory.push('alpha_key');
+        await first.goto('deeper');
+
+        const republished = await versioned('1.1.0').boot();
+
+        expect(republished.state.inventory).toEqual(['alpha_key']);
+        expect(republished.state.scene).toBe('deeper');
+    });
+
+    it('starts over when saveVersion changes', async () => {
+        // And the other half: bumping it still means everyone starts again,
+        // which is the whole reason it is a separate field with a name that
+        // says so.
+        const saved = (saveVersion) => createReloadHarness(
+            { scenes: { ...gameData('alpha'), meta: { id: 'alpha', version: '1.0.0', saveVersion } } },
+            { baseUrl: './games/alpha/' },
+        );
+
+        const first = await saved(1).boot();
+        first.state.inventory.push('alpha_key');
+        await first.goto('deeper');
+
+        const breaking = await saved(2).boot();
+
+        expect(breaking.state.inventory).toEqual([]);
+        expect(breaking.state.scene).toBe('start');
+    });
+
+    it('treats saveVersion 0 as a version, not as absent', async () => {
+        const game = await createReloadHarness(
+            { scenes: { ...gameData('alpha'), meta: { id: 'alpha', version: '9.9.9', saveVersion: 0 } } },
+            { baseUrl: './games/alpha/' },
+        ).boot();
+
+        expect(game.state.signature).toBe('alpha|0');
+    });
+
     it('adopts a state left under the old key, once', async () => {
         // Somebody may be in the middle of a lesson when this ships.
         localStorage.setItem(LEGACY_KEY, JSON.stringify(legacyState()));

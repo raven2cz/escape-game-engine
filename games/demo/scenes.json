@@ -5,6 +5,7 @@
     "description": "@game.description@Mikro-mise v dílně Antonie van Leeuwenhoeka.",
     "author": "raven2cz",
     "version": "1.0.0",
+    "saveVersion": 1,
     "tags": [
       "biology",
       "microscope",
@@ -640,52 +641,110 @@
       "hotspots": [
         {
           "type": "puzzle",
-          "rect": { "x": 6, "y": 18, "w": 28, "h": 16 },
+          "rect": {
+            "x": 6,
+            "y": 18,
+            "w": 28,
+            "h": 16
+          },
           "puzzleRef": "quiz-photosynthesis",
-          "options": { "blockUntilSolved": false }
+          "options": {
+            "blockUntilSolved": false
+          }
         },
         {
           "type": "puzzle",
-          "rect": { "x": 6, "y": 40, "w": 28, "h": 16 },
+          "rect": {
+            "x": 6,
+            "y": 40,
+            "w": 28,
+            "h": 16
+          },
           "puzzleRef": "code-lab-door",
-          "options": { "blockUntilSolved": true },
-          "onFail": { "message": "@pzlab.code.fail@Kód nesedí." }
+          "options": {
+            "blockUntilSolved": true
+          },
+          "onFail": {
+            "message": "@pzlab.code.fail@Kód nesedí."
+          }
         },
         {
           "type": "puzzle",
-          "rect": { "x": 36, "y": 18, "w": 28, "h": 16 },
+          "rect": {
+            "x": 36,
+            "y": 18,
+            "w": 28,
+            "h": 16
+          },
           "puzzleRef": "order-micro-assembly",
-          "options": { "blockUntilSolved": false }
+          "options": {
+            "blockUntilSolved": false
+          }
         },
         {
           "type": "puzzle",
-          "rect": { "x": 36, "y": 40, "w": 28, "h": 16 },
+          "rect": {
+            "x": 36,
+            "y": 40,
+            "w": 28,
+            "h": 16
+          },
           "puzzleRef": "match-bio-click",
-          "options": { "blockUntilSolved": false }
+          "options": {
+            "blockUntilSolved": false
+          }
         },
         {
           "type": "puzzle",
-          "rect": { "x": 66, "y": 18, "w": 28, "h": 16 },
+          "rect": {
+            "x": 66,
+            "y": 18,
+            "w": 28,
+            "h": 16
+          },
           "puzzleRef": "match-bio-drag",
-          "options": { "blockUntilSolved": false }
+          "options": {
+            "blockUntilSolved": false
+          }
         },
         {
           "type": "puzzle",
-          "rect": { "x": 66, "y": 40, "w": 28, "h": 16 },
+          "rect": {
+            "x": 66,
+            "y": 40,
+            "w": 28,
+            "h": 16
+          },
           "puzzleRef": "group-lab-sorting",
-          "options": { "blockUntilSolved": false }
+          "options": {
+            "blockUntilSolved": false
+          }
         },
         {
           "type": "puzzle",
-          "rect": { "x": 20, "y": 64, "w": 28, "h": 16 },
+          "rect": {
+            "x": 20,
+            "y": 64,
+            "w": 28,
+            "h": 16
+          },
           "puzzleRef": "choice-statements",
-          "options": { "blockUntilSolved": false }
+          "options": {
+            "blockUntilSolved": false
+          }
         },
         {
           "type": "puzzle",
-          "rect": { "x": 52, "y": 64, "w": 28, "h": 16 },
+          "rect": {
+            "x": 52,
+            "y": 64,
+            "w": 28,
+            "h": 16
+          },
           "puzzleRef": "list-lab-demo",
-          "options": { "blockUntilSolved": false },
+          "options": {
+            "blockUntilSolved": false
+          },
           "onSuccess": {
             "message": "@pzlab.list.ok@Hotovo! Máš za sebou mini sérii."
           },
@@ -695,7 +754,12 @@
         },
         {
           "type": "puzzle",
-          "rect": {"x":82.36,"y":64.39,"w":11.56,"h":15.66},
+          "rect": {
+            "x": 82.36,
+            "y": 64.39,
+            "w": 11.56,
+            "h": 15.66
+          },
           "puzzleRef": "cloze-bio-cell",
           "onSuccess": {
             "message": "@pzlab.list.ok@Hotovo! Zvládl si doplňovačku.."
@@ -723,7 +787,12 @@
         {
           "type": "goTo",
           "target": "main-room",
-          "rect": { "x": 90, "y": 84, "w": 8, "h": 12 }
+          "rect": {
+            "x": 90,
+            "y": 84,
+            "w": 8,
+            "h": 12
+          }
         }
       ]
     }

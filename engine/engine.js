@@ -133,16 +133,36 @@ export class Game {
     // --- version signature for safe restore ------------------------------------
 
     /**
-     * What a saved state has to match to be reused: this game, this build of it.
+     * What a saved state has to match to be reused.
      *
      * The language used to be part of it, so switching language behaved like
      * switching to a different game and wiped the lesson. It does not change
-     * what a team has done. The version stays: a state from an older build can
-     * name scenes and items that no longer exist. See EI-002.
+     * what a team has done. See EI-002.
+     *
+     * What is left is the wipe switch, and it is worth knowing which field it
+     * is. A signature that stops matching throws the team's progress away, at
+     * their next reload, silently. That used to be `meta.version` - the field
+     * somebody bumps out of habit after fixing a typo - so a content fix and a
+     * deliberate reset were the same gesture.
+     *
+     * They are separate now. `meta.version` is a label for people; a game that
+     * also declares `meta.saveVersion` is saying "this is the number that
+     * decides whether an old save is still playable", and only that number
+     * being changed ends a lesson.
+     *
+     * Adding is safe; renaming or removing any id a save can hold - a scene,
+     * item, flag, puzzle, event or content id - is what needs the bump, because
+     * _normalizeState() tolerates a stale id rather than crashing and *inert is
+     * the failure mode*: rename a flag whose `once` event is already in
+     * `eventsFired` and the gate it opened never opens again. See
+     * docs/RELEASING.md.
      */
     _signature() {
         const gid = this.meta?.id || 'unknown';
-        const gver = this.meta?.version || '0';
+        // `saveVersion` when the game declares one, so that `version` can be
+        // bumped for a typo without ending every lesson in progress. Note `??`
+        // rather than `||`: saveVersion 0 is a version, not an absence.
+        const gver = this.meta?.saveVersion ?? this.meta?.version ?? '0';
         return `${gid}|${gver}`;
     }
 
