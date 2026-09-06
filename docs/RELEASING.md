@@ -1,0 +1,203 @@
+# Releasing
+
+How a change gets from this repository into a classroom, and which version to
+move when. `DEVELOPING.md` covers getting a game on screen; this covers shipping
+one.
+
+Read the first section before touching a version number. One of them ends every
+lesson in progress, and it is not the one people expect.
+
+---
+
+## The four versions
+
+They are separate because they move for different reasons. Conflating any two of
+them makes one move when it should not.
+
+| version | where | what it means |
+|---|---|---|
+| `ENGINE_VERSION` | `package.json`, `engine/version.js`, git tag `v1.2.3` | which engine this is |
+| `STATE_SCHEMA_VERSION` | `engine/engine.js` | the *shape* of the saved state |
+| `meta.version` | a game's `scenes.json` | a label for people, in release notes |
+| `meta.saveVersion` | a game's `scenes.json`, integer | **whether an old save still applies** |
+| `ENGINE_API_VERSION` | `engine/version.js`, integer | what the engine promises the dashboard |
+
+### What to bump
+
+| you changed | bump |
+|---|---|
+| any engine code | `ENGINE_VERSION`, with `npm version` |
+| a field in the saved state, or how one is read | `STATE_SCHEMA_VERSION` as well |
+| what the engine reports to the runtime or the dashboard | `ENGINE_API_VERSION` as well |
+| a game's text, images, positions, hints; anything **added** | `meta.version` |
+| **renamed or removed** any id a save can hold | `meta.saveVersion` as well, and schedule it |
+
+### The one that ends lessons
+
+`_signature()` is `meta.id | meta.saveVersion ?? meta.version`. A saved state
+whose signature no longer matches is thrown away, at the team's next reload, with
+nothing on screen to say so.
+
+So:
+
+- **Releasing an engine never loses anything.** The engine version is not in the
+  signature. A team reloads onto the new code and their progress is still there,
+  which is what makes an engine fix safe to ship during a school day - and useful,
+  because reloading is exactly what somebody does when a game looks stuck.
+- **A content fix loses nothing either**, as long as `saveVersion` is untouched.
+- **Bumping `saveVersion` restarts every team of that game.** Schedule it outside
+  school hours and write it in the games repository's `CHANGELOG.md`;
+  `release:check` refuses the release otherwise.
+
+Two functions decide all of this: `_signature()` and `_storageKey()` in
+`engine/engine.js`. **An engine release must not change either of them** except
+as a deliberate, scheduled reset. If a change touches them, it is not a patch
+release, whatever it does to the code.
+
+### What actually makes an old save unplayable
+
+The engine cannot detect this and the failure is silent, so it is a rule rather
+than a check.
+
+**Safe, no `saveVersion` bump:** adding scenes, items, flags, puzzles, events;
+changing any text, translation, image, rect, hint or theme.
+
+**Needs a `saveVersion` bump:** renaming or removing any id a save can hold - a
+scene, item, flag, puzzle ref, event id or content id - or changing what an
+existing id *means*.
+
+Why: `_normalizeState()` tolerates a stale id rather than crashing, and **inert
+is the failure mode**. Rename a flag whose `once` event is already in
+`eventsFired` and that event never runs again, so the gate it opened stays shut.
+Rename an item id behind `requireItems` and the door never opens. Nothing throws;
+the team is simply stuck, and no test will find it.
+
+Three more that surprise people:
+
+- `state.hero` is a **copy** of the hero profile taken at first load. Fixing a
+  hero's name or `assetsBase` never reaches a team already playing.
+- `state.sceneImages` stores the **raw path** given to `setSceneImage`. Renaming
+  that asset gives those teams an eight second timeout on every visit to the
+  scene, not the new picture.
+- An unknown scene id falls back to the **start scene**. Not a wipe - inventory
+  and flags survive - but in a 22-scene game it will be reported as one.
+
+---
+
+## Releasing the engine
+
+    npm version patch      # or minor / major
+    git push && git push --tags
+
+That is the whole procedure. The checks are in npm's lifecycle, so they run
+**before** the commit and the tag rather than after:
+
+- `preversion` runs the suite. npm already refuses a dirty tree.
+- `version` writes `engine/version.js` from `package.json`, refuses if
+  `CHANGELOG.md` has no `## <version>` section, and stages both. npm folds them
+  into the version commit.
+
+A non-zero exit from either aborts before anything is committed. So a release
+that would have been wrong leaves no tag to clean up.
+
+Write the changelog entry **first**. The hook will not let you tag without it,
+which is deliberate: the entry is written while you remember what changed.
+
+Pushing the tag runs `.github/workflows/release.yml`, which re-runs the suite as
+a guard against a hand-made tag, refuses a tag that disagrees with
+`package.json`, and attaches to a GitHub Release:
+
+    escape-game-engine-<version>.tar.gz
+    escape-game-engine-<version>.tar.gz.sha256
+
+The tarball contains `engine/ styles/ index.html LICENSE README.md` and **no
+games**. Its file list comes from `package.json#files`, so the archive and an npm
+pack cannot disagree about what the engine is.
+
+### The first tag is different
+
+`v1.0.0` cannot be cut with `npm version`: `package.json` already says 1.0.0 and
+npm refuses "Version not changed". Merge the branch to `main`, then once:
+
+    git tag -a v1.0.0 -m "First tagged release"
+    git push --tags
+
+Every release after that is `npm version`.
+
+---
+
+## Releasing the games
+
+In the games repository, which is versioned **as one unit**: one tag covering all
+six games, named `games-<year>.<month>.<counter>`.
+
+    npm test
+    npm run release:check games-2026.09.1     # the previous tag
+    git tag -a games-2026.09.2 -m "..."
+    git push --tags
+
+`release:check` refuses a dirty tree, a game with no `meta.saveVersion`, and a
+`saveVersion` that moved since the given tag without `CHANGELOG.md` mentioning
+that game. Pass the previous tag or it can only do the shape checks.
+
+One tag for six games because the alternative is six version streams, six
+conventions and six chances to miss one - the same argument as pinning one engine
+rather than one per game. A content fix in one game redeploys all six and changes
+the bytes of one. Nobody loses progress, because saves depend on `saveVersion`
+and not on the tag.
+
+---
+
+## Deploying
+
+The hosted runtime does this and does not exist yet. What is fixed is the
+contract:
+
+- one **engine version** and one **games version**, recorded in a manifest the
+  runtime keeps in git. That file is the record of what is in production.
+- versioned, immutable paths: `/e/<engineVersion>/` and `/g/<gamesTag>/<gameId>/`
+  may be cached forever; the generated `index.html` is `no-store`.
+- the engine is **prefix-relocatable** - every import is relative, the
+  stylesheets contain no `url()`, every asset URL goes through `_resolveAsset()`
+  - so it runs from any path with no build step. A data test in both repositories
+  keeps game asset paths relative, because an absolute one works on a dev server
+  and 404s under a versioned prefix.
+
+**Never patch a vendored engine in place.** A patched copy is a version that
+exists in no tag and cannot be reproduced. Every fix is a tag, then one line in
+the manifest.
+
+---
+
+## Fixing something in production
+
+**An engine bug.** Write the changelog entry, `npm version patch`, push the tag,
+bump `engine` in the manifest, deploy. A tablet already running is untouched: its
+module graph is in memory. On the next reload it gets the new engine **and keeps
+its state**. Safe during a lesson.
+
+**A content bug.** Fix it, leave `saveVersion` alone, tag the games repository,
+bump `games` in the manifest, deploy. Teams keep their progress.
+
+**A content change that makes old saves unplayable.** Bump that game's
+`saveVersion`, write in the games `CHANGELOG.md` which game it restarts and when,
+and deploy outside school hours.
+
+**Rolling back is the one lossy direction.** `_normalizeState()` is a whitelist,
+so an engine rolled back past a release that added a state field drops that
+field. Fix forward. If a rollback cannot be avoided, do it when nobody is
+playing.
+
+---
+
+## Checklist for the next person
+
+Before cutting an engine release:
+
+1. `npm test` is green here and in the games repository.
+2. `CHANGELOG.md` has a section for the version, written in terms of what a
+   person would notice, not item numbers.
+3. Nothing in the diff touches `_signature()` or `_storageKey()` unless a reset
+   is intended and scheduled.
+4. `npm version <patch|minor|major>`, then push with `--tags`.
+5. The GitHub Release has both the tarball and its `.sha256`.

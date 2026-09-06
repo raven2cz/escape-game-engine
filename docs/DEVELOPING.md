@@ -1,7 +1,12 @@
 # Developing
 
-Read this first. `RELEASING.md` covers versions and releases; this covers getting
-a game on screen and changing it.
+Read this first. [`RELEASING.md`](RELEASING.md) covers versions and releases;
+this covers getting a game on screen and changing it.
+
+One thing from there is worth knowing before you edit any game: **`meta.version`
+is a label, `meta.saveVersion` is the switch that restarts every lesson in
+progress.** Adding content is safe; renaming or removing an id a save can hold is
+not. `RELEASING.md` has the rule.
 
 ## Two repositories, side by side
 

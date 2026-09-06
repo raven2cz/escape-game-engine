@@ -89,9 +89,12 @@ escape-game-engine/
 │           ├── cloze.js   # Fill-in-the-blank puzzle
 │           └── list.js    # Puzzle sequence manager
 ├── docs/
-│   └── DEVELOPING.md      # running locally, adding a game, tests
+│   ├── DEVELOPING.md      # running locally, adding a game, tests
+│   └── RELEASING.md       # the four versions, cutting a release, fixing production
 ├── scripts/
-│   └── dev-server.mjs     # npm run dev
+│   ├── dev-server.mjs     # npm run dev
+│   └── version-sync.mjs   # runs from npm version
+├── CHANGELOG.md
 ├── games/
 │   ├── demo/
 │   │   ├── scenes.json    # Scenes, hotspots, items, events, content
@@ -566,7 +569,8 @@ from a tablet, which is worth doing, because Range requests and MIME types only
 fail there.
 
 See [`docs/DEVELOPING.md`](docs/DEVELOPING.md) for the options, the query
-parameters, and how to add a game.
+parameters, and how to add a game, and
+[`docs/RELEASING.md`](docs/RELEASING.md) for versions and releases.
 
 ### In a lesson
 The commercial games live in a separate private repository and are delivered by
