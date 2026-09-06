@@ -1,6 +1,6 @@
 # EI-010: the dashboard API and services, designed
 
-**Author: Claude (Opus 4.8), 2026-09-06. Status: reviewed by codex SOL; revised.**
+**Author: Claude (Opus 4.8), 2026-09-06. Status: reviewed by codex SOL twice; revised twice.**
 Not implemented. Fable does the implementation review later, once this is built.
 
 > **Read the [Revision after SOL review](#revision-after-sol-review) at the end
@@ -12,6 +12,8 @@ Not implemented. Fable does the implementation review later, once this is built.
 > the internal state has a *second* exit (the injected `storage`) that the no-leak
 > guarantee missed; held wrong answers neither carry `ok` nor trigger a save;
 > `openPuzzle` is never closed; and "off the render thread" was overclaimed.
+> The latest and authoritative layer is **Revision 2 — after SOL's second pass**,
+> at the very end, which *defines* the points Revision 1 only deferred.
 
 This is the implementation design for the dashboard-facing part of EI-010. It
 **supersedes the projection/transport recommendation** in
@@ -635,3 +637,163 @@ serialization and the no-leak-on-the-wire test in step 3; the transport lifecycl
 API, retry-latest, and best-effort beacon in step 4; catalogue-ready and the
 `storage` local-only rule documented in step 5. No `saveVersion` still moves, and
 it is still one release. SOL should see this revision before any code is written.
+
+---
+
+## Revision 2 — after SOL's second pass
+
+SOL's second pass ([EI-010-SOL-REVIEW-2.md](EI-010-SOL-REVIEW-2.md)) confirmed the
+architecture and the big first-round fixes, and objected — correctly — that the
+first revision *restated* several points as "must define" instead of defining
+them. This revision defines them. It is authoritative over both the body and
+Revision 1. Engine-side points are resolved here; genuinely server-side ones are
+listed at the end as requirements the hosted runtime must meet, because the owner
+put the runtime out of scope for this engine work.
+
+### A. The evaluation result contract (replaces "wrong is `{ok:false}`")
+
+The kinds must not return `{ok:false}` for a held wrong answer — the wrapper would
+resolve and close the puzzle at `index.js:89`. Define one explicit result the
+runner interprets:
+
+```
+evaluate() → { status: 'correct' | 'wrong' | 'incomplete' | 'locked', detail? }
+```
+
+- `correct` → resolve and close (the existing success path).
+- `wrong` → if `blockUntilSolved`, hold open; else close as unsolved. Either way
+  it is a real evaluation.
+- `incomplete` → an empty or unfinished submission (empty phrase `phrase.js:83`,
+  empty code `code.js:89`, untouched quiz `quiz.js:144`). **Not a mistake**, not a
+  solve; the puzzle holds. This is what actually implements "empty submissions are
+  not mistakes" — a declaration alone does not.
+- `locked` → the cooldown/lock path (`quiz.js:142`, `code.js:87`). Ignored by the
+  counter.
+
+`puzzle:evaluated` fires **only for `correct` and `wrong`**. `mistakes++` on
+`wrong`; `solved=true` and `puzzle:settled` on `correct`. The eight kinds change
+their evaluate to return a status; the wrapper maps status→hold/resolve in one
+place. Honest cost: one wrapper hook plus a status return in eight kinds.
+
+### B. Puzzle lifecycle and identity, defined
+
+- **Open and settled live at the shared runner/mount boundary**, not in
+  `_openPuzzleByRef` — because list child runners are created directly at
+  `list.js:87` and never pass through it. `createPuzzleRunner` emits
+  `puzzle:opened` on mount and `puzzle:settled` on any of its four completion
+  routes: `resolveOk` (`index.js:71`), `resolveFail` (`:77`), a non-held wrapper
+  completion (`:87`), and close (`:154`). `openPuzzle` clears on `settled`.
+- **The list container is not a task.** When the runner belongs to a `list`
+  container, it emits neither `puzzle:evaluated` nor `puzzle:solved`; it still
+  settles its own UI lifecycle. A `containerRef` flag on the runner args carries
+  this. So wrapping `resolveOk` does not mark the list solved.
+- **Canonical public identity.** A leaf uses its `ref`. An inline step with no ref
+  uses `parentRef#stepIndex` (not `"inline"` from `index.js:61` nor `#index` from
+  `list.js:99`), so step zero of two different lists cannot collide.
+- **Activity during a list.** `activity` is the current leaf step while a step is
+  open; it is `null` during the container's summary screen. Runner nesting is
+  tracked with a small stack so the innermost open leaf is the reported activity.
+
+### C. Reload persistence, made precise
+
+- **`item:used` emits after the splice (`engine.js:529`) and before the existing
+  `_saveState()` (`engine.js:544`).** No extra deferred save there — Revision 1's
+  "after its save" was wrong; this is a normal before-save site.
+- **No-save transitions** (a held `wrong`, a plain dialog end) **schedule a
+  persistence commit.** The guarantee is exact: *after the scheduled commit runs*,
+  a reload sees the mutation, **without requiring a later game transition**. It is
+  not crash-durable before the timer fires. The reload test drives the scheduled
+  commit, then reloads, with no intervening solve or navigation.
+- **The measured synchronous budget covers the deferred `_saveState()` too** — its
+  `JSON.stringify(state)` + `localStorage.setItem` (`engine.js:2025`) — not only
+  the report projection. Deferring to a timer takes this off the *transition
+  stack*, not off Safari's main thread.
+- Two guarantees stay separated: **lesson continuity** (verified, safe, untouched)
+  vs **telemetry continuity** (eventual, best-effort).
+
+### D. Run identity and revision ordering (engine side)
+
+- **`run` is persisted, minted once.** Created only in `_freshState()`, retained by
+  `_normalizeState()`, and generated for an older save only when absent. A reload
+  reuses it; a restart/reset gets a fresh state and therefore a fresh `run`. This
+  stops `run:started` in `init()` from minting a new run on every reload.
+- **`revision` allocation is reserve → persist → send.** The next revision is
+  incremented and persisted before the snapshot is sent, so a reload cannot reuse
+  one revision for different content. The normal flush and the terminal beacon
+  share one serialization gate and **reuse the same revision when resending the
+  same snapshot**.
+- **Which of two runs is current is a server responsibility** (§ server
+  requirements). The engine cannot decide it, and must not pretend to: the storage
+  key is `session/game/team` only (`engine.js:1995`), so two pages can share it.
+
+### E. Catalogue as a state machine (before any eager prefetch)
+
+Building on the EI-030 fix now on this branch, `_ensurePuzzlesLoaded` gains
+explicit states — **not-loaded / loading / loaded (incl. legitimately empty) /
+failed-retryable** — coalesces concurrent callers, and emits **`catalogue:ready`
+only after a successful parse**. Only then does the eager prefetch get added, and
+it starts **after first render** and never blocks it. Until ready,
+`scenesTotal`/`puzzlesTotal` are `null`; after a failure they stay `null` and the
+next puzzle-open retries (EI-030). A transient prefetch failure must never install
+an empty catalogue — that state machine change **precedes** the eager fetch.
+
+### F. Deduplication by single-flight, not by id
+
+An interaction id per gesture does not help: `base.js:168` calls `onOk()` once per
+click with no guard, so two taps are two gestures and two ids. Instead the wrapper
+is **single-flight**: while one evaluation is being processed, a second `onOk` is
+ignored until the first settles or holds. Combined with the existing `_resolved`
+guard, one submit gesture yields at most one `puzzle:evaluated`. This is the real
+fix; drop the interaction-id idea.
+
+### G. Contract specifics, pinned
+
+- **`milestones: string[]`** is always present (empty when none), the stable
+  declaration-order list of **reached** milestone ids; an absent id means not
+  reached. Declared in `meta.dashboard.milestones` as `[{ id, label }]`, where `id`
+  is a flag or dialog id the game elects to surface. The internal flags map is
+  never shipped.
+- **`attempts` increments on every evaluation, including the solving one.**
+- **Upgrade defaults:** an old save gaining `state.progress` sets `startedAt` and
+  `sceneEnteredAt` to now at first load; times therefore count from the upgrade,
+  which is correct and stated.
+- **Array ordering** is stable by first-touch (`puzzles`, `inventory`, `itemsUsed`,
+  `dialogsSeen`), so successive reports diff cleanly.
+- **Wire size:** target ≤ 32 KiB UTF-8, hard-capped well under the ~64 KiB beacon
+  queue; the report is inherently bounded by the game's scene and puzzle counts,
+  and `_normalizeState` must bound restored `progress` collections (filter
+  `puzzles` against catalogue ids) so an edited or injected save cannot inflate it
+  (`engine.js:2122` accepts maps shallowly).
+- **`ReportTransport` surfaces a failed terminal send:** a `sendBeacon` returning
+  `false` becomes a rejection/failure the reporter can see, since
+  `send(report,{terminal}) → void|Promise` otherwise hides the boolean.
+
+### H. Implementation clean-ups this forces
+
+- **Remove the "remote storage" promises** the code currently makes:
+  `engine.js:69` describes an authoritative Durable Object and `boot.js:119` calls
+  injected storage "the runtime's, when hosted." Storage is local-only; those
+  comments must say so, or the supported API still advertises the forbidden second
+  exit.
+
+### Server requirements (out of scope here; for the hosted runtime)
+
+The owner scoped the runtime out of this work. These are recorded so
+`docs/DASHBOARD-API.md` can hand them over, not built now:
+
+- A **server-bound active-run generation / writer lease** established at
+  boot/restart, so the server can tell which of two runs sharing
+  `session/game/team` is current — the engine cannot.
+- The server **binds `session`/`team` from authenticated context**, treating the
+  report's own fields as correlation hints, not trust.
+- Server **idempotency/ordering on `(session, game, team, run, revision)`**.
+- **URL and auth live inside the injected transport**, not in the engine.
+
+### Net
+
+Every engine-side point SOL raised is now defined, not deferred. Architecture and
+build order stand; no `saveVersion` moves; one release. The remaining open items
+are server-side and belong to the runtime. Recommendation: this is enough to
+implement against — settle the last numeric specifics (exact budget ms, exact wire
+cap) with tests during implementation, and have the implementation reviewed rather
+than spending a third design-only pass.
