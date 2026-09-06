@@ -9,11 +9,19 @@ on:
 jobs:
   vitest:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 20 is what the machine this is developed on runs, so dropping it would
+        # stop testing what anyone actually sees. 22 is the supported LTS - 20
+        # went end-of-life in April 2026 - and is what CI would otherwise be
+        # silently ahead of. Keep both until the development machine moves.
+        node: ['20', '22']
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
-          node-version: '20'
+          node-version: ${{ matrix.node }}
           cache: npm
       - run: npm ci
       - run: npm test
