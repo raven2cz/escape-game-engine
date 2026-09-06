@@ -5,6 +5,14 @@ kterého tohle vychází, je [EI-010-DESIGN.md](EI-010-DESIGN.md); ten je určen
 tomu, kdo to bude stavět, a tady na něj odkazuji jen tímhle jedním místem.
 Názvy z kódu nechávám anglicky, aby se daly v kódu najít.
 
+> **Rozhodnuto majitelem 6. 9. 2026** (podrobně a závazně v DESIGN.md nahoře):
+> jedno finální vydání místo tří; učitel se dívá **živě během hodiny**, takže
+> odesílání je průběžné, jednoduché a nesmí zdržet hru; statistika chyb je
+> **prostý čítač chyb + „vyřešeno"**, nic víc; a hlavně — **ven se neposílá
+> vnitřní stav enginu.** Nadefinuje se veřejné API (doménový model toho, co se
+> učiteli říká), které se z vnitřního stavu vyplní, a posílá se jen ono. Vnitřní
+> stav zůstává soukromý.
+
 ## 1. Myšlenka v několika větách
 
 Hra si už dnes zapisuje všechno, co potřebuje k tomu, aby přežila obnovení

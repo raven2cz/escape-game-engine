@@ -3,8 +3,51 @@
 **Author: Fable 5.1, 2026-09-06.** Commissioned against
 [EI-010-EVIDENCE.md](EI-010-EVIDENCE.md), which it corrects in five places - all
 five re-verified against the code and the data before this file was committed;
-see the note at the end of the evidence document. Not yet reviewed by the owner
-and not yet implemented.
+see the note at the end of the evidence document.
+
+> ## Owner's decisions, 2026-09-06 — these amend what follows
+>
+> The owner reviewed the design and approved the direction. Four decisions
+> change it, and where they conflict with the text below, these win. Recorded
+> here so they are the first thing the next implementer reads.
+>
+> 1. **One release, not three.** Build it in steps if that helps, but cut a
+>    single engine version at the end. Do not spend a version number per phase.
+>
+> 2. **The teacher watches live, during the lesson.** So the state is sent
+>    continuously, and the sending must be **simple, fast, and must never slow
+>    the game** — fire-and-forget, off the critical path, `localStorage` first.
+>    This settles the open question at the end of the document.
+>
+> 3. **Error stats stay simple.** A mistake counter per puzzle plus "solved",
+>    nothing more. No per-evaluation event rows, no captured answer payloads.
+>    "Stuck" needs no separate computation: the engine is a state machine, so it
+>    already knows the current scene and the open puzzle, and reporting those
+>    plus a timestamp is enough for a teacher to see who is stuck.
+>
+> 4. **Do not ship the internal state. Declare an API and fill it.** This
+>    **overrides the design's central recommendation** ("the dashboard document
+>    is the saved state, unchanged"). The engine must define an explicit,
+>    versioned public contract — a domain model of what a dashboard is told — and
+>    a projection that fills it from the internal state. Only that contract goes
+>    on the wire. The internal state stays private and can be refactored without
+>    touching the dashboard.
+>
+> **Why 4 is right, and how it keeps what the design got right.** Shipping the
+> saved state couples the wire to the persistence format: every internal
+> refactor risks the dashboard, internal shapes leak (solution keys, hero
+> internals, schema bookkeeping), and the API version tangles with the save
+> version. A declared DTO is an anti-corruption layer. It keeps the design's two
+> virtues anyway, because the internal state remains the single source: reload
+> safety is untouched (the projection only *reads* state), and a lost minute
+> loses nothing (each report is a complete current snapshot, idempotent — the
+> server keeps the sequence, so history lives server-side rather than embedded in
+> the save). The projection is `internal state → DashboardReport`; the contract
+> and its `ENGINE_API_VERSION` are what the next design step must pin down, with
+> a real domain model. This part is not to be botched.
+
+Not yet implemented; below is the design as Fable submitted it, now read through
+the four decisions above.
 
 Design only. Nothing is implemented; every step in section 4 is a separate,
 reviewable change. Verified against `escape-game-engine@main` (fd36dd3) and
