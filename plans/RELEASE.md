@@ -5,200 +5,289 @@ Plan. Nothing here is implemented yet; `HANDOVER.md` says what is.
 This exists because the games moved to their own private repository (EI-025) and
 nothing yet says how an engine version and a set of games are put together, how a
 fix reaches a classroom, or how anyone runs a game locally now that the games are
-somewhere else. The last of those is needed today, not eventually: the games have
-just been migrated and nobody has opened one since.
+somewhere else. The last of those is needed today: the games have just been
+migrated and nobody has opened one since.
 
-Written after advice from Fable 5.1 on the versioning shape, which is where the
-`meta.saveVersion` split and the release-manifest idea come from.
+Reviewed by Fable 5.1 twice, once for the versioning shape and once for this
+document. Where a claim below was wrong the first time, the correction is marked,
+because the wrong version was plausible and somebody will re-derive it.
 
 ---
 
 ## 1. Four versions, four reasons
 
 They are separate because they move for different reasons. Conflating any two of
-them means one of the two moves when it should not.
+them means one moves when it should not.
 
-| version | where | changes when | who cares |
+| version | where | changes when | who notices |
 |---|---|---|---|
 | `ENGINE_VERSION` | `package.json`, `engine/version.js`, git tag `v1.2.3` | the engine code changes | the runtime, when it pins a release |
+| `STATE_SCHEMA_VERSION` | `engine/engine.js`, integer | the *shape* of the saved state changes | `_migrateState()`, nobody else |
 | `meta.version` | a game's `scenes.json` | the game's content changes | people, in release notes |
-| `meta.saveVersion` | a game's `scenes.json`, integer | a content change makes old saves **unplayable** | every team currently mid-lesson |
-| `ENGINE_API_VERSION` | `engine/version.js`, integer | the engine changes what it reports to the runtime and the dashboard | the dashboard |
+| `meta.saveVersion` | a game's `scenes.json`, integer | a content change makes old saves **unplayable** | every team mid-lesson, immediately |
+| `ENGINE_API_VERSION` | `engine/version.js`, integer | the engine changes what it reports outwards | the dashboard |
 
-`STATE_SCHEMA_VERSION` already exists in `engine/engine.js` and stays as it is:
-the shape of the saved state, handled by `_normalizeState()` and `_migrateState()`.
+Bump table, for the next person:
 
-### Why `meta.saveVersion` is the important one
+| you changed | bump |
+|---|---|
+| any engine code | `ENGINE_VERSION` (`npm version`) |
+| a field in the saved state, or how one is read | `STATE_SCHEMA_VERSION` too |
+| what the engine reports to the runtime or dashboard | `ENGINE_API_VERSION` too |
+| a game's text, images, positions, hints; anything *added* | `meta.version` |
+| renamed or removed a scene, item, flag, puzzle, event or content id | `meta.saveVersion` too, and schedule it |
 
-`_signature()` today is `meta.id|meta.version`, and `_restoreState()` throws away
-a saved state whose signature does not match. So **bumping `meta.version` wipes
-the progress of every team playing that game, at their next reload, with no
-warning.** It is wired to the one field people bump out of habit when they fix a
-typo.
+### `meta.saveVersion`, and the correction that matters
 
-Verified, and worth stating because it is the opposite of what one assumes:
-
-- **An engine release never wipes anything.** The engine version is not in the
-  signature. Moving all six games onto a fixed engine costs teams nothing.
-- **A game content fix need not wipe anything either**, as long as
-  `saveVersion` is untouched. `_normalizeState()` tolerates what a content change
-  leaves behind: an unknown scene id falls back to the start scene, an unknown
-  inventory item is skipped by `_renderInventory()`, unknown flags and puzzle ids
-  are inert.
-
-So:
+`_signature()` is `meta.id|meta.version`, and `_restoreState()` discards a saved
+state whose signature does not match. So **bumping `meta.version` wipes the
+progress of every team playing that game at their next reload, silently.** It is
+wired to the one field people bump out of habit when they fix a typo.
 
     _signature() → `${meta.id}|${meta.saveVersion ?? meta.version}`
 
-A game that sets `saveVersion` can then bump `meta.version` freely. Bumping
-`saveVersion` stays what it always was - everyone starts over - but now it is a
-deliberate act with a name that says so.
+**Corrected after review.** The first draft said "changing the signature format
+is itself a wipe, so it must ship before anyone is mid-lesson". That is wrong,
+and the truth is more useful. Verified:
 
-**This has to ship before the first paid lesson.** Changing the signature format
-is itself a wipe, so it must happen while nobody is mid-lesson. The same is true
-of EI-002 step two, which changes the storage key, so both belong in one
-pre-launch engine release.
+    today                      demo|1.0.0
+    engine change, no saveVersion   demo|1.0.0     ← identical, wipes nothing
+    after adding saveVersion: 1     demo|1         ← this is the wipe
 
-### `ENGINE_API_VERSION`, for the dashboard
+So the **engine change is a no-op** and can ship whenever. **Adding `saveVersion`
+to a game is the scheduled event**, once per game, outside school hours. A game
+written later gets it for free.
 
-The dashboard does not exist and EI-010 has not been designed. What can be
-decided now, cheaply, is that the engine will **advertise** the shape of what it
-reports, so that a dashboard written against version 1 can tell it is talking to
-an engine that speaks 2 and say so, rather than silently mis-reading events.
+That also breaks a false coupling: the first draft tied this to EI-002 step two,
+the storage key change, "because both must precede the first lesson". They are
+two independent wipes, each scheduled on its own.
 
-    export const ENGINE_API_VERSION = 1;
+One consequence to record rather than discover: `_readLegacyState()` matches on
+`signature + '|'`, so once a game sets `saveVersion` the old
+`leeuwenhoek_escape_state` entry stops matching and legacy adoption becomes dead
+code for it. Retire that path with EI-002 step two.
 
-It goes in the state and in whatever the runtime sees, and it moves only when the
-reported shape changes - not when the engine is fixed. One integer now saves a
-guessing game later. Nothing else about EI-010 is decided here.
+### What actually makes old saves unplayable
 
----
+The rule a content author needs, because the engine cannot detect this and the
+failure is silent.
 
-## 2. Local development
+**Safe without a `saveVersion` bump:** adding scenes, items, flags, puzzles,
+events; changing any text, translation, image, rect, hint or theme.
 
-The thing needed today. Two repositories, side by side:
+**Needs a `saveVersion` bump:** renaming or removing any id a save can hold - a
+scene, item, flag, puzzle ref, event id or content id - or changing what an
+existing id *means*.
 
-    ~/git/github/escape-game-engine
-    ~/git/github/escape-games
+Why: `_normalizeState()` tolerates a stale id rather than crashing, and *inert is
+the failure mode*. Rename a flag whose `once` event is already in `eventsFired`
+and that event never runs again, so the gate it opened stays shut for every team
+mid-lesson. Rename an item id behind `requireItems` and the door never opens.
+Nothing throws; the team is simply stuck.
 
-`npm run dev` in the engine repository starts a static server that serves the
-engine from the working tree and games from **both** places:
+Two snapshots that surprise people:
 
-    /                     -> index.html
-    /engine/*, /styles/*  -> the working tree
-    /games/demo/*         -> ./games/demo
-    /games/<id>/*         -> ../escape-games/<id>, when it is there
+- `state.hero` is a **copy** of the hero profile taken at first load. Fixing a
+  hero's name or `assetsBase` never reaches a team already playing.
+- `state.sceneImages` stores the **raw path** given to `setSceneImage`. Renaming
+  that asset gives those teams the EI-003 timeout on every visit to the scene,
+  not the new picture.
 
-so `http://localhost:5500/?game=warp-engine` works with no copying, no symlink
-and no build, while `?game=demo` still works with the games repository absent.
+And one that is not a wipe but looks like one: an unknown scene id falls back to
+the **start scene**. In a 22-scene game that is most of the way back to the
+beginning, with inventory and flags intact. Expect it to be reported as data
+loss.
 
-    npm run dev                      # ../escape-games if present
-    npm run dev -- --games <path>    # somewhere else
-    npm run dev -- --port 8080
+### `ENGINE_API_VERSION`
 
-Written as `scripts/dev-server.mjs` with `node:http` and `node:fs` and no
-dependencies. It prints, at startup, which games it found and where from, so
-"why is my game not there" is answered before it is asked. Editing a JSON file
-and reloading the page is the whole loop.
-
-**Not a production server.** No caching, no compression, no licence check. It
-says so when it starts.
-
----
-
-## 3. Cutting an engine release
-
-    npm version patch          # or minor / major
-    npm run release:check
-    git push && git push --tags
-
-`npm version` updates `package.json` and makes the tag. `release:check`
-(`scripts/release-check.mjs`) refuses to let a broken release out:
-
-1. the working tree is clean
-2. `engine/version.js` matches `package.json`
-3. the whole suite passes
-4. `CHANGELOG.md` has a section for this version
-
-Pushing the tag runs `.github/workflows/release.yml`, which re-runs the suite,
-then `git archive`s `engine/ styles/ index.html LICENSE README.md` into
-`escape-game-engine-<version>.tar.gz`, writes a `.sha256` beside it, and attaches
-both to a GitHub Release.
-
-The tarball is the unit a deployment consumes. It deliberately contains no games.
-
-**`engine/version.js`** exists so the running engine can say what it is:
+The dashboard does not exist and EI-010 is not designed. What can be settled now,
+for one integer, is that the engine **advertises** the shape of what it reports,
+so a dashboard written for version 1 can tell it is talking to an engine speaking
+2 and say so instead of mis-reading events.
 
 ```js
 export const ENGINE_VERSION = '1.0.0';
 export const ENGINE_API_VERSION = 1;
 ```
 
-Duplicating the version in two files is a small price for a value that is
-importable in the browser without reading `package.json`; a test keeps them
-equal.
+It is **stamped in `_saveState()`** beside `stateSchemaVersion` and never read
+back - `_normalizeState()` is a whitelist and would drop it otherwise. Stamp
+`engineVersion` with it: the first support call about a state blob will ask which
+engine wrote it.
 
 ---
 
-## 4. Assembling a deployment
+## 2. Local development
 
-This is the runtime's job and the runtime does not exist. What is fixed here is
-the contract, so that the runtime can be written against it.
+The piece needed today, and the one used every day after.
 
-A third repository, `escape-runtime`, private: wrangler config, the Worker, and
-one file that records what is deployed.
+    ~/git/github/escape-game-engine
+    ~/git/github/escape-games        ← clone it; it is not on this machine yet
 
-```json
-{
-  "engine": "1.0.1",
-  "games": {
-    "leeuwenhoek": "1.2.0",
-    "warp-engine": "1.1.0"
-  }
-}
-```
+`npm run dev` serves the engine from the working tree and games from both places:
 
-`scripts/vendor.sh` there downloads the engine tarball for `engine`, checks the
-sha256, unpacks it to `public/e/1.0.1/`, and copies each game from a checkout of
-the games repository at its tag into `public/g/<id>/<ver>/`. `public/` is not
-committed; **`release.json` in git is the record of what is in production.**
+    /                     index.html
+    /engine/*  /styles/*  the working tree
+    /games/demo/*         ./games/demo
+    /games/<id>/*         ../escape-games/<id>, when present
 
-URL layout:
+    npm run dev
+    npm run dev -- --games ../escape-games --games ../other-games
+    npm run dev -- --host 0.0.0.0 --port 8080
 
-    /e/<engineVersion>/engine/engine.js     immutable, public
-    /g/<gameId>/<gameVersion>/scenes.json   immutable, session-gated
-    /                                       generated per request, no-store
+`scripts/dev-server.mjs`, `node:http` and `node:fs`, no dependencies. It prints
+each root's absolute path and the game ids found there at startup, so "why is my
+game not there" is answered before it is asked.
 
-The engine's imports are all relative and its CSS contains no `url()`, so it runs
-from any prefix with no build step. Verified.
+The specification, because most of these are things that fail only on the device
+that matters:
 
-Because the version is in the path, two engine versions can be served side by
-side. The manifest pins **one** engine for all games. A per-game override is a
-field that can be added the day it is needed and should not be added before then:
-the defects worth fixing are engine defects, so they concern every game at once,
-and six pins are six chances to miss one.
+1. **Range requests.** The engine plays `<video>`. **iOS Safari sends
+   `Range: bytes=0-1` first and refuses to play from a server that answers 200.**
+   Handle `bytes=start-end` with 206, `Content-Range` and `Accept-Ranges`. Stream
+   with `fs.createReadStream`; the videos are tens of megabytes. Python's
+   `http.server` has the same gap, which is why desktop never showed it.
+2. **MIME types, from a fixed table.** A module script served as anything but
+   `text/javascript` is refused outright. `.svg` must be `image/svg+xml` or the
+   demo's artwork is invisible. `charset=utf-8` on text types. Unknown →
+   `application/octet-stream`.
+3. **Path handling.** `new URL(req.url, 'http://x')` to drop the query;
+   `decodeURIComponent` in a try/catch with 400 on `URIError`, because Czech
+   filenames arrive percent-encoded; reject `..` and NUL **after** decoding;
+   `path.resolve` and require the result to be the root or under it. Roots
+   resolve relative to the script, not `process.cwd()`, so `../escape-games`
+   means "beside the engine" from anywhere.
+4. **Whitelist the mounts, do not serve the tree.** Exactly `/`, `/engine/`,
+   `/styles/`, `/games/<id>/`. Everything else 404, including `/plans/`,
+   `/package.json` and `/.git/`. `<id>` must match `^[a-z0-9-]+$`, which also
+   keeps `/games/tests/` out, and a directory is a game only if it has
+   `scenes.json`. Engine tree first, then external roots; warn when an id is in
+   both.
+5. **`Cache-Control: no-store` on everything.** The engine fetches JSON with
+   `cache: 'no-cache'`, but modules, CSS and images fall under heuristic caching
+   when no validators are sent. "Edit and reload" is only true with `no-store`.
+   No ETag, no Last-Modified.
+6. **Edges.** `stat` before open; a directory is 404 with no listing;
+   `GET`/`HEAD` only, else 405; `HEAD` sends the length and no body;
+   `/favicon.ico` → 204 to keep the console quiet; `EADDRINUSE` → one line and
+   exit 1, not a stack trace.
+7. **Testable by construction.** Export `resolveRequest(pathname, mounts)`
+   returning `{file}` or `{status}` as a pure function and test traversal there.
+   One integration test boots on port 0 and fetches the engine, the demo, an
+   external game from a temp directory, `/..%2f`, and a `Range` request.
 
-**The rule that makes this safe: never patch a vendored engine in place.** A
-patched copy is a version that exists in no tag and cannot be reproduced. Every
-fix is a tag, then one line in the manifest.
+`--host 0.0.0.0` prints the LAN URL, which is how a real iPad opens it. That is
+not decoration: the whole product runs on tablets, and EI-023 is waiting for
+somebody to look at a puzzle on one.
+
+**Not a production server.** No licence check, no caching, no compression. It
+says so when it starts.
 
 ---
 
-## 5. Fixes, and the teacher mid-lesson
+## 3. Cutting an engine release
 
-**An engine fix.** Tag the engine, bump `engine` in the manifest, deploy. A
-tablet already running is untouched - its module graph is in memory. On the next
-reload it gets fresh HTML, therefore the new engine path, and **its state is
-restored**, because the engine version is not in the signature. Reloading is
-exactly what a person does when a game looks stuck, so the fix lands at the
-moment it is wanted.
+    npm version patch      # or minor / major — this is the whole procedure
+    git push && git push --tags
 
-**A content fix.** New game tag, bump that game in the manifest, deploy. Teams
-keep their progress as long as `saveVersion` is untouched.
+**Corrected after review.** The first draft ran a separate `release:check` after
+`npm version`, which is too late: `npm version` commits and tags first, so a
+failed check leaves a tag to delete by hand and `engine/version.js` is stale in
+the tagged commit. The checks belong in npm's own lifecycle:
 
-**A change that makes old saves unplayable.** Bump `saveVersion`. Every team of
-that game starts over on their next reload. Never a hotfix; schedule it outside
-school hours.
+- **`preversion`** runs the suite. npm already refuses a dirty tree.
+- **`version`** writes `engine/version.js` from `package.json`, verifies
+  `CHANGELOG.md` has a section for the new version, and `git add`s both. npm
+  folds them into the version commit. A non-zero exit aborts before the commit.
+
+So the equality test between `engine/version.js` and `package.json` becomes a
+guard against hand edits rather than a step somebody performs.
+
+Pushing the tag runs `.github/workflows/release.yml` (`on: push: tags: ['v*']`,
+`permissions: contents: write`), which re-runs the suite, `git archive`s the
+files listed in `package.json#files` into `escape-game-engine-<version>.tar.gz`
+with a `.sha256`, and attaches both to a GitHub Release. One list, in one place.
+
+`.github/workflows/hello.yml` goes in the same commit; it echoes a line and
+nothing reads it.
+
+**`v1.0.0` is the one release that does not follow this.** `package.json` already
+says 1.0.0, so `npm version` refuses, and the branch is not merged. Merge to
+`main`, then `git tag -a v1.0.0` once, by hand. The docs must say so, or somebody
+will fight npm for an afternoon.
+
+---
+
+## 4. What a deployment consumes
+
+The runtime is out of scope (section 10). What is fixed here is only what the
+engine promises, so the runtime can be written against it.
+
+- A release is a **tarball plus a sha256**, attached to a GitHub Release, named
+  for the tag. It contains `engine/ styles/ index.html LICENSE README.md` and no
+  games.
+- The engine is **prefix-relocatable**: every import under `engine/` is relative,
+  the stylesheets contain no `url()`, `@import` or `@font-face`, and every
+  runtime asset URL goes through `_resolveAsset()`. Verified. It runs from
+  `/e/1.0.1/` with no build step.
+- **Game asset paths must be relative.** `_resolveAsset()` passes through
+  anything starting with `./` or `/`, so `/games/x/assets/y.png` in a game would
+  work locally and 404 under a versioned prefix. A data test in both repositories
+  forbids it. Cheap now, a breaking change later.
+- A deployment records **one engine version and one games version** in a manifest
+  it keeps in git. That file is the record of what is in production.
+- Versioned paths are **immutable**: `/e/<engineVersion>/` and
+  `/g/<gamesVersion>/<gameId>/` may be cached forever; the generated `index.html`
+  is `no-store`.
+
+One engine for all games. The defects worth fixing are engine defects and
+concern every game at once, and six pins would be six chances to miss one. The
+version is in the path, so two engines can be served side by side the day that is
+actually needed.
+
+**Never patch a vendored engine in place.** A patched copy is a version that
+exists in no tag and cannot be reproduced. Every fix is a tag, then one line in
+the manifest.
+
+---
+
+## 5. Releasing the games
+
+**Corrected after review: the first draft implied a tag per game and never said
+how.** Six version streams in one repository is the same mistake as six engine
+pins, and `raven2cz/escape-games` has no tags at all today.
+
+The games repository is versioned **as one unit**: one tag, `games-2026.09.1`
+(year, month, counter). A content fix in one game re-tags the repository and
+redeploys all six; the bytes of the other five do not change, and no team loses
+anything, because saves depend on `meta.saveVersion`, not on the tag.
+
+`meta.version` stays what it is: a human label for release notes, per game.
+
+The games repository gets its own `release:check`: the tree is clean, the data
+tests pass, and no game's `meta.saveVersion` was changed without a line in that
+repository's `CHANGELOG.md` saying which game it wipes and when it is scheduled.
+
+The deployment path is keyed by the **tag**, not by `meta.version`. Otherwise an
+immutable URL is keyed by a string somebody is explicitly allowed to leave alone
+while changing content, and the cache would serve stale bytes.
+
+---
+
+## 6. Fixes, and the teacher mid-lesson
+
+**An engine fix.** Tag, bump `engine` in the manifest, deploy. A tablet already
+running is untouched: its module graph is in memory. On the next reload it gets
+fresh HTML, the new engine path, and **its state is restored**, because the
+engine version is not in the signature. Reloading is what a person does when a
+game looks stuck, so the fix lands exactly when it is wanted.
+
+**A content fix.** Tag the games repository, bump `games` in the manifest,
+deploy. Teams keep their progress as long as no `saveVersion` moved.
+
+**A change that makes old saves unplayable.** Bump that game's `saveVersion`.
+Every team of that game starts over at their next reload. Never a hotfix;
+schedule it outside school hours and put it in the changelog.
 
 **Rolling back is the one lossy direction.** `_normalizeState()` is a whitelist,
 so an engine rolled back past a release that added a state field drops that
@@ -207,100 +296,101 @@ playing.
 
 ---
 
-## 6. Adding a game
-
-    npm run new-game -- <id>
-
-`scripts/new-game.mjs` writes the smallest game that passes every data test:
-`meta` with `id`, `version`, `saveVersion`, one scene with `end: true`, an empty
-`events`, an `i18n/cs.json`, and an `assets/` with a placeholder. It refuses an
-id that already exists or is not a safe directory name.
-
-The scaffold exists so that the checklist is executable rather than remembered.
-The data tests then apply to the new game automatically, because they walk
-directories rather than a list. Registering it in the runtime manifest is the one
-manual step, and it is the step that should be manual.
-
----
-
 ## 7. Documentation
 
-- **`docs/RELEASING.md`** - cutting an engine release, the four versions and when
-  each moves, the git operations, what CI does, how a fix reaches a classroom,
-  how to roll back. Written for somebody who has not read this plan.
-- **`docs/DEVELOPING.md`** - running locally with `npm run dev`, the two-repository
-  layout, adding a game, running the tests in both repositories.
-- **README** - a short section pointing at both, replacing the current "Running a
-  game".
-- **`CHANGELOG.md`** - started at the current version, one section per release.
-  `release:check` requires an entry, so it cannot be forgotten.
+- **`docs/DEVELOPING.md`** - the two-repository layout, `npm run dev`, testing on
+  a real iPad, running the tests in both repositories, the expected node version.
+  Written first: it is the next session's first read.
+- **`docs/RELEASING.md`** - the four versions and when each moves, the bump
+  table, the rule from section 1 about what makes saves unplayable, `npm version`
+  as the whole procedure, what CI does, releasing the games, how a fix reaches a
+  classroom, rolling back. It must name `_signature()` and `_storageKey()` as the
+  two functions an engine release may not touch outside a scheduled wipe.
+- **`CHANGELOG.md`** in both repositories. The `version` hook requires an entry,
+  so it cannot be forgotten.
+- **README** - a short section pointing at both.
 
-The audience is the next agent session as much as a person. Every one of these
-says *why*, not only *how*, because the reason is what stops somebody undoing it.
+Written for the next agent session as much as for a person, and each says *why*,
+because the reason is what stops somebody undoing it.
 
 ---
 
 ## 8. Tests
 
-Every item here gets one; the rule on this branch is that a fix has a test that
-fails without it.
-
-| what | test |
+| what | where |
 |---|---|
-| `engine/version.js` matches `package.json` | `engine.version.test.js` |
-| `_signature()` uses `saveVersion` when present | `engine.state-identity.test.js` |
-| bumping `meta.version` alone keeps progress | same |
-| bumping `saveVersion` starts over | same |
-| every shipped game declares `saveVersion` | `games.data.test.js`, both repositories |
-| `ENGINE_API_VERSION` is exported and an integer | `engine.version.test.js` |
-| the dev server serves engine, demo and external games, and refuses to escape its roots | `scripts.dev-server.test.js` |
-| `new-game` produces a game that passes the data tests | `scripts.new-game.test.js` |
-| `release:check` fails on a dirty tree, a version mismatch, a missing changelog entry | `scripts.release-check.test.js` |
+| `engine/version.js` matches `package.json`; `ENGINE_API_VERSION` is an integer | `engine.version.test.js` |
+| `_signature()` uses `saveVersion` when present, and is unchanged without it | `engine.state-identity.test.js` |
+| bumping `meta.version` alone keeps progress; bumping `saveVersion` starts over | same |
+| `_saveState()` stamps `engineVersion` and `ENGINE_API_VERSION` | `engine.state-schema.test.js` |
+| no game asset path starts with `./` or `/` | `games.data.test.js`, both repositories |
+| every shipped game declares `saveVersion` | same, once each game has one |
+| `resolveRequest()` refuses traversal, serves both roots, rejects non-game ids | `scripts.dev-server.test.js` |
+| the server answers a Range request with 206 and the right MIME types | same, integration |
+| `release-check` fails on a dirty tree, a version mismatch, a missing changelog | `scripts.release-check.test.js` |
 
-The dev server's path handling is worth a test of its own: it takes a URL and
-maps it onto two different directories, and `..` in a request must not reach
-either of them.
+`vitest.config.js` includes only `games/tests/**/*.test.js` with jsdom, so script
+tests go there with `// @vitest-environment node`. Write `release-check` as an
+exported function taking `{ root, runTests }` so its test can drive a temporary
+git repository and does not run vitest inside vitest.
 
 ---
 
 ## 9. Order of work
 
-1. `meta.saveVersion` and the signature change, with its tests. First, because it
-   has to be in before anyone is mid-lesson, and everything else can wait.
-2. `engine/version.js`, `ENGINE_API_VERSION`, the equality test.
-3. `npm run dev`. Needed today for the migration.
-4. `CHANGELOG.md`, `release:check`, `release.yml`, tag `v1.0.0`.
-5. `new-game`.
-6. `docs/RELEASING.md`, `docs/DEVELOPING.md`, README.
+0. **Clone the games repository** to `~/git/github/escape-games`. It is not here.
+1. **`npm run dev`, and `docs/DEVELOPING.md` with it.** First, because it is what
+   the owner needs now, because step 2 cannot be checked without it, and because
+   EI-023 has been waiting for somebody to open a puzzle on a screen.
+2. **`meta.saveVersion` and the signature change**, in the engine, with tests.
+   Then, per game and separately, adding `saveVersion` to each `scenes.json` in
+   the games repository - six files plus its test copy, and that is the wipe, so
+   it is scheduled.
+3. **`engine/version.js`**, `ENGINE_API_VERSION`, the stamping in `_saveState()`,
+   the equality test.
+4. **`CHANGELOG.md`**, the `preversion` and `version` hooks, `release.yml`,
+   delete `hello.yml`. Then merge to `main` and tag `v1.0.0` by hand.
+5. **The games repository's own `release:check` and `CHANGELOG.md`**, and its
+   first tag.
+6. **`docs/RELEASING.md`**, README.
+7. **`engine/boot.js`** (section 11), if it is not folded into step 1.
 
 ---
 
 ## 10. Not in this plan
 
-- The Worker itself, `release.json`, `vendor.sh`. They live in `escape-runtime`
-  and belong to the runtime design.
-- EI-010, the progress events and the dashboard. Only the version field that
-  will describe them is decided here.
-- EI-002 step two, the run and team identity in the storage key. It has to ship
-  in the same pre-launch release as the signature change, because both change
-  what a returning tablet finds, but its design comes from the runtime.
+- The Worker, the manifest file, the vendoring script. They belong to
+  `escape-runtime` and to the runtime design.
+- EI-010, the progress events and the dashboard. Only the integer that will
+  describe them is decided here.
+- EI-002 step two, run and team identity in the storage key. Its design comes
+  from the runtime, and it is no longer coupled to this work.
 - Publishing to npm. Nothing can `npm install` at serve time, and a registry is a
   second artefact to keep in step with the tags.
+- A `new-game` scaffold. It was not asked for and it needs a target repository.
+  A checklist in `DEVELOPING.md` is enough until a seventh game is actually
+  written.
 
 ---
 
-## 11. One thing that will bite, and is cheap now
+## 11. `index.html` will fork, and it is cheap to prevent now
 
-`index.html` carries the whole boot sequence inline: reading the query
-parameters, fetching the game's i18n, constructing `Game`, wiring the buttons,
-the aspect watcher. Roughly a hundred lines.
+`index.html` carries the whole boot sequence inline, 110 lines: the query
+parameters, the i18n fetch, constructing `Game`, wiring the buttons, the aspect
+watcher. The Worker must generate its own HTML, because it injects the session,
+the team and the game id. So it will copy that block, and from then on an engine
+release that changes boot silently never reaches production.
 
-The Worker has to generate its own HTML, because it injects the session, the team
-and the game id. So it will copy that block - and from that moment, an engine
-release that changes boot silently never reaches production, because the
-production copy is in another repository.
+**And the boot script is not all of it.** Above it sit 35 lines of DOM skeleton
+whose nine element ids the engine takes by reference, and three `<link>` tags. A
+`boot()` that takes those as given leaves two thirds of the fork in place.
 
-Moving it to `engine/boot.js`, exporting `boot({ gameId, lang, baseUrl, storage,
-root })`, makes `index.html` and the Worker's HTML the same five-line shell with
-different arguments. Then the engine tarball actually contains the engine. It is
-an hour now and a confusing afternoon later.
+So `engine/boot.js` exports `boot({ gameId, lang, baseUrl, storage, root })` and
+**owns the skeleton and its stylesheets**, injecting them with
+`new URL('../styles/style.css', import.meta.url)`. Then `index.html` and the
+Worker's HTML are the same five-line shell with different arguments, and the
+tarball really does contain the engine.
+
+Two things worth doing while in there: make `Editor` a dynamic `import()` so a
+tablet never fetches 53 KB of editor code or sees an Edit button, and take the
+hardcoded Czech button labels from `ENGINE_I18N`.
