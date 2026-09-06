@@ -10,8 +10,7 @@ where the work is and what comes next.
     branch    fix/stabilization-audit
     base      main @ 5dbca85
     games     moved to raven2cz/escape-games (private); this repo keeps games/demo
-    suite     213 here, 7 in the games repository
-    suite     215 passing, CI runs it on push and pull request
+    suite     213 here, 7 in the games repository; CI runs both on push and PR
 
 | commit | what |
 |---|---|
@@ -26,11 +25,17 @@ where the work is and what comes next.
 | `22c473a` | EI-021, EI-022, EI-023, the three the reviews turned up |
 | `e095696` | EI-018 and EI-015: dead code, README, the last borrowed names |
 | `cbf860f` | closing review: EI-024, and corrections to EI-015/021/022 |
+| `699b0a3` | S5: licence split, PWA removed, transcripts and demo deleted |
+| `c055410` | GitHub Pages closed |
+| `2ac0ba7` | EI-025: games moved to the private repository |
+| `6f12df0` | EI-026: every asset a game references must exist |
 
-Every code batch in the plan is done, so are the three defects the reviews turned
-up (EI-021, EI-022, EI-023), so is the cleanup (EI-018, EI-015), and the owner
-has now taken the S5 decisions. What is left is one half-finished item (EI-017)
-and the two that were always meant to wait for the hosted runtime design.
+Twenty-six items are on the registry and twenty-four are closed. Every code batch
+in the plan is done, so are the defects the three review rounds turned up, so is
+the cleanup, the owner has taken all the S5 decisions, and the games have moved to
+their own private repository. What is left is EI-026, which needs artwork, and
+EI-010 with EI-002 step two, which were always meant to wait for the hosted
+runtime design.
 
 ## The reload harness
 
@@ -50,8 +55,10 @@ answers for the second; the Game is new. What is *not* torn down is listeners th
 engine attaches to `document` and `window`; the engine has no teardown API and
 adding one was out of scope. `reload.harness.test.js` holds those claims down.
 
-`loadGameFixtures('warp-engine')` reads a shipped game's real data, for
-regression tests that should name the game they protect.
+`loadGameFixtures('demo')` reads the demo game's real data, for regression tests
+that are worth running against a real game rather than a fixture. The commercial
+games are no longer here, so a test that needs one of those belongs in the games
+repository.
 
 ## What is left
 

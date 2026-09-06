@@ -103,10 +103,14 @@ line of dialogue is a smaller failure in a classroom than replaying a video. The
 consequence is recorded as a test of its own, so the trade-off is deliberate
 rather than accidental.
 
-**Tests.** `games/tests/engine.events.reload.test.js` (flags survive; the event
-does not replay; the hotspot the flag gates is still usable) and
-`games/tests/warp-engine.reload.test.js`, which runs the real chain above against
-the real game data and walks to the exit. Both verified to fail before the fix.
+**Tests.** `games/tests/engine.events.reload.test.js`: flags survive, the event
+does not replay, and the hotspot the flag gates is still usable. Verified to fail
+before the fix.
+
+There was also a `warp-engine.reload.test.js` that ran the chain above against the
+real game data and walked to the exit. warp-engine moved to the private games
+repository with EI-025, and the test's synthetic equivalents stayed here. Worth
+restoring there when that repository can reach an engine.
 
 ---
 
