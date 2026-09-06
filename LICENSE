@@ -1,5 +1,14 @@
 MIT License
 
+SCOPE. This licence covers the Escape Game Engine: everything in this repository
+EXCEPT `games/demo`.
+
+`games/demo` is a complete game rather than a sample, kept here so the engine can
+be seen working and so its tests have real data. It is licensed separately; see
+`games/LICENSE`. The commercial games are not in this repository at all.
+
+`games/tests` is engine test code and IS covered by this licence.
+
 Copyright (c) 2025 Antonin Fischer
 
 Permission is hereby granted, free of charge, to any person obtaining a copy

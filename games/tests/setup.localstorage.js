@@ -32,3 +32,42 @@ if (!globalThis.PointerEvent) {
     constructor(type, opts = {}) { super(type, opts); Object.assign(this, opts); }
   };
 }
+
+// jsdom does not fetch images, so neither `load` nor `error` ever fires on an
+// <img>. Any engine code that awaits a load therefore hangs forever, and the test
+// times out somewhere unrelated to the actual assertion. Individual test files
+// used to work around this one by one; doing it here means a new test does not
+// have to know about it.
+//
+// A test that needs a failing image (see EI-003) can override this descriptor.
+if (globalThis.HTMLImageElement) {
+  Object.defineProperty(globalThis.HTMLImageElement.prototype, 'src', {
+    configurable: true,
+    get() { return this.getAttribute('src') || ''; },
+    set(value) {
+      this.setAttribute('src', value);
+      // Asynchronously, like a real browser: code that assigns `src` and then
+      // attaches `onload` must still see the event.
+      setTimeout(() => {
+        // Reload tests deliberately abandon a run that is blocked on the player,
+        // so a suspended continuation can still assign `src` after the test file
+        // is done and jsdom has been torn down. Dispatching then throws, and the
+        // failure has nothing to do with the assertions. Swallow only that.
+        try {
+          this.dispatchEvent(new Event('load'));
+        } catch { /* environment already torn down */ }
+      }, 0);
+    },
+  });
+}
+
+// jsdom has no ResizeObserver. The match puzzle in column mode uses it, which is
+// a standard browser API, not a bug. Stub it so the puzzle can mount; layout is
+// not what those tests assert.
+if (!globalThis.ResizeObserver) {
+  globalThis.ResizeObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
+}

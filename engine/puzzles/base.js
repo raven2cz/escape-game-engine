@@ -76,11 +76,6 @@ export class BasePuzzle {
         root.appendChild(win);
         this.windowEl = win;
 
-        console.log('[PZ] base.mount window rect (cfg.rect):', workRect, {
-            computedWindowRectPx: win.getBoundingClientRect(),
-            parentRectPx: container.getBoundingClientRect()
-        });
-
         // Background overlay (FULL Screen under root)
         if (backgroundUrl) {
             const overlay = document.createElement('div');

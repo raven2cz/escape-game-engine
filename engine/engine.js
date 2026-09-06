@@ -1,9 +1,50 @@
 // engine/engine.js
 // Game engine core: scenes, i18n, dialogs, hero profile, inventory, puzzles, events, content panels.
 
-import {createPuzzleRunner, openListModal} from './puzzles/index.js';
+import {createPuzzleRunner} from './puzzles/index.js';
+import {flagEntries} from './utils.js';
+import {ENGINE_VERSION, ENGINE_API_VERSION} from './version.js';
 import {DialogUI} from './dialogs.js';
 import {ContentPanel} from './content.js';
+
+/**
+ * Shape of the persisted state, versioned independently of the game.
+ *
+ * The game version says "this content changed"; this says "the engine reads the
+ * state differently now". They move for different reasons, and conflating them
+ * meant a state written by an older build was adopted whole, missing whatever
+ * fields had been added since. See EI-012.
+ *
+ * Adding a field needs no new version: _normalizeState() fills a default for
+ * anything absent. Bump this, and add a step to _migrateState(), when a field
+ * that already exists changes meaning, because normalisation cannot tell an old
+ * meaning from a current one.
+ */
+const STATE_SCHEMA_VERSION = 1;
+
+/**
+ * The one key every game and every team on a device used to share, named after
+ * the first game ever written with this engine. Kept only to hand a lesson that
+ * is already in progress over to the namespaced key. See EI-002.
+ */
+const LEGACY_STATE_KEY = 'leeuwenhoek_escape_state';
+
+/**
+ * What the engine knows about a hero when the game has not said.
+ *
+ * It used to be Adam, with portraits under `assets/npc/adam/`, which is one
+ * particular character in one particular game. Five of the six shipped games
+ * define no heroes at all, so every one of them stored a phantom Adam pointing
+ * into leeuwenhoek's assets. A hero belongs to a game, not to the engine: this
+ * is here so that `getHero()` never returns null, not to stand in for one.
+ * See EI-015.
+ */
+const NEUTRAL_HERO = Object.freeze({
+    id: 'hero',
+    gender: 'n',
+    name: '',
+    assetsBase: ''
+});
 
 export class Game {
     constructor(opts) {
@@ -25,6 +66,22 @@ export class Game {
         this.lang = (opts.lang || 'cs').toLowerCase();
         this.i18n = opts.i18n || {engine: {}, game: {}};
 
+        // Where the state is kept. localStorage by default; the hosted runtime
+        // will pass its own, with the authoritative copy in a Durable Object and
+        // localStorage as a local cache. This is the seam the runtime and the
+        // teacher's dashboard both need, which is why it exists before either.
+        this._ownsLocalStorage = !opts.storage;
+        this.storage = opts.storage || this._localStorage();
+
+        // How long to wait for a scene image before carrying on without it.
+        // A school network drops requests, and a request that is dropped rather
+        // than refused never fires anything at all. See EI-003.
+        this.sceneImageTimeoutMs = opts.sceneImageTimeoutMs ?? 8000;
+
+        // How long a video gets to start playing before the pupil is offered a
+        // way past it, even when the game asked for no skipping. See EI-022.
+        this.videoStartTimeoutMs = opts.videoStartTimeoutMs ?? 6000;
+
         // State
         this.data = null;
         this.meta = {};
@@ -33,6 +90,8 @@ export class Game {
         this.currentScene = null;
         this._modalResolve = null;
         this._pendingHighlights = {};
+        this._navToken = 0;
+        this._hotspotBusy = false;
 
         // Toast container
         this.toastRoot = document.createElement('div');
@@ -74,11 +133,38 @@ export class Game {
 
     // --- version signature for safe restore ------------------------------------
 
+    /**
+     * What a saved state has to match to be reused.
+     *
+     * The language used to be part of it, so switching language behaved like
+     * switching to a different game and wiped the lesson. It does not change
+     * what a team has done. See EI-002.
+     *
+     * What is left is the wipe switch, and it is worth knowing which field it
+     * is. A signature that stops matching throws the team's progress away, at
+     * their next reload, silently. That used to be `meta.version` - the field
+     * somebody bumps out of habit after fixing a typo - so a content fix and a
+     * deliberate reset were the same gesture.
+     *
+     * They are separate now. `meta.version` is a label for people; a game that
+     * also declares `meta.saveVersion` is saying "this is the number that
+     * decides whether an old save is still playable", and only that number
+     * being changed ends a lesson.
+     *
+     * Adding is safe; renaming or removing any id a save can hold - a scene,
+     * item, flag, puzzle, event or content id - is what needs the bump, because
+     * _normalizeState() tolerates a stale id rather than crashing and *inert is
+     * the failure mode*: rename a flag whose `once` event is already in
+     * `eventsFired` and the gate it opened never opens again. See
+     * docs/RELEASING.md.
+     */
     _signature() {
         const gid = this.meta?.id || 'unknown';
-        const gver = this.meta?.version || '0';
-        const lang = this.lang || 'cs';
-        return `${gid}|${gver}|${lang}`;
+        // `saveVersion` when the game declares one, so that `version` can be
+        // bumped for a typo without ending every lesson in progress. Note `??`
+        // rather than `||`: saveVersion 0 is a version, not an absence.
+        const gver = this.meta?.saveVersion ?? this.meta?.version ?? '0';
+        return `${gid}|${gver}`;
     }
 
     // --- i18n helpers -----------------------------------------------------------
@@ -137,28 +223,48 @@ export class Game {
         } catch { /* noop */
         }
 
-        const saved = forceReset ? null : this._loadState();
-        const okSaved = !!saved && saved.signature === this._signature();
+        if (forceReset) {
+            // Consume the flag. It used to stay in the address bar and was
+            // re-evaluated on every start, so a pupil who reloaded mid-game lost
+            // everything. Every demo link in the README carries reset=1, so this
+            // was not a corner case.
+            try {
+                const url = new URL(location.href);
+                url.searchParams.delete('reset');
+                history.replaceState(null, '', url.pathname + url.search + url.hash);
+            } catch { /* noop */
+            }
+        }
 
-        // fresh state if signature changed or reset requested
-        this.state = okSaved ? saved : {
-            signature: this._signature(),
-            inventory: [],
-            solved: {},
-            flags: {},
-            visited: {},
-            eventsFired: {},
-            scene: this.data.startScene || this.data.scenes[0]?.id,
-            useItemId: null,
-            hero: null,
-            puzzleResults: [], // aggregateOnly results bucket
-            contentShown: {}  // tracks "once" content panels
-        };
+        // Fresh state if the signature does not match or a reset was requested.
+        // A state left under the old shared key is adopted once, so that this
+        // change does not end a lesson that is already running.
+        let saved = forceReset ? null : this._loadState();
+        let adopted = false;
+        if (forceReset) {
+            // The old entry has to go too, or a later restart() finds it and
+            // resurrects the lesson the teacher just reset away.
+            this._discardLegacyState();
+        } else if (!saved) {
+            saved = this._adoptLegacyState();
+            adopted = !!saved;
+        }
+
+        this.state = this._restoreState(saved);
+
+        if (adopted) {
+            // Adoption removed the old entry, so until this write the progress
+            // exists only in memory. A pupil whose tablet looks stuck reloads
+            // twice, and the second reload would have found neither key.
+            this._saveState();
+        }
 
         // initialize hero (default → then URL override if present)
+        // A game that defines no heroes gets none. Inventing one meant every
+        // game but leeuwenhoek carried a hero it had never heard of. EI-015.
         if (!this.state.hero) {
-            const defId = this.data?.defaultHero || Object.keys(this.data?.heroes || {})[0] || 'adam';
-            this._setHeroInternal(defId);
+            const defId = this.data?.defaultHero || Object.keys(this.data?.heroes || {})[0] || null;
+            if (defId) this._setHeroInternal(defId);
         }
         if (urlHero) {
             // URL always wins (do not nuke progress)
@@ -166,12 +272,21 @@ export class Game {
             this._dbg('[HERO] overridden from URL →', urlHero, this.state.hero);
         }
 
+        // Write the run down as soon as it exists. This used to happen only as a
+        // side effect of hero initialisation, which stopped for any game that
+        // defines no heroes once EI-015 removed the invented one. Nothing was
+        // lost by that - there was nothing to lose yet - but persistence should
+        // not depend on which unrelated thing happened to save first, and the
+        // hosted runtime will want a run to exist from the moment it starts.
+        this._saveState();
+
         await this.goto(this.state.scene, {noSave: true});
         this._renderInventory();
     }
 
     restart() {
-        localStorage.removeItem('leeuwenhoek_escape_state');
+        this.storage.clear?.();
+        this._discardLegacyState();
         location.reload();
     }
 
@@ -179,19 +294,57 @@ export class Game {
         const scene = this.data.scenes.find(s => s.id === sceneId);
         if (!scene) return this._msg(this._t('engine.sceneNotFound', 'Scéna nebyla nalezena: {id}', {id: sceneId}));
 
-        this.currentScene = scene;
-        this.state.scene = sceneId;
-        this.state.visited[sceneId] = true;
-        if (!opts.noSave) this._saveState();
+        const token = ++this._navToken;
 
-        this.sceneImage.src = this._resolveAsset(scene.image);
-        await new Promise(res => {
-            if (this.sceneImage.complete && this.sceneImage.naturalWidth) res();
-            else this.sceneImage.onload = () => res();
-        });
+        this.currentScene = scene;
+
+        const outcome = await this._loadSceneImage(this._sceneImageSrc(scene));
+
+        // A newer navigation started while this one was waiting for its image.
+        // That one owns the screen now; carrying on here would render this scene
+        // over the top of it.
+        if (token !== this._navToken) return;
 
         this._renderHotspots();
         this._msg(this._text(scene.title) || '');
+
+        if (outcome === 'ok') {
+            // `state.scene` moves only now, and this is the whole of "the scene
+            // is not recorded until it displays". Skipping just the save below
+            // is not enough: the enter events that run a few lines down save the
+            // state for their own reasons the moment a once-event marks itself,
+            // and almost every scene in the shipped games has one. `state.scene`
+            // is the resume point, so it stays on the last scene that worked.
+            // Where the pupil actually is, is `currentScene`. See EI-003.
+            this.state.scene = sceneId;
+            this.state.visited[sceneId] = true;
+            if (!opts.noSave) this._saveState();
+        } else {
+            if (outcome === 'timeout') {
+                // A timeout means "not yet", not "never". Congested school
+                // Wi-Fi takes longer than eight seconds over a 700 KB scene
+                // often enough to matter, and without this the pupil plays on
+                // in a scene that is never recorded, so a reload sends them
+                // back to wherever they were several minutes earlier, with this
+                // scene's once-events already spent. Still guarded by the
+                // token: a load that arrives after a newer navigation belongs
+                // to that one.
+                this.sceneImage.addEventListener('load', () => {
+                    if (token !== this._navToken) return;
+                    this.state.scene = sceneId;
+                    this.state.visited[sceneId] = true;
+                    if (!opts.noSave) this._saveState();
+                }, {once: true});
+            }
+
+            // Say something. A blank screen with no explanation is the worst
+            // outcome on a school network, and it is the one that gets reported
+            // as "the game is broken".
+            this.toast(this._t(
+                'engine.sceneImageFailed',
+                'Obrázek scény se nepodařilo načíst. Hraj dál, nebo zkus stránku obnovit.',
+            ), 6000);
+        }
 
         // queued highlights for this scene
         this._drainHighlightsForScene(sceneId);
@@ -213,6 +366,95 @@ export class Game {
         if (scene.end) this._msg(this._t('engine.endCongrats', '🎉 Gratulujeme! Našel si cestu ven!'));
     }
 
+    /**
+     * Image to display for a scene, honouring a change made by setSceneImage.
+     *
+     * The override lives in the state rather than on `this.data`, because
+     * `this.data` is rebuilt from the game files on every load while the event
+     * that made the change is `once` and will not run again. Mutating the data
+     * only meant the chest in leeuwenhoek shut itself again after a reload,
+     * with `chest_opened` still set and the key still in the inventory. EI-006.
+     */
+    /**
+     * Where a puzzle or a content panel is mounted.
+     *
+     * Over the scene, but *beside* the hotspot layer rather than inside it. The
+     * layer is a hit-testing surface: `_renderHotspots()` owns its children and
+     * used to clear them wholesale, which tore an open puzzle out of the DOM
+     * without settling it and left the engine, and the activation lock with it,
+     * waiting for a promise nothing would resolve. See EI-023.
+     *
+     * The geometry is unchanged. The layer is `position: absolute` with all four
+     * offsets at zero inside a `position: relative` scene container, so it fills
+     * that container exactly; a surface positioned in percentages resolves them
+     * against the same box either way. Same host as the dialog overlay uses.
+     */
+    _modalHost() {
+        const container = this.sceneImage?.closest('#sceneContainer');
+        if (container) return container;
+
+        // No scene container: a bare test DOM, or the engine embedded in
+        // something else. Fall back to the hotspot layer rather than to
+        // document.body. A surface here is positioned in percentages, and on
+        // the body they would resolve against the viewport, so an embedded
+        // 800x450 game would open a puzzle the size of the screen. Mounting in
+        // the layer is no longer destructive: _renderHotspots() removes only
+        // the children it drew.
+        return this.hotspotLayer || document.body;
+    }
+
+    /** The scene the pupil is looking at, which is not always the saved one. */
+    _hereId() {
+        return this.currentScene?.id ?? this.state?.scene;
+    }
+
+    _sceneImageSrc(scene) {
+        const override = this.state?.sceneImages?.[scene.id];
+        return this._resolveAsset(override || scene.image);
+    }
+
+    /**
+     * Point the scene image at `src` and wait for it to display, fail, or run
+     * out of patience. Resolves 'ok' | 'error' | 'timeout' and never rejects,
+     * because a game that refuses to leave a scene is worse than a scene with a
+     * missing picture.
+     *
+     * The listeners are added, not assigned. There is one <img> for the whole
+     * game, so `onload = ...` meant a second navigation replaced the first one's
+     * handler and whoever awaited the first waited forever. Two navigations also
+     * share one image element and therefore one `load` event, which is why the
+     * caller checks a navigation token instead of trusting the event. EI-003.
+     *
+     * Compare engine/dialogs.js, where the portrait preload has handled onerror
+     * from the start. The scene loader never got the same treatment.
+     */
+    _loadSceneImage(src) {
+        const img = this.sceneImage;
+        img.src = src;
+
+        if (img.complete && img.naturalWidth) return Promise.resolve('ok');
+
+        return new Promise(resolve => {
+            let settled = false;
+
+            const finish = (outcome) => {
+                if (settled) return;
+                settled = true;
+                clearTimeout(timer);
+                img.removeEventListener('load', onLoad);
+                img.removeEventListener('error', onError);
+                resolve(outcome);
+            };
+
+            const onLoad = () => finish('ok');
+            const onError = () => finish('error');
+            const timer = setTimeout(() => finish('timeout'), this.sceneImageTimeoutMs);
+
+            img.addEventListener('load', onLoad, {once: true});
+            img.addEventListener('error', onError, {once: true});
+        });
+    }
+
     // --- hero profile -----------------------------------------------------------
 
     _getHeroProfileById(id) {
@@ -221,17 +463,14 @@ export class Game {
     }
 
     _setHeroInternal(id) {
-        const prof = this._getHeroProfileById(id) || {
-            id: 'adam',
-            gender: 'm',
-            name: 'Adam',
-            assetsBase: 'assets/npc/adam/'
-        };
+        // An id the game does not define keeps its own name and gets no assets,
+        // rather than being turned into somebody else's hero. See NEUTRAL_HERO.
+        const prof = this._getHeroProfileById(id) || {...NEUTRAL_HERO, id, name: id};
         this.state.hero = {
             id: prof.id,
-            gender: prof.gender || 'm',
-            name: this._text(prof.name) || prof.name || 'Hero',
-            assetsBase: prof.assetsBase || 'assets/npc/adam/'
+            gender: prof.gender || NEUTRAL_HERO.gender,
+            name: this._text(prof.name) || prof.name || '',
+            assetsBase: prof.assetsBase || ''
         };
         this._saveState();
     }
@@ -241,12 +480,9 @@ export class Game {
     }
 
     getHero() {
-        return this.state?.hero || this._getHeroProfileById(this.data?.defaultHero) || {
-            id: 'adam',
-            gender: 'm',
-            name: 'Adam',
-            assetsBase: 'assets/npc/adam/'
-        };
+        return this.state?.hero
+            || this._getHeroProfileById(this.data?.defaultHero)
+            || {...NEUTRAL_HERO};
     }
 
     getHeroId() {
@@ -279,7 +515,21 @@ export class Game {
         const i = this.state.inventory.indexOf(id);
         if (i >= 0) {
             this.state.inventory.splice(i, 1);
+            // An item that no longer exists must not stay selected for use. The
+            // save below would otherwise record a useItemId naming an item the
+            // pupil no longer has, and _activateHotspot checks the held item
+            // against acceptItems without looking in the inventory, so after a
+            // reload the same item could be spent a second time.
+            if (this.state.useItemId === id) this.exitUseMode();
             this._renderInventory();
+            // Persist. The item disappeared from the screen but not from
+            // storage, and was saved only by accident when a following onApply
+            // happened to change a flag or the scene. Every use in the shipped
+            // games has such an action, which is why nothing looked wrong; the
+            // first game to consume an item and only say so would have had it
+            // back after a reload, with the puzzle it was consumed by already
+            // solved. See EI-011.
+            this._saveState();
         }
     }
 
@@ -326,7 +576,16 @@ export class Game {
     // --- renderers --------------------------------------------------------------
 
     _renderHotspots() {
-        this.hotspotLayer.innerHTML = '';
+        // Remove only what this method and the highlight helper put here.
+        //
+        // A puzzle and a content panel mount into this same layer, and clearing
+        // it wholesale tore them out of the DOM without ever settling them: the
+        // puzzle's promise was left waiting for an onResolve that could no
+        // longer come, and since EI-013 the activation lock waits with it, so
+        // afterwards no tap did anything at all. See EI-023.
+        this.hotspotLayer.querySelectorAll(':scope > .hotspot, :scope > .hs-glow')
+            .forEach(el => el.remove());
+
         const hotspots = this.currentScene.hotspots || [];
 
         hotspots.forEach((h, idx) => {
@@ -403,7 +662,18 @@ export class Game {
                         e.preventDefault(); e.stopPropagation(); return;
                     }
                     e.preventDefault();
-                    this._activateHotspot(h).catch(err => this._msg(String(err)));
+
+                    // One activation at a time. A double tap is an ordinary
+                    // input on a tablet, and without this it opens two puzzles
+                    // over each other, or two dialogs of which only the second
+                    // can ever be closed. The flag lives on the Game rather than
+                    // on the element, because _renderHotspots() rebuilds these
+                    // elements while an activation is still running. EI-013.
+                    if (this._hotspotBusy) return;
+                    this._hotspotBusy = true;
+                    this._activateHotspot(h)
+                        .catch(err => this._msg(String(err)))
+                        .finally(() => { this._hotspotBusy = false; });
                 });
 
                 // --- Drop handling for item drag & drop ---
@@ -450,7 +720,7 @@ export class Game {
     }
 
     async _activateHotspot(h) {
-        console.log('[HOTSPOT] Activation triggered:', h.type, h);
+        this._dbg('[HOTSPOT] activation:', h.type, h);
 
         // 1. Use-mode guard (pokud držíme předmět a hotspot ho neumí přijmout)
         // Pokud hráč drží předmět, ale klikne na něco, co předměty nebere -> chyba.
@@ -511,7 +781,7 @@ export class Game {
         // --- NOVÁ ČÁST: Obecná akce Apply (bez předmětu) ---
         // Toto je to, co potřebujeme pro spuštění videa kliknutím na šipku
         if (h.type === 'apply') {
-            console.log('[HOTSPOT] Executing Apply actions:', h.onApply);
+            this._dbg('[HOTSPOT] apply actions:', h.onApply);
             if (h.onApply) {
                 await this._applyActions(h.onApply);
             }
@@ -574,23 +844,6 @@ export class Game {
             } else {
                 if (h.onFail) await this._applyActions(h.onFail);
                 else this._msg(this._t('engine.puzzleFailed', 'Puzzle nevyřešeno.'));
-            }
-            return;
-        }
-
-        if (h.type === 'puzzleList') {
-            const ok = await openListModal(this, {
-                items: h.items || h.puzzleList?.items || [],
-                rect: h.rect || {x: 0, y: 0, w: 100, h: 100},
-                background: h.puzzleList?.background || h.background,
-                aggregateOnly: !!(h.options?.aggregateOnly),
-                blockUntilSolved: !!(h.options?.blockUntilSolved),
-                puzzlesById: this.data.puzzles
-            });
-            if (ok) {
-                if (h.onSuccess) await this._applyActions(h.onSuccess);
-            } else {
-                if (h.onFail) await this._applyActions(h.onFail);
             }
             return;
         }
@@ -676,7 +929,7 @@ export class Game {
                 }
             });
 
-            runner.mountInto(this.hotspotLayer);
+            runner.mountInto(this._modalHost());
         });
     }
 
@@ -751,30 +1004,17 @@ export class Game {
             if (added) this._renderInventory();
         }
 
-        if (actions.setFlags) {
-            if (Array.isArray(actions.setFlags)) {
-                for (const f of actions.setFlags) {
-                    if (!this.state.flags[f]) {
-                        this.state.flags[f] = true;
-                        changed = true;
-                    }
-                }
-            } else {
-                for (const [k, v] of Object.entries(actions.setFlags)) {
-                    if (!!this.state.flags[k] !== !!v) {
-                        this.state.flags[k] = !!v;
-                        changed = true;
-                    }
-                }
+        for (const [flag, value] of flagEntries(actions.setFlags)) {
+            if (!!this.state.flags[flag] !== value) {
+                this.state.flags[flag] = value;
+                changed = true;
             }
         }
 
-        if (actions.clearFlags && Array.isArray(actions.clearFlags)) {
-            for (const f of actions.clearFlags) {
-                if (this.state.flags[f]) {
-                    delete this.state.flags[f];
-                    changed = true;
-                }
+        for (const [flag] of flagEntries(actions.clearFlags)) {
+            if (this.state.flags[flag]) {
+                delete this.state.flags[flag];
+                changed = true;
             }
         }
 
@@ -790,11 +1030,6 @@ export class Game {
         if (actions.goTo) {
             await this.goto(actions.goTo);
         }
-    }
-
-    // backward compatibility
-    async _applyOnSuccess(actions) {
-        return this._applyActions(actions);
     }
 
     // --- state changed hook -----------------------------------------------------
@@ -848,9 +1083,17 @@ export class Game {
                 pointerMoved = true;
             });
 
-            wrap.addEventListener('pointerup', (e) => {
-                // Ignore if this was a drag operation
-                if (pointerMoved && Date.now() - pointerDownTime > 150) return;
+            // Activation lives on `click`, not on `pointerup`. The element is a
+            // real <button>, so Enter and Space produce a click and no pointer
+            // event at all; handling only pointerup made inventory unreachable
+            // from the keyboard. Pointer events stay, but only to tell a tap
+            // apart from a drag.
+            wrap.addEventListener('click', (e) => {
+                e.preventDefault();
+
+                const wasDrag = pointerMoved && Date.now() - pointerDownTime > 150;
+                pointerMoved = false;
+                if (wasDrag) return;
 
                 // Toggle use mode if already selected
                 if (this.state.useItemId === id) {
@@ -858,11 +1101,6 @@ export class Game {
                     return;
                 }
                 this._inspectItem(item);
-            });
-
-            // Prevent default click to avoid double-firing
-            wrap.addEventListener('click', (e) => {
-                e.preventDefault();
             });
 
             this.inventoryRoot.appendChild(wrap);
@@ -1085,17 +1323,30 @@ export class Game {
             return;
         }
 
-        const accepts = hs.acceptItems.map(x => typeof x === 'string' ? { id: x, consume: false } : x);
-        const match = accepts.find(a => a.id === itemId);
+        // Under the same lock as a hotspot click, and for the same reason. This
+        // is not the secondary path: dragging an item onto a target is what the
+        // inventory tooltip tells the pupil to do, and the six warp-engine
+        // module slots are only reachable this way. Without it, the actions a
+        // drop sets off run unguarded, and a flag set early by an event (EI-001)
+        // can be acted on by a tap before that event has finished presenting
+        // itself. See EI-013.
+        if (this._hotspotBusy) return;
+        this._hotspotBusy = true;
+        try {
+            const accepts = hs.acceptItems.map(x => typeof x === 'string' ? { id: x, consume: false } : x);
+            const match = accepts.find(a => a.id === itemId);
 
-        if (match) {
-            if (match.consume) this._removeItemFromInventory(itemId);
+            if (match) {
+                if (match.consume) this._removeItemFromInventory(itemId);
 
-            if (hs.onApply) {
-                await this._applyActions(hs.onApply);
-            } else {
-                this.toast(this._t('engine.use.applied', 'Předmět byl použit.'), 2200);
+                if (hs.onApply) {
+                    await this._applyActions(hs.onApply);
+                } else {
+                    this.toast(this._t('engine.use.applied', 'Předmět byl použit.'), 2200);
+                }
             }
+        } finally {
+            this._hotspotBusy = false;
         }
     }
 
@@ -1203,6 +1454,11 @@ export class Game {
             content.classList.add('modal--item');
 
             // Header with title + close icon (×)
+            //
+            // The header survives _closeModal(), which only hides the overlay,
+            // so on every inspection after the first one this block is skipped.
+            // The title is therefore set below, outside the guard: doing it only
+            // on creation left the previous item's name on screen.
             let header = content.querySelector('.modal-header');
             if (!header) {
                 header = document.createElement('div');
@@ -1227,6 +1483,9 @@ export class Game {
                 if (oldTitle && oldTitle.parentElement === content) oldTitle.remove();
                 content.insertBefore(header, content.firstChild);
             }
+
+            const headerTitle = header.querySelector('.modal-title');
+            if (headerTitle) headerTitle.textContent = this._text(item.label) || item.id;
 
             // Hide any footer/actions row defensively (if openModal created it)
             const candidates = Array.from(content.children).slice(-3); // last few blocks
@@ -1364,7 +1623,10 @@ export class Game {
             if (w.on && w.on !== trigger.on) continue;
 
             // b) Scene match (current scene or specified scene)
-            if (w.scene && w.scene !== (trigger.scene || this.state.scene)) continue;
+            // Where the pupil is, is `currentScene`. `state.scene` is the resume
+            // point and lags behind it when a scene image failed to load, so it
+            // is only the last resort here. See EI-003.
+            if (w.scene && w.scene !== (trigger.scene || this._hereId())) continue;
 
             // c) Inventory requirements
             if (w.requireItems && !this._hasAll(w.requireItems)) continue;
@@ -1377,6 +1639,33 @@ export class Game {
 
             // --- MATCH FOUND ---
 
+            const act = ev.then || {};
+
+            // Set Flags
+            //
+            // Runs before the event is marked as fired, and that order is the
+            // whole point. Everything else in `then` is presentation, and most
+            // of it blocks: the dialog and the video only return once the pupil
+            // has clicked through them. Flags are the durable consequence, the
+            // thing later scenes and hotspots are gated on, so they have to be
+            // in storage before the run can be interrupted. Marking the event
+            // first and setting the flags last meant a reload during the dialog
+            // left the event recorded as done with its effect never applied, and
+            // a once-event does not get a second chance. See EI-001.
+            //
+            // Safe to move up: unlike _applyActions, this block only writes
+            // state and saves. It does not call _stateChanged(), so it cannot
+            // re-enter _processEvents, which is what the marking below guards
+            // against.
+            let flagsChanged = false;
+            for (const [flag, value] of flagEntries(act.setFlags)) {
+                if (!!this.state.flags[flag] !== value) {
+                    this.state.flags[flag] = value;
+                    flagsChanged = true;
+                }
+            }
+            if (flagsChanged) this._saveState();
+
             // Mark event as fired IMMEDIATELY before executing actions.
             // This prevents recursion loops if an action (like a dialog) triggers
             // a state change that would otherwise re-evaluate and re-trigger this
@@ -1387,8 +1676,6 @@ export class Game {
                 this._saveState();
             }
 
-            const act = ev.then || {};
-
             // 3. Execute Actions
 
             // Show Toast
@@ -1397,17 +1684,21 @@ export class Game {
             }
 
             // Change Scene Image
+            //
+            // Recorded in the state, not on this.data, and saved before the
+            // blocking actions below run. See _sceneImageSrc(). EI-006.
             if (act.setSceneImage?.sceneId && act.setSceneImage?.image) {
                 const sc = this.data.scenes.find(s => s.id === act.setSceneImage.sceneId);
                 if (sc) {
-                    sc.image = this._resolveAsset(act.setSceneImage.image);
+                    this.state.sceneImages = this.state.sceneImages || {};
+                    this.state.sceneImages[sc.id] = act.setSceneImage.image;
+                    this._saveState();
+
                     // If we are currently in this scene, update the DOM immediately
                     if (this.currentScene?.id === sc.id) {
-                        this.sceneImage.src = sc.image;
-                        await new Promise(res => {
-                            if (this.sceneImage.complete && this.sceneImage.naturalWidth) res();
-                            else this.sceneImage.onload = () => res();
-                        });
+                        // Through the same loader as goto(), so a missing
+                        // replacement image cannot hang the event either.
+                        await this._loadSceneImage(this._sceneImageSrc(sc));
                     }
                 }
             }
@@ -1428,7 +1719,7 @@ export class Game {
             if (act.highlightHotspot?.rect) {
                 const h = act.highlightHotspot;
                 this._enqueueOrShowHighlight({
-                    sceneId: h.sceneId || (w.scene || this.state.scene),
+                    sceneId: h.sceneId || (w.scene || this._hereId()),
                     rect: h.rect,
                     ms: h.ms ?? 3500,
                     outline: !!h.outline
@@ -1464,45 +1755,8 @@ export class Game {
                     }
                 }
             }
-
-            // Open Puzzle List
-            if (act.openPuzzleList) {
-                const apl = act.openPuzzleList;
-                const ok = await openListModal(this, {
-                    items: apl.items || [],
-                    rect: apl.rect || {x: 0, y: 0, w: 100, h: 100},
-                    background: apl.background || null,
-                    aggregateOnly: !!apl.aggregateOnly,
-                    blockUntilSolved: !!apl.blockUntilSolved,
-                    puzzlesById: this.data.puzzles
-                });
-                if (ok) {
-                    if (apl.onSuccess) await this._applyActions(apl.onSuccess);
-                } else {
-                    if (apl.onFail) await this._applyActions(apl.onFail);
-                }
-            }
-
-            // Set Flags
-            if (act.setFlags) {
-                let changed = false;
-                if (Array.isArray(act.setFlags)) {
-                    for (const f of act.setFlags) {
-                        if (!this.state.flags[f]) {
-                            this.state.flags[f] = true;
-                            changed = true;
-                        }
-                    }
-                } else {
-                    for (const [k, v] of Object.entries(act.setFlags)) {
-                        if (!!this.state.flags[k] !== !!v) {
-                            this.state.flags[k] = !!v;
-                            changed = true;
-                        }
-                    }
-                }
-                if (changed) this._saveState();
-            }
+            // Flags for this event were applied above, before it was marked as
+            // fired, so that an interrupted run cannot lose them.
         }
     }
 
@@ -1511,6 +1765,25 @@ export class Game {
     /**
      * Plays a video overlay or embedded video.
      * Returns a Promise that resolves when the video ends or is skipped.
+     *
+     * Nothing here assumes the video plays. It used to: the promise settled on
+     * `ended` or `error` and on nothing else, a refused `play()` was logged and
+     * then waited on forever, and `allowSkip: false` meant there was not even a
+     * button. Both warp-engine videos are `allowSkip: false` and the intro one
+     * runs on the first tap of the game, so a lesson could end on a black
+     * screen. See EI-022.
+     *
+     * The tablet cases this is built around, in the order they bite:
+     *   - iOS refuses playback with sound unless the call is close enough to a
+     *     real touch, and refuses it outright in Low Power Mode. So a refused
+     *     `play()` puts a play button on screen, and tapping that retries from
+     *     inside a real touch handler, which is what iOS wants. One tap and the
+     *     video plays properly, with its sound.
+     *   - A school network can leave a video buffering indefinitely. If nothing
+     *     has started playing by `videoStartTimeoutMs`, or the download stalls
+     *     part way through, a way out appears even when the author asked for no
+     *     skipping. An intro somebody skipped beats an intro nobody can pass.
+     *
      * @param {object} cfg - { src, mode, rect, delay, allowSkip, onEnd }
      */
     async _playVideo(cfg) {
@@ -1548,44 +1821,85 @@ export class Game {
 
             wrapper.appendChild(video);
 
-            // Skip button (optional)
-            if (cfg.allowSkip !== false) {
-                const skipBtn = document.createElement('button');
-                skipBtn.className = 'video-skip';
-                skipBtn.innerHTML = '&times;'; // Close icon
-                skipBtn.title = 'Skip Video';
+            const allowSkip = cfg.allowSkip !== false;
 
-                // Skip handler
-                skipBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    finish();
-                });
-                wrapper.appendChild(skipBtn);
-
-                // Allow clicking outside/on wrapper to skip (only in fullscreen mode)
-                if (cfg.mode !== 'rect') {
-                    wrapper.addEventListener('click', finish);
-                }
-            }
-
-            // Mount to DOM (highest layer)
-            document.body.appendChild(wrapper);
-
-            // Lifecycle end handler
             let finished = false;
-            function finish() {
+            let watchdog = null;
+
+            const finish = () => {
                 if (finished) return;
                 finished = true;
 
+                clearTimeout(watchdog);
                 video.pause();
                 if (wrapper.parentNode) wrapper.parentNode.removeChild(wrapper);
 
                 // Execute follow-up actions (onEnd) if defined
                 // Note: We resolve first to unblock the engine, logic happens outside
                 resolve();
+            };
+
+            // The skip control exists even when the author asked for no
+            // skipping. It stays hidden until the video shows that it cannot
+            // play, and once shown it stays: taking a control away again from
+            // somebody who has just seen it is its own kind of stuck.
+            const skipBtn = document.createElement('button');
+            skipBtn.type = 'button';
+            skipBtn.className = 'video-skip';
+            skipBtn.innerHTML = '&times;'; // Close icon
+            const skipLabel = this._t('engine.video.skip', 'Přeskočit video');
+            skipBtn.title = skipLabel;
+            skipBtn.setAttribute('aria-label', skipLabel);
+            skipBtn.hidden = !allowSkip;
+            skipBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                finish();
+            });
+            wrapper.appendChild(skipBtn);
+
+            const offerWayOut = () => {
+                skipBtn.hidden = false;
+            };
+
+            // Shown only when the browser has actually refused to start.
+            const playBtn = document.createElement('button');
+            playBtn.type = 'button';
+            playBtn.className = 'video-play';
+            playBtn.textContent = this._t('engine.video.play', '▶ Přehrát');
+            playBtn.hidden = true;
+            playBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                // Retried from inside a real touch handler, which is the only
+                // kind iOS accepts for a video with sound.
+                video.play().then(() => {
+                    playBtn.hidden = true;
+                }).catch(err => {
+                    console.warn('[VIDEO] Playback refused again:', err);
+                });
+            });
+            wrapper.appendChild(playBtn);
+
+            // Allow clicking outside/on the wrapper to skip (only in fullscreen
+            // mode, and only when skipping was allowed in the first place: an
+            // accidental tap must not eat an intro the author wanted watched).
+            if (allowSkip && cfg.mode !== 'rect') {
+                wrapper.addEventListener('click', finish);
             }
 
+            // Mount to DOM (highest layer)
+            document.body.appendChild(wrapper);
+
+            const armWatchdog = () => {
+                clearTimeout(watchdog);
+                watchdog = setTimeout(offerWayOut, this.videoStartTimeoutMs);
+            };
+
             // Event listeners
+            video.addEventListener('playing', () => {
+                clearTimeout(watchdog);
+                playBtn.hidden = true;
+            });
+
             video.addEventListener('ended', finish);
 
             video.addEventListener('error', (e) => {
@@ -1593,11 +1907,34 @@ export class Game {
                 finish(); // Don't block the game on error
             });
 
+            // Buffering. Rather than trusting any one event to mean "this is
+            // never coming back" - Safari has been unreliable about `stalled`
+            // and Chrome has fired it spuriously - restart the same clock that
+            // watches for a video that never starts. Playback resuming clears
+            // it again, so a normal buffer is invisible and one that does not
+            // recover ends up offering a way out.
+            video.addEventListener('waiting', armWatchdog);
+            video.addEventListener('stalled', armWatchdog);
+
+            // The most ordinary interruption on a tablet: the pupil switches
+            // apps, iOS pauses the video, and coming back leaves a still frame
+            // with no controls, no `ended` and no `stalled`. There is no way for
+            // the pupil to pause deliberately - the element has none - so any
+            // pause that is not the engine shutting the overlay down means the
+            // video needs starting again.
+            video.addEventListener('pause', () => {
+                if (finished || video.ended) return;
+                playBtn.hidden = false;
+                offerWayOut();
+            });
+
+            armWatchdog();
+
             // Start playback with error handling (autoplay policy)
             video.play().catch(err => {
                 console.warn('[VIDEO] Autoplay blocked or failed:', err);
-                // If autoplay is blocked, we might need a "Click to Play" UI here.
-                // For now, we assume user interaction has already happened (dialog click).
+                playBtn.hidden = false;
+                offerWayOut();
             });
         });
     }
@@ -1635,17 +1972,217 @@ export class Game {
 
     // --- persistence ------------------------------------------------------------
 
+    /**
+     * One entry per game. It used to be one entry per origin, so opening a
+     * second game destroyed the first one's progress. See EI-002.
+     *
+     * Not yet one entry per team: that needs a run identity, which has to come
+     * from the hosted runtime rather than be invented here. The key is shaped so
+     * the run and team can be added to it without moving anything else.
+     */
+    _storageKey() {
+        return `state:${this.meta?.id || 'unknown'}`;
+    }
+
+    /** Default storage: the browser's, behind the same interface as any other. */
+    _localStorage() {
+        return {
+            load: () => {
+                try {
+                    const raw = localStorage.getItem(this._storageKey());
+                    return raw ? JSON.parse(raw) : null;
+                } catch {
+                    return null;
+                }
+            },
+            save: (state) => {
+                try {
+                    localStorage.setItem(this._storageKey(), JSON.stringify(state));
+                } catch { /* quota, private mode: losing a save beats throwing */
+                }
+            },
+            clear: () => {
+                try {
+                    localStorage.removeItem(this._storageKey());
+                } catch { /* noop */
+                }
+            },
+        };
+    }
+
     _saveState() {
         this.state.signature = this._signature();
-        localStorage.setItem('leeuwenhoek_escape_state', JSON.stringify(this.state));
+        this.state.stateSchemaVersion = STATE_SCHEMA_VERSION;
+
+        // Stamped, never read back. _normalizeState() is a whitelist and drops
+        // these on load, which is right: they describe the engine that wrote the
+        // blob, not anything the engine should trust a blob to tell it. They are
+        // here for the first support call about a state nobody can explain.
+        this.state.engineVersion = ENGINE_VERSION;
+        this.state.engineApiVersion = ENGINE_API_VERSION;
+
+        this.storage.save(this.state);
     }
 
     _loadState() {
+        return this.storage.load();
+    }
+
+    /** The state a game starts from. Every field the engine reads is listed here. */
+    _freshState() {
+        return {
+            stateSchemaVersion: STATE_SCHEMA_VERSION,
+            signature: this._signature(),
+            inventory: [],
+            solved: {},
+            flags: {},
+            visited: {},
+            eventsFired: {},
+            scene: this._startSceneId(),
+            useItemId: null,
+            hero: null,
+            puzzleResults: [], // aggregateOnly results bucket
+            contentShown: {},  // tracks "once" content panels
+            sceneImages: {},   // scene id -> image set by setSceneImage
+        };
+    }
+
+    _startSceneId() {
+        return this.data?.startScene || this.data?.scenes?.[0]?.id || null;
+    }
+
+    /**
+     * Decide whether a stored state belongs to this game, and make it safe to
+     * use if it does.
+     */
+    _restoreState(saved) {
+        if (!saved || typeof saved !== 'object' || Array.isArray(saved)) return this._freshState();
+        if (saved.signature !== this._signature()) return this._freshState();
+        return this._normalizeState(this._migrateState(saved));
+    }
+
+    /**
+     * Bring a state written under an older schema up to the current one.
+     *
+     * Empty on purpose: v1 is the first numbered schema, and everything written
+     * before it differs only by fields that were not there yet, which
+     * _normalizeState() already handles. A step belongs here when a field
+     * changes meaning rather than appearing.
+     */
+    _migrateState(saved) {
+        return saved;
+    }
+
+    /**
+     * Fill in what is missing and drop what is the wrong type.
+     *
+     * Everything here was previously taken on trust because the signature
+     * matched, and a signature says which game wrote the state, not which build
+     * of the engine. `puzzleResults` is the case that actually bites:
+     * _appendPuzzleResult() fails on undefined.push against a state from a build
+     * that predates the field. The state is also the one thing a pupil can edit
+     * in devtools, so this is input validation as much as it is a migration.
+     *
+     * The list of fields is a whitelist, so anything not named here is dropped.
+     * That is the right trade for a value the player can edit, and the cost is
+     * that a state written by a *newer* engine loses the fields that engine
+     * added. Only reachable if an older build is served to the same device,
+     * which is one more reason the service worker question (EI-007) matters.
+     */
+    _normalizeState(saved) {
+        const fresh = this._freshState();
+        const asList = (v) => (Array.isArray(v) ? v : null);
+        const asMap = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
+
+        const state = {
+            ...fresh,
+            inventory: asList(saved.inventory)?.filter(id => typeof id === 'string') ?? fresh.inventory,
+            solved: asMap(saved.solved) ?? fresh.solved,
+            flags: asMap(saved.flags) ?? fresh.flags,
+            visited: asMap(saved.visited) ?? fresh.visited,
+            eventsFired: asMap(saved.eventsFired) ?? fresh.eventsFired,
+            scene: typeof saved.scene === 'string' ? saved.scene : fresh.scene,
+            useItemId: typeof saved.useItemId === 'string' ? saved.useItemId : null,
+            hero: asMap(saved.hero) ?? null,
+            puzzleResults: asList(saved.puzzleResults) ?? fresh.puzzleResults,
+            contentShown: asMap(saved.contentShown) ?? fresh.contentShown,
+            sceneImages: Object.fromEntries(
+                Object.entries(asMap(saved.sceneImages) ?? fresh.sceneImages)
+                    .filter(([, image]) => typeof image === 'string'),
+            ),
+        };
+
+        // Holding an item you do not have is not a state the engine can act on
+        // sensibly: the acceptItems check never looks in the inventory.
+        if (state.useItemId && !state.inventory.includes(state.useItemId)) {
+            state.useItemId = null;
+        }
+
+        // A scene that no longer exists must not strand the team. goto() would
+        // report "scene not found" and leave them with no image and no hotspots,
+        // which on a tablet is indistinguishable from a crash.
+        if (!this.data?.scenes?.some(s => s.id === state.scene)) {
+            state.scene = fresh.scene;
+        }
+
+        return state;
+    }
+
+    /**
+     * Hand over a lesson that is already in progress under the old shared key.
+     *
+     * Only this game's own state is taken, and only then is the old entry
+     * removed: another game may still be entitled to it. The old signature
+     * carried the language as a third segment, which is why the comparison is
+     * on the prefix rather than the whole string.
+     */
+    _adoptLegacyState() {
+        const legacy = this._readLegacyState();
+        if (!legacy) return null;
+        this._discardLegacyState();
+        return legacy;
+    }
+
+    /**
+     * The old entry, but only if it is this game's.
+     *
+     * Read only when this engine owns the browser's storage: the old key is an
+     * artefact of the unhosted engine, and a runtime that supplies per-team
+     * storage must not be handed whatever was left on the tablet. The old
+     * signature carried the language as a third segment, which is why the
+     * comparison is on the prefix rather than the whole string.
+     */
+    _readLegacyState() {
+        if (!this._ownsLocalStorage) return null;
+
+        let raw = null;
         try {
-            const raw = localStorage.getItem('leeuwenhoek_escape_state');
-            return raw ? JSON.parse(raw) : null;
+            raw = localStorage.getItem(LEGACY_STATE_KEY);
         } catch {
             return null;
+        }
+        if (!raw) return null;
+
+        let legacy = null;
+        try {
+            legacy = JSON.parse(raw);
+        } catch {
+            return null;
+        }
+
+        const signature = this._signature();
+        const ours = typeof legacy?.signature === 'string'
+            && (legacy.signature === signature || legacy.signature.startsWith(signature + '|'));
+
+        return ours ? {...legacy, signature} : null;
+    }
+
+    /** Remove the old entry, but only ever this game's own. */
+    _discardLegacyState() {
+        if (!this._readLegacyState()) return;
+        try {
+            localStorage.removeItem(LEGACY_STATE_KEY);
+        } catch { /* noop */
         }
     }
 }

@@ -1,0 +1,25 @@
+Demonstration License - games/demo
+
+Copyright (c) 2025 Antonin Fischer. All rights reserved.
+
+SCOPE. This licence covers everything under `games/demo`: its scenes, dialogs,
+puzzles, translations, stylesheet and assets. It does not cover `games/tests`,
+which is engine test code and is MIT like the rest of the engine.
+
+WHY THIS IS SEPARATE. `games/demo` is a complete, playable game, not a sample
+fragment. It exists in this public repository so that the engine can be seen
+working and so its test suite has real data to run against. It is not a free
+copy of a product.
+
+WHAT IS GRANTED. You may read this material, run it locally, and use it to
+evaluate or develop the engine.
+
+WHAT IS NOT GRANTED. No permission is given to copy, publish, distribute,
+sublicense, sell, rent or lend it, in whole or in part, modified or not. No
+permission is given to use it in paid or institutional teaching, which requires a
+licence purchased from the copyright holder.
+
+THE OTHER GAMES. The commercial games are not in this repository. They are
+licensed per school and delivered by the hosted runtime.
+
+For licensing enquiries, contact the copyright holder.

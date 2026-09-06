@@ -1,0 +1,19 @@
+# Runs the test suite. Without this the suite rots: main sat with 5 failing
+# tests from February to September 2026 and nothing reported it.
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  vitest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - run: npm test

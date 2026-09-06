@@ -4,158 +4,73 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>Úniková hra</title>
-    <link rel="stylesheet" href="styles/puzzles.css">
-    <link rel="stylesheet" href="styles/content.css">
-    <link rel="stylesheet" href="styles/style.css">
-    <link rel="manifest" href="manifest.webmanifest">
     <meta name="theme-color" content="#17171c">
+    <style>
+        html, body { margin: 0; height: 100%; background: #0f0f12; color: #f5f5f5;
+                     font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+        #boot-status { display: flex; align-items: center; justify-content: center;
+                       min-height: 100vh; padding: 24px; text-align: center;
+                       font-size: 18px; line-height: 1.5; }
+    </style>
 </head>
 <body>
-<!-- Top bar -->
-<header class="topbar">
-    <div class="title">Úniková hra</div>
-    <div class="controls">
-        <button id="btnRestart" title="Restart">↺ Restart</button>
-        <button id="btnEditor" title="Přepnout editor">✎ Edit</button>
-    </div>
-</header>
+<div id="boot-status">Načítám hru…</div>
 
-<!-- Game root -->
-<main id="gameRoot">
-    <div id="sceneContainer">
-        <img id="sceneImage" alt="scene">
-        <div id="hotspotLayer"></div>
-        <div id="editorOverlay" class="hidden"></div>
-    </div>
-
-    <section id="uiBar">
-        <div id="inventory"></div>
-        <div id="msg"></div>
-    </section>
-</main>
-
-<!-- Modal -->
-<div id="modal" class="hidden">
-    <div class="modal-content">
-        <div id="modalTitle" class="modal-title"></div>
-        <div id="modalBody" class="modal-body"></div>
-        <div class="modal-actions">
-            <button id="modalCancel">Zrušit</button>
-            <button id="modalOk">OK</button>
-        </div>
-    </div>
-</div>
+<script>
+    /* Classic script, ES5 only, and that is the whole point.
+     *
+     * An iPad older than iPadOS 15 cannot parse the module below - the engine
+     * uses syntax and CSS that arrived later - so it fails silently and the
+     * page stays blank. A teacher with thirty children and a blank tablet has
+     * nothing to act on, which is the worst outcome this product has.
+     *
+     * So: say something immediately, and if the engine has not taken over the
+     * page within ten seconds, say what to do about it. boot() replaces the
+     * body with its own skeleton, so the check below is simply whether this
+     * element is still here.
+     *
+     * Not `nomodule`: Safari 12 understands modules and would suppress it,
+     * while still being unable to parse this engine. Not user-agent sniffing
+     * either. The only reliable signal is that nothing happened.
+     *
+     * The hosted runtime generates its own HTML and must carry this same block,
+     * for the same reason. */
+    (function () {
+        setTimeout(function () {
+            var el = document.getElementById('boot-status');
+            if (!el) return; /* the engine took over: nothing to say */
+            el.textContent = 'Hru se na tomto zařízení nepodařilo spustit. '
+                + 'Zkuste stránku obnovit. Pokud to nepomůže, aktualizujte iPad '
+                + 'alespoň na iPadOS 15, nebo použijte novější tablet či počítač.';
+        }, 10000);
+    })();
+</script>
 
 <script type="module">
-    // Core imports
-    import {Game} from './engine/engine.js';
-    import {Editor} from './engine/editor.js';
-    import {ENGINE_I18N} from './engine/i18n.js';
+    // The whole shell. Everything else - the DOM the engine expects, the
+    // stylesheets, the i18n, the wiring - is in engine/boot.js, so that the
+    // hosted runtime's generated HTML can be this same few lines with different
+    // arguments instead of a copy that drifts. See plans/RELEASE.md.
+    import {boot} from './engine/boot.js';
 
-    // --- Query params --------------------------------------------------------
     const params = new URLSearchParams(location.search);
-    const gameId = params.get('game') || 'leeuwenhoek';
-    const lang = (params.get('lang') || 'cs').toLowerCase();
-    const baseUrl = `./games/${gameId}/`;
 
-    // Per-game CSS (overrides fonty, barvy, tvary…). Stačí soubor přidat do /games/<gameId>/game.css
-    (function attachPerGameCss() {
-        const link = document.createElement('link');
-        link.rel = 'stylesheet';
-        link.href = `${baseUrl}game.css`;
-        // Když soubor neexistuje, prohlížeč to jen zapíše do konzole; funkčně nevadí.
-        document.head.appendChild(link);
-    })();
+    // Which game to open when the address bar does not say. A convenience for
+    // opening this file locally, and the only place outside games/ that names a
+    // particular game: the engine is neutral and the runtime always supplies an
+    // id. See EI-015.
+    const DEFAULT_GAME = 'demo';
 
-    // --- Helpers -------------------------------------------------------------
-    async function fetchJsonSafe(url) {
-        try {
-            const r = await fetch(url, {cache: 'no-cache'});
-            if (!r.ok) throw new Error(r.statusText);
-            return await r.json();
-        } catch {
-            return {};
-        }
-    }
-
-    // --- Boot ---------------------------------------------------------------
-    (async () => {
-        // Optional per-game i18n
-        const gameI18n = await fetchJsonSafe(`${baseUrl}i18n/${lang}.json`);
-
-        // Instantiate engine
-        const game = new Game({
-            baseUrl,
-            scenesUrl: `${baseUrl}scenes.json`,
-            dialogsUrl: `${baseUrl}dialogs.json`,
-            lang,
-            i18n: {
-                engine: ENGINE_I18N?.[lang] || ENGINE_I18N?.cs || {},
-                game: gameI18n || {},
-            },
-            // DOM refs
-            sceneImage: document.getElementById('sceneImage'),
-            hotspotLayer: document.getElementById('hotspotLayer'),
-            inventoryRoot: document.getElementById('inventory'),
-            messageBox: document.getElementById('msg'),
-            modalRoot: document.getElementById('modal'),
-            modalTitle: document.getElementById('modalTitle'),
-            modalBody: document.getElementById('modalBody'),
-            modalCancel: document.getElementById('modalCancel'),
-            modalOk: document.getElementById('modalOk'),
-        });
-
-        // Editor (draw hotspots)
-        const editor = new Editor({
-            game,
-            overlay: document.getElementById('editorOverlay'),
-            hotspotLayer: document.getElementById('hotspotLayer'),
-        });
-
-        // Expose for quick debugging (toasts etc.)
-        window.__game = game;
-
-        // UI actions
-        document.getElementById('btnRestart').addEventListener('click', () => game.restart());
-        document.getElementById('btnEditor').addEventListener('click', () => editor.toggle());
-
-        // Optional PWA (activated only with ?pwa=1)
-        if ('serviceWorker' in navigator && params.get('pwa') === '1') {
-            navigator.serviceWorker.register('./service-worker.js').catch(console.error);
-        }
-
-        // Init engine (loads scenes, renders first scene, runs enterScene events)
-        await game.init();
-
-        // Maintain consistent scene aspect (warn on drift)
-        (function setSceneAspectWatcher() {
-            const sceneImg = document.getElementById('sceneImage');
-            let baselineAspect = null; // h/w
-
-            function setAspectFrom(img) {
-                const iw = img.naturalWidth || 16;
-                const ih = img.naturalHeight || 9;
-                document.documentElement.style.setProperty('--scene-aspect', `${iw} / ${ih}`);
-                baselineAspect = ih / iw;
-            }
-
-            function checkDrift(img) {
-                if (!baselineAspect) return;
-                const iw = img.naturalWidth || 16;
-                const ih = img.naturalHeight || 9;
-                const a = ih / iw;
-                const drift = Math.abs(a - baselineAspect) / baselineAspect;
-                if (drift > 0.02) {
-                    window.__game?.toast?.('Pozor: tento obrázek má jiný poměr stran než baseline. Doporučeno sjednotit.', 5000);
-                }
-            }
-
-            sceneImg.addEventListener('load', () => {
-                if (!baselineAspect) setAspectFrom(sceneImg);
-                checkDrift(sceneImg);
-            });
-        })();
-    })();
+    boot({
+        gameId: params.get('game') || DEFAULT_GAME,
+        lang: params.get('lang') || 'cs',
+        // Local use, so the editor is offered. The runtime will not pass this.
+        editor: params.get('editor') !== '0',
+        // Not `await boot(...)`: a game whose first scene opens a dialog is not
+        // "started" until somebody closes it, and the console wants a handle
+        // before then.
+        onGame: (game) => { window.__game = game; },
+    });
 </script>
 </body>
 </html>

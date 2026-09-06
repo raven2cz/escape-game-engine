@@ -37,6 +37,7 @@ export default class MatchPuzzle extends BasePuzzle {
         this._svgContainer = null; // SVG overlay for connection lines
         this._isUpdatingLines = false; // Prevent ResizeObserver infinite loop
         this._resizeTimeout = null; // Debounce resize updates
+        this._resizeObserver = null;
     }
 
     /**
@@ -235,19 +236,29 @@ export default class MatchPuzzle extends BasePuzzle {
 
         // Use requestAnimationFrame to batch updates
         requestAnimationFrame(() => {
-            this._connectionLines.forEach((line, key) => {
+            // Take the lines out first, then redraw from the copy.
+            //
+            // This used to walk the live Map: delete the entry, then let
+            // _drawConnectionLine() put the same key straight back. A Map visits
+            // entries added while it is being iterated, and a delete followed by
+            // a set appends the key at the end, so forEach reached it again and
+            // again. Nothing broke out of it. It runs synchronously inside this
+            // animation frame, so it did not merely fail: it took the main
+            // thread with it and the tablet stopped responding. One connected
+            // pair and a rotation was enough. _isUpdatingLines never covered
+            // this - it guards a second call, not this loop.
+            const lines = [...this._connectionLines.values()];
+            this._connectionLines.clear();
+
+            for (const line of lines) {
                 const id1 = line.getAttribute('data-id1');
                 const id2 = line.getAttribute('data-id2');
                 const color = line.getAttribute('stroke');
                 const pairIndex = parseInt(line.getAttribute('data-pair-index'), 10);
 
-                // Remove old line
                 line.remove();
-                this._connectionLines.delete(key);
-
-                // Redraw with current positions
                 this._drawConnectionLine(id1, id2, color, pairIndex);
-            });
+            }
 
             // Reset flag after updates complete
             this._isUpdatingLines = false;
@@ -268,18 +279,9 @@ export default class MatchPuzzle extends BasePuzzle {
             this._createSvgContainer(flow);
         }
 
-        // Add resize listener to update connection lines
+        // Keep the connection lines pinned to their tokens when the layout moves.
         if (this._mode === 'columns') {
-            this._resizeObserver = new ResizeObserver(() => {
-                // Debounce resize updates to prevent excessive calls
-                if (this._resizeTimeout) {
-                    clearTimeout(this._resizeTimeout);
-                }
-                this._resizeTimeout = setTimeout(() => {
-                this._updateConnectionLines();
-                }, 150); // 150ms debounce
-            });
-            this._resizeObserver.observe(flow);
+            this._watchForResize(flow);
         }
 
         if (DBG()) {
@@ -288,6 +290,28 @@ export default class MatchPuzzle extends BasePuzzle {
                 tokenCount: this.config.tokens?.length || 0
             });
         }
+    }
+
+    /**
+     * Redraw the connection lines whenever the layout moves under them.
+     *
+     * The lines are absolutely positioned between two tokens, so anything that
+     * reflows the puzzle leaves them pointing where the tokens used to be.
+     *
+     * There used to be a `window.resize` fallback here for browsers without
+     * `ResizeObserver`. It could never run: the engine's own syntax and CSS have
+     * a higher floor than the observer does, so a browser missing it cannot load
+     * the engine at all. The minimum is iPadOS 15; see docs/RELEASING.md and
+     * EI-027.
+     */
+    _watchForResize(flow) {
+        this._resizeObserver = new ResizeObserver(() => {
+            // Debounce: a resize arrives as a burst, and redrawing every frame
+            // of an iPad rotation is wasted work.
+            if (this._resizeTimeout) clearTimeout(this._resizeTimeout);
+            this._resizeTimeout = setTimeout(() => this._updateConnectionLines(), 150);
+        });
+        this._resizeObserver.observe(flow);
     }
 
     _mountColumnsMode(flow) {

@@ -1,6 +1,11 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Game } from '../../engine/engine.js';
 
+// Let the engine finish an activation before the next tap. Two taps in one turn
+// of the event loop is a double tap, which the engine now refuses on purpose
+// (EI-013); two deliberate taps by a pupil are always in different turns.
+const nextTap = () => new Promise(res => setTimeout(res, 0));
+
 // Minimal DOM skeleton matching index.html parts the engine expects.
 function mountDom() {
     document.body.innerHTML = `
@@ -33,7 +38,8 @@ function mountDom() {
 const SCENES_FIXTURE = {
     meta: { id: 'use-test', name: 'Use Mode Test' },
     items: [
-        { id: 'golden_key', label: 'Zlatý klíč', icon: 'items/golden_key.png' }
+        { id: 'golden_key', label: 'Zlatý klíč', icon: 'items/golden_key.png' },
+        { id: 'rusty_nail', label: 'Rezavý hřebík', icon: 'items/rusty_nail.png' }
     ],
     scenes: [
         {
@@ -99,13 +105,9 @@ describe('Use-mode flow', () => {
         Object.defineProperty(HTMLImageElement.prototype, 'naturalHeight', {
             get() { return 1080; }
         });
-        Object.defineProperty(HTMLImageElement.prototype, 'src', {
-            set(v) {
-                this.setAttribute('src', v);
-                setTimeout(() => this.onload && this.onload(), 0);
-            },
-            get() { return this.getAttribute('src'); }
-        });
+        // Image loading is simulated once, in games/tests/setup.localstorage.js.
+        // The stub that used to live here called `this.onload` directly, which
+        // stopped working when goto() moved to addEventListener (EI-003).
     });
 
     it('selects item, rejects wrong hotspot (toast + exit use), applies on correct hotspot (goTo exit), and supports ESC/toggle-off', async () => {
@@ -142,6 +144,7 @@ describe('Use-mode flow', () => {
         const hs = document.querySelectorAll('#hotspotLayer .hotspot');
         expect(hs.length).toBe(2);
         hs[0].click();
+        await nextTap();
 
         // use-mode off
         expect(game.state.useItemId).toBe(null);
@@ -154,6 +157,7 @@ describe('Use-mode flow', () => {
 
         // Click CORRECT hotspot (index 1) -> onApply -> goTo exit
         hs[1].click();
+        await nextTap();
 
         // After apply, use-mode should be off and scene should change to "exit"
         expect(game.state.useItemId).toBe(null);
@@ -178,5 +182,77 @@ describe('Use-mode flow', () => {
         const invItem = document.querySelector('#inventory .item');
         invItem.click();
         expect(game.state.useItemId).toBe(null);
+    });
+    it('activates an inventory item from a plain click, which is what the keyboard produces', async () => {
+        // Regression test for EI-008. Activation used to live on `pointerup`
+        // only, so Enter and Space on the <button> did nothing at all: they
+        // produce a click and no pointer event. Anyone playing on a laptop
+        // could not open an item.
+        const game = new Game({
+            baseUrl: './games/use-test/',
+            scenesUrl: './games/use-test/scenes.json',
+            lang: 'cs',
+            i18n: { engine: {}, game: {} },
+            sceneImage: document.getElementById('sceneImage'),
+            hotspotLayer: document.getElementById('hotspotLayer'),
+            inventoryRoot: document.getElementById('inventory'),
+            messageBox: document.getElementById('msg'),
+            modalRoot: document.getElementById('modal'),
+            modalTitle: document.getElementById('modalTitle'),
+            modalBody: document.getElementById('modalBody'),
+            modalCancel: document.getElementById('modalCancel'),
+            modalOk: document.getElementById('modalOk'),
+        });
+
+        await game.init();
+        game.state.inventory.push('golden_key');
+        game._renderInventory();
+
+        const invItem = document.querySelector('#inventory .item');
+        expect(invItem.tagName).toBe('BUTTON');
+
+        // No pointer events at all, exactly like a keyboard activation.
+        invItem.click();
+        await new Promise(r => setTimeout(r, 0));
+
+        expect(document.getElementById('modal').classList.contains('hidden')).toBe(false);
+        expect(document.querySelector('#modal .modal-title').textContent).toContain('klíč');
+    });
+
+    it('shows the right name when a second item is inspected', async () => {
+        // Regression test for EI-019. _inspectItem() removes the shell's
+        // #modalTitle and inserts its own header, _closeModal() never resets the
+        // content, and the second inspection then finds that header already
+        // present and leaves the previous item's name in place.
+        const game = new Game({
+            baseUrl: './games/use-test/',
+            scenesUrl: './games/use-test/scenes.json',
+            lang: 'cs',
+            i18n: { engine: {}, game: {} },
+            sceneImage: document.getElementById('sceneImage'),
+            hotspotLayer: document.getElementById('hotspotLayer'),
+            inventoryRoot: document.getElementById('inventory'),
+            messageBox: document.getElementById('msg'),
+            modalRoot: document.getElementById('modal'),
+            modalTitle: document.getElementById('modalTitle'),
+            modalBody: document.getElementById('modalBody'),
+            modalCancel: document.getElementById('modalCancel'),
+            modalOk: document.getElementById('modalOk'),
+        });
+
+        await game.init();
+        game.state.inventory.push('golden_key', 'rusty_nail');
+        game._renderInventory();
+
+        const [first, second] = document.querySelectorAll('#inventory .item');
+
+        first.click();
+        await new Promise(r => setTimeout(r, 0));
+        expect(document.querySelector('#modal .modal-title').textContent).toContain('klíč');
+        game._closeModal(false);
+
+        second.click();
+        await new Promise(r => setTimeout(r, 0));
+        expect(document.querySelector('#modal .modal-title').textContent).toContain('hřebík');
     });
 });

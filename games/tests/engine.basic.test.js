@@ -72,15 +72,9 @@ describe('Game engine (smoke)', () => {
         Object.defineProperty(HTMLImageElement.prototype, 'naturalHeight', {
             get() { return 1080; }
         });
-        // Trigger load immediately on src set:
-        Object.defineProperty(HTMLImageElement.prototype, 'src', {
-            set(v) {
-                this.setAttribute('src', v);
-                // Simulate load event
-                setTimeout(() => this.onload && this.onload(), 0);
-            },
-            get() { return this.getAttribute('src'); }
-        });
+        // Image loading is simulated once, in games/tests/setup.localstorage.js.
+        // The stub that used to live here called `this.onload` directly, which
+        // stopped working when goto() moved to addEventListener (EI-003).
     });
 
     it('initializes, loads scene, renders hotspot, and handles pickup', async () => {

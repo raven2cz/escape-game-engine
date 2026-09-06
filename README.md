@@ -3,13 +3,11 @@
 A **no-build**, iPad-friendly **escape game framework** in plain HTML/CSS/JS.  
 Create sophisticated point-and-click adventures with **Puzzles 2.0**, **dialogs**, **theming system**, and an **in-browser editor**.
 
-- **Demo (GitHub Pages):**
-  - https://raven2cz.github.io/escape-game-engine/index.html?game=leeuwenhoek&lang=cs&debug=1&hero=adam&reset=1 (two heroes: "adam" and "eva", adam selected)
-  - https://raven2cz.github.io/escape-game-engine/index.html?game=leeuwenhoek&lang=cs&debug=1&hero=eva&reset=1 (two heroes: "adam" and "eva", eva selected)
-  - https://raven2cz.github.io/escape-game-engine/index.html?game=stop-train&lang=cs&debug=1&hero=adam&reset=1 
-  - https://raven2cz.github.io/escape-game-engine/index.html?game=time-factory&lang=cs&debug=1&hero=adam&reset=1
-  - https://raven2cz.github.io/escape-game-engine/index.html?game=reactor&lang=cs&debug=1&hero=adam&reset=1
-- **PWA:** append `?pwa=1` for installable/offline mode.
+- **Demo game:** `games/demo` is a complete, playable game shipped with the
+  engine. Serve the repository and open `index.html` - it is what opens by
+  default. It is not MIT; see [`games/LICENSE`](games/LICENSE).
+- **The commercial games** are not in this repository. They are licensed per
+  school and delivered by the hosted runtime.
 
 ---
 
@@ -19,10 +17,9 @@ Create sophisticated point-and-click adventures with **Puzzles 2.0**, **dialogs*
 - **Scene Management**: Navigate between scenes with hotspots (`goTo`, `pickup`, `puzzle`, `dialog`)
 - **Inventory System**: Collect items with image/description inspect modals
 - **State Management**: Use flags and `requireItems`/`requireFlags` to lock doors or reveal secret paths
-- **Event System**: Trigger complex action chains on scene enter/exit, item pickup, puzzle completion
+- **Event System**: Trigger action chains on entering a scene (`enterScene`) or on any state change (`stateChange`)
 - **Hero Profiles**: Support for multiple playable characters with custom avatars and names
 - **Internationalization (i18n)**: Multi-language support with `@key@fallback` syntax
-- **PWA Support**: Install as offline-capable app on mobile devices
 
 ### Puzzles 2.0 System
 Nine built-in puzzle types with unified theming and layout system:
@@ -46,11 +43,10 @@ Nine built-in puzzle types with unified theming and layout system:
 
 ### Dialog System
 - **Character Profiles**: Define characters with multiple poses and expressions
-- **Hero Alias**: Special "hero" character auto-maps to selected player profile
-- **Choice-Based Dialogs**: Interactive branching with conditions (`requireFlags`, `requireItems`)
-- **Voice Lines**: Link audio files to dialog steps
-- **Auto-Advance**: Configurable delays for cinematic sequences
-- **Theme Integration**: Dialogs use puzzle theming system for consistent UI
+- **Hero Alias**: Special "hero" character auto-maps to the selected player profile
+- **Choice-Based Dialogs**: Interactive branching through `choices` and `onChoose` (jump, set flags, end)
+- **Typewriter Text**: Per-dialog, with tap to skip to the end of the line
+- **Blocking**: `openDialog` does not return until the dialog is closed, so an event can wait for it
 
 ### Editor Tools
 - **Hotspot Editor**: Draw rectangles, live coordinate labels in percent
@@ -70,35 +66,48 @@ escape-game-engine/
 │   ├── style.css          # Global app styles
 │   └── puzzles.css        # Puzzles 2.0 framework (semi-transparent colors)
 ├── engine/
-│   ├── engine.js          # Core runtime (scenes, inventory, flags, dialogs)
-│   ├── editor.js          # In-browser editor (draw hotspots, export JSON)
+│   ├── engine.js          # Core runtime (scenes, inventory, flags, events, state)
 │   ├── dialogs.js         # Dialog system with character management
+│   ├── content.js         # Content panels
+│   ├── content-renderer.js# Markdown/HTML rendering for panels
+│   ├── editor.js          # In-browser editor (draw hotspots, export JSON)
 │   ├── i18n.js            # Engine internationalization strings
+│   ├── i18n-helpers.js    # @key@fallback resolution
+│   ├── utils.js           # Text normalization for answer checking
 │   └── puzzles/
-│       ├── index.js       # Puzzle runner factory
+│       ├── index.js       # Puzzle runner factory and kind registry
 │       ├── base.js        # Shared puzzle infrastructure
 │       ├── layout.js      # AUTO layout algorithm
-│       ├── phrase.js      # Text input puzzle
-│       ├── code.js        # Code entry puzzle
-│       ├── order.js       # Token sequencing puzzle
-│       ├── match.js       # Pair matching puzzle
-│       ├── quiz.js        # Multiple choice quiz
-│       ├── choice.js      # Choice/fill-in puzzle
-│       ├── group.js       # Category sorting puzzle
-│       ├── cloze.js       # Fill-in-the-blank puzzle
-│       └── list.js        # Puzzle sequence manager
+│       └── kinds/
+│           ├── phrase.js  # Text input puzzle
+│           ├── code.js    # Code entry puzzle
+│           ├── order.js   # Token sequencing puzzle
+│           ├── match.js   # Pair matching puzzle
+│           ├── quiz.js    # Multiple choice quiz
+│           ├── choice.js  # Choice/fill-in puzzle
+│           ├── group.js   # Category sorting puzzle
+│           ├── cloze.js   # Fill-in-the-blank puzzle
+│           └── list.js    # Puzzle sequence manager
+├── docs/
+│   ├── DEVELOPING.md      # running locally, adding a game, tests
+│   └── RELEASING.md       # the four versions, cutting a release, fixing production
+├── scripts/
+│   ├── dev-server.mjs     # npm run dev
+│   └── version-sync.mjs   # runs from npm version
+├── CHANGELOG.md
 ├── games/
-│   └── <game-id>/
-│       ├── scenes.json    # Scene definitions, hotspots, items
-│       ├── puzzles.json   # Puzzle configurations
-│       ├── dialogs.json   # Dialog trees (optional)
-│       ├── i18n/
-│       │   ├── cs.json    # Czech translations
-│       │   └── en.json    # English translations
-│       ├── game.css       # Per-game theme overrides (optional)
-│       └── assets/        # Images, audio, backgrounds
-├── service-worker.js      # PWA offline cache
-└── manifest.webmanifest   # PWA manifest
+│   ├── demo/
+│   │   ├── scenes.json    # Scenes, hotspots, items, events, content
+│   │   ├── puzzles.json   # Puzzle configurations
+│   │   ├── dialogs.json   # Dialog trees (optional)
+│   │   ├── i18n/
+│   │   │   ├── cs.json    # Czech translations
+│   │   │   └── en.json    # English translations
+│   │   ├── game.css       # Per-game theme overrides (optional)
+│   │   └── assets/        # Images, video, backgrounds
+│   ├── tests/             # Vitest suite, including the reload harness
+│   └── LICENSE            # demo game licence, not MIT
+└── plans/                 # Defect registry and stabilization plan
 ```
 
 ---
@@ -107,12 +116,13 @@ escape-game-engine/
 
 ### 1. Local Development
 ```bash
-# Serve locally (Python 3)
-python3 -m http.server 5500
-
-# Or use any static server
-# Open http://localhost:5500/
+npm install
+npm run dev          # http://localhost:5500/?game=demo
 ```
+
+Not `python3 -m http.server`: it answers `200` to a Range request, and iOS Safari
+will not play a video from a server that does. See
+[`docs/DEVELOPING.md`](docs/DEVELOPING.md).
 
 ### 2. Create a Hotspot
 1. Toggle **✎ Edit** mode
@@ -148,11 +158,12 @@ Define in `games/<your-game>/puzzles.json`:
 }
 ```
 
-Reference in a hotspot:
+Reference in a hotspot. The field is `puzzleRef`; a `puzzle` hotspot without it
+logs an error and opens nothing:
 ```json
 {
   "type": "puzzle",
-  "ref": "my-puzzle",
+  "puzzleRef": "my-puzzle",
   "rect": { "x": 40, "y": 30, "w": 20, "h": 15 }
 }
 ```
@@ -183,14 +194,14 @@ Define in `games/<your-game>/dialogs.json`:
         "characterId": "professor",
         "defaultPose": "neutral"
       },
-      "steps": [
+      "sequence": [
         {
-          "side": "right",
+          "speaker": "right",
           "text": "Welcome to my laboratory!",
           "pose": "happy"
         },
         {
-          "side": "left",
+          "speaker": "left",
           "text": "Thank you, Professor!"
         }
       ]
@@ -307,108 +318,231 @@ Add `?lang=en` to URL or modify `index.html` default.
 
 ## 📱 iPad & Mobile
 
+### Supported devices
+
+**Minimum: iPadOS 15 / Safari 15.** In practice that is an iPad Air 2 or mini 4
+(2014-2015) or newer, updated. Also Chrome, Edge and Firefox from 2021 onward.
+
+Older iPads are not supported, and this is a decision rather than an oversight.
+The engine's own syntax needs Safari 13.1 and its CSS needs Safari 15
+(`aspect-ratio`, `inset`, flex `gap`), and the cloze puzzle's drag depends on
+Pointer Events, which reached iPadOS in 13.4. Supporting iOS 12 would mean a
+transpiler, a Pointer Events polyfill, hand-maintained CSS fallbacks and a legacy
+bundle - a permanent build subsystem for this no-build project.
+
+15 rather than 13.4 costs nothing: **every iPad that can run 13.4 can also run
+15**, so raising the line excludes no additional hardware, only devices that have
+not been updated. Apple still patched iPadOS 15 in 2026, so it is a supported
+floor rather than an arbitrary one.
+
+An unsupported tablet cannot report this itself - it fails on syntax before any
+engine code runs - so `index.html` carries a small classic ES5 script that says
+so in Czech after ten seconds. Any HTML shell that boots this engine must carry
+the same block; `games/tests/boot.shell.test.js` is what keeps it honest.
+
 ### Touch Support
 - All puzzles support touch/pen/mouse input
 - Drag-and-drop works on touch devices
 - Editor overlay supports touch drawing
 
-### PWA Installation
-1. Add `?pwa=1` to URL
-2. Open in Safari/Chrome
-3. Tap "Add to Home Screen"
-4. App runs offline after first load
+### No offline mode
 
-### Offline Updates
-When updating code, bump `CACHE_NAME` in `service-worker.js`:
+There is no service worker and no web app manifest. There used to be both, and
+neither ever worked: 15 of the 19 paths in the precache list did not exist and
+`cache.addAll()` is atomic, so installation always failed and `?pwa=1` was a
+silent no-op from the first day.
 
-```javascript
-const CACHE_NAME = 'escape-game-v2'; // increment version
-```
+They were removed rather than repaired (EI-007). Offline play and a per-lesson
+licence pull in opposite directions: a cache-first service worker keeps serving
+the game after the licence has ended, and a licence check the server performs
+stops applying after the first load. The games are sold per lesson and played
+online, so the runtime is where access is decided.
+
+If offline is ever wanted, it needs a per-release asset manifest, a cache
+partitioned per session, and network-first for anything the licence gates. That
+is a different design, not a repair of the old file.
 
 ---
 
 ## 🎮 Advanced Features
 
-### Event Actions
-Hotspots and puzzles support rich action chains in `onSuccess`, `onFail`, `onEnter`, `onExit`:
+### Action bundles
+`onApply`, `onSuccess` and `onFail` take **one object**, not a list, and the
+engine runs its keys in a fixed order regardless of how they are written:
 
 ```json
 {
-  "onSuccess": [
-    { "giveItem": "golden_key" },
-    { "setFlags": ["lab_unlocked"] },
-    { "clearFlags": ["first_visit"] },
-    { "message": "You found the key!" },
-    { "goTo": "laboratory" },
-    { "delay": 1000 },
-    { "openDialog": "victory_dialog" },
-    { "setSceneImage": { "sceneId": "corridor", "image": "corridor_night.jpg" } },
-    { "highlightHotspot": { "rect": { "x": 30, "y": 50, "w": 15, "h": 20 }, "ms": 3000 } },
-    { "openPuzzle": { "ref": "bonus_puzzle", "onSuccess": [...] } },
-    { "openPuzzleList": { "items": ["puzzle1", "puzzle2"], "aggregateOnly": true } }
+  "onSuccess": {
+    "toast":            { "text": "You found the key!", "ms": 4000 },
+    "message":          "The lock clicks open.",
+    "openDialog":       "victory_dialog",
+    "openContent":      "note-about-locks",
+    "highlightHotspot": { "sceneId": "corridor", "rect": { "x": 30, "y": 50, "w": 15, "h": 20 }, "ms": 3000 },
+    "playVideo":        { "src": "assets/video/door.mp4", "mode": "fullscreen", "allowSkip": true },
+    "giveItem":         "golden_key",
+    "setFlags":         ["lab_unlocked"],
+    "clearFlags":       ["first_visit"],
+    "goTo":             "laboratory"
+  }
+}
+```
+
+The order is: `toast` → `message` → `openDialog` → `openContent` →
+`highlightHotspot` → `playVideo` → `giveItem` → `setFlags` → `clearFlags` →
+`goTo`. `openDialog`, `openContent` and `playVideo` block: nothing after them
+runs until the pupil has clicked through. `giveItem` accepts a single id or an array.
+`setFlags` and `clearFlags` accept a single name, an array of names, or an
+object of `{ "flag": true|false }`.
+
+### Events
+Events live at the top level of `scenes.json` and fire on `enterScene` or on any
+state change:
+
+```json
+{
+  "events": [
+    {
+      "id": "found-the-chest",
+      "once": true,
+      "when": {
+        "on": "stateChange",
+        "scene": "treasure-room",
+        "requireItems": ["brass_key"],
+        "requireFlags": ["lamp_lit"],
+        "missingItems": ["golden_key"]
+      },
+      "then": {
+        "setFlags": ["chest_opened"],
+        "setSceneImage": { "sceneId": "treasure-room", "image": "assets/chest-open.jpg" },
+        "openDialog": { "id": "chest.opened" },
+        "openPuzzle": { "ref": "bonus_puzzle", "onSuccess": { "giveItem": "gem" } }
+      }
+    }
   ]
 }
 ```
 
-### Conditional Visibility
-Lock hotspots until conditions are met:
+`when.on` is `enterScene` or `stateChange`. `missingItems` matches only while the
+player has **none** of the listed items. In `then`, `setFlags` is applied and
+saved **before** the event is marked as done, so a reload part way through cannot
+lose it; the rest is presentation and may be interrupted. Note that
+`openPuzzle` takes `ref`, while a `puzzle` *hotspot* takes `puzzleRef`.
+
+There is no `onEnter`/`onExit` on a scene and no `delay` action. Use an event
+with `"on": "enterScene"`, and `playVideo.delay` for a pause before a video.
+
+### Locked hotspots
+A `goTo` hotspot names its destination in `target`. Requirements are checked when
+the hotspot is activated, not when it is drawn, so the hotspot stays visible and
+tells the player what is missing:
 
 ```json
 {
   "type": "goTo",
-  "scene": "secret_room",
+  "target": "secret_room",
   "requireItems": ["brass_key", "cipher_note"],
   "requireFlags": ["password_entered"],
-  "missingMessage": "The door won't open without the key and cipher."
+  "rect": { "x": 70, "y": 40, "w": 15, "h": 30 }
 }
 ```
 
-### Hero Selection
-Set player character dynamically:
+The message shown when a requirement is unmet comes from the engine
+(`engine.missingItems`, `engine.needUnlock`) and can be overridden per game
+through i18n. There is no per-hotspot `missingMessage`.
 
-```javascript
-// In game code or console
-window.__game.setHero({
-  id: 'eva',
-  heroId: 'eva',
-  heroName: 'Eva',
-  heroBase: 'assets/characters/eva'
-});
+To change how a hotspot *looks* as the state changes, give it `states`. The
+first entry whose `requireFlags` are all satisfied wins, and an entry with no
+`requireFlags` is the fallback:
+
+```json
+{
+  "type": "apply",
+  "rect": { "x": 8, "y": 62, "w": 12, "h": 22 },
+  "acceptItems": [{ "id": "grav-key", "consume": true }],
+  "onApply": { "setFlags": ["slot_gravity_ok"] },
+  "states": [
+    { "requireFlags": ["slot_gravity_ok"], "cssClass": "state-success", "content": "✓", "clickable": false },
+    { "cssClass": "state-empty" }
+  ]
+}
 ```
 
-Dialogs will automatically use the hero's avatar when `characterId: "hero"` is used.
+### Hero profiles
+A game that wants a playable character defines its heroes in `scenes.json` and
+picks a default. A game that defines none has no hero, and the engine does not
+invent one:
 
-### Item Usage System
-Enable "use item on scene" mode:
+```json
+{
+  "heroes": {
+    "adam": { "id": "adam", "gender": "m", "name": "@hero.adam@Adam", "assetsBase": "assets/npc/adam/" },
+    "eva":  { "id": "eva",  "gender": "f", "name": "@hero.eva@Eva",   "assetsBase": "assets/npc/eva/" }
+  },
+  "defaultHero": "adam"
+}
+```
 
-1. Click inventory item → enters use mode (cursor changes)
-2. Click hotspot → triggers `onUse` action chain
-3. ESC key exits use mode
+`setHero()` takes the **id**, not an object:
+
+```javascript
+window.__game.setHero('eva');   // or open the game with ?hero=eva
+```
+
+Dialogs use the selected hero wherever `characterId: "hero"` appears. In the
+`hero` character template, `{heroId}` and `{heroBase}` in a pose path are
+replaced with the hero's id and `assetsBase`, and so is a `/hero/` segment. Those
+are the only two placeholders; there is nothing for the name, so write the name
+you want as normal text or an `@key@fallback`.
+
+If a game defines a character whose id equals the selected hero's id, that
+character is used directly and the template is ignored.
+
+A game that defines no heroes and still uses `characterId: "hero"` gets the
+template with `{heroBase}` replaced by nothing, so the portrait will not resolve.
+Either define heroes or use a normal character.
+
+### Using an item on a hotspot
+1. Tap an inventory item → the inspect panel opens
+2. Tap **Použít** → use mode, the item is held
+3. Tap a hotspot that accepts it, **or** drag the item straight onto the hotspot
+4. Escape leaves use mode
+
+A hotspot accepts items through `acceptItems`. Any hotspot type can have it; the
+item branch runs before the type is even looked at. `consume: true` removes the
+item when it is used:
 
 ```json
 {
   "items": [
     {
       "id": "screwdriver",
-      "name": "Screwdriver",
-      "image": "assets/items/screwdriver.png",
-      "description": "A flathead screwdriver."
+      "label": "@item.screwdriver.label@Screwdriver",
+      "icon": "assets/items/screwdriver.png",
+      "meta": {
+        "word": "screwdriver",
+        "description": "@item.screwdriver.desc@A flathead screwdriver."
+      }
     }
   ],
   "hotspots": [
     {
-      "type": "inspect",
-      "onUse": {
-        "screwdriver": [
-          { "message": "You opened the panel!" },
-          { "setFlags": ["panel_open"] },
-          { "consumeItem": true }
-        ]
+      "type": "apply",
+      "rect": { "x": 40, "y": 55, "w": 12, "h": 10 },
+      "acceptItems": [{ "id": "screwdriver", "consume": true }],
+      "onApply": {
+        "message": "You opened the panel!",
+        "setFlags": ["panel_open"]
       }
     }
   ]
 }
 ```
+
+Item fields are `label`, `icon` and `meta`; `name`, `image` and a top-level
+`description` are ignored. `acceptItems` may also be a plain list of ids
+(`["screwdriver"]`), which means the item is not consumed. There is no `onUse`
+map and no `consumeItem` action, and there is no `inspect` hotspot type -
+inspecting happens from the inventory, not from the scene.
 
 ---
 
@@ -428,7 +562,7 @@ For puzzles with `layout: { mode: "auto" }`:
 1. Enable editor while puzzle is open
 2. Adjust yellow window rectangle (puzzle viewport)
 3. Components auto-flow inside window
-4. Copy rect for `options.rect` in JSON
+4. Copy the rect into the puzzle's top-level `rect` (not `options.rect`)
 
 ### Puzzle Editor (MANUAL Layout)
 For puzzles with `layout: { mode: "manual" }`:
@@ -441,23 +575,35 @@ For puzzles with `layout: { mode: "manual" }`:
 
 ---
 
-## 🚢 Deploy on GitHub Pages
+## 🚢 Running a game
 
-1. Push repository to GitHub
-2. **Settings** → **Pages**
-3. **Source**: Deploy from a branch
-4. **Branch**: `main` | **Folder**: `/ (root)`
-5. **Save**
-6. Open `https://<username>.github.io/<repo-name>/`
+### Locally
 
-### Multi-Game Setup
-Use `?game=<game-id>` parameter:
-```
-https://username.github.io/repo/?game=leeuwenhoek
-https://username.github.io/repo/?game=mystery-manor
+```bash
+npm install
+npm run dev
 ```
 
-Each game lives in `games/<game-id>/` directory.
+Then `http://localhost:5500/?game=demo`. The dev server also serves the private
+games repository when it is cloned beside this one, so `?game=warp-engine` works
+with nothing copied anywhere. `npm run dev -- --host 0.0.0.0` makes it reachable
+from a tablet, which is worth doing, because Range requests and MIME types only
+fail there.
+
+See [`docs/DEVELOPING.md`](docs/DEVELOPING.md) for the options, the query
+parameters, and how to add a game, and
+[`docs/RELEASING.md`](docs/RELEASING.md) for versions and releases.
+
+### In a lesson
+The commercial games live in a separate private repository and are delivered by
+the hosted runtime on Cloudflare, which is what decides who may play and for how
+long. This repository holds the engine and one demo game; it is not a
+distribution channel.
+
+There used to be a GitHub Pages deployment that published every game, and the
+game assets with them, to a public URL. It was removed once the games became
+proprietary: a static public site cannot enforce a per-lesson licence, and it was
+serving the full-resolution source artwork along with the games.
 
 ---
 
@@ -469,42 +615,79 @@ npm install
 npm test
 ```
 
-Uses Vitest with JSDOM for DOM testing. Test files mirror source structure.
+Vitest with jsdom. Everything lives in `games/tests/`, and CI runs it on every
+push and pull request.
+
+Two things are worth knowing before adding a test:
+
+- **`games/tests/helpers/reload.js`** simulates a page reload. `boot()` builds a
+  fresh `Game` on a fresh DOM that reads nothing but what was persisted;
+  `bootDetached()` does the same without awaiting `init()`, which is how a run is
+  stopped at a point where the engine is blocked on the player. Anything about
+  what survives a reload goes through it.
+- **Data tests** (`games.data.test.js`, `readme.contract.test.js`,
+  `engine.neutrality.test.js`) check the shipped games, this document and the
+  engine rather than a unit of code. They catch the class of defect where nothing
+  is wrong with the code: a game that cannot signal it was finished, a documented
+  field the engine ignores, a game's name hardcoded into the engine.
 
 ---
 
 ## 📝 Configuration Reference
 
 ### scenes.json
+
+Everything below is read by the engine. `meta.id` and `meta.version` together
+decide whether a saved game is still valid, so bumping the version starts every
+team over; the other `meta` fields are for people, not for the engine.
+
 ```json
 {
   "meta": {
-    "id": "leeuwenhoek",
-    "version": "2.0.0",
-    "title": "The Mystery of Leeuwenhoek",
-    "authors": ["Your Name"],
-    "startScene": "entry_hall"
+    "id": "my-game",
+    "name": "The Mystery of the Brass Key",
+    "description": "A one-lesson escape room.",
+    "author": "Your Name",
+    "version": "1.0.0",
+    "tags": ["history"],
+    "languages": ["cs"]
   },
+  "startScene": "entry_hall",
+
   "items": [
     {
       "id": "brass_key",
-      "name": "Brass Key",
-      "description": "An old brass key.",
-      "image": "assets/items/brass_key.png"
+      "label": "@item.brassKey.label@Brass Key",
+      "icon": "assets/items/brass_key.png",
+      "meta": {
+        "word": "key",
+        "description": "@item.brassKey.desc@An old brass key."
+      }
     }
   ],
+
+  "content": {
+    "mission-briefing": {
+      "id": "mission-briefing",
+      "title": "Your mission",
+      "format": "markdown",
+      "body": "## Find the key\n\nAnd get out.",
+      "panel": { "rect": { "x": 10, "y": 10, "w": 80, "h": 80 } },
+      "once": true
+    }
+  },
+
   "scenes": [
     {
       "id": "entry_hall",
-      "name": "Entry Hall",
+      "title": "Entry Hall",
       "image": "assets/scenes/entry_hall.jpg",
-      "onEnter": [
-        { "message": "You enter the hall..." }
-      ],
+      "content": { "ref": "mission-briefing", "trigger": "enter", "once": true },
       "hotspots": [
         {
           "type": "goTo",
-          "scene": "library",
+          "target": "library",
+          "label": "To the library",
           "rect": { "x": 70, "y": 40, "w": 15, "h": 30 }
         },
         {
@@ -514,23 +697,48 @@ Uses Vitest with JSDOM for DOM testing. Test files mirror source structure.
         },
         {
           "type": "puzzle",
-          "ref": "entry_code",
+          "puzzleRef": "entry_code",
           "rect": { "x": 45, "y": 35, "w": 12, "h": 18 },
-          "onSuccess": [
-            { "giveItem": "silver_coin" },
-            { "setFlags": ["safe_opened"] }
-          ]
+          "onSuccess": { "giveItem": "silver_coin", "setFlags": ["safe_opened"] },
+          "onFail": { "message": "Nothing happens." }
         },
         {
           "type": "dialog",
           "dialogId": "guard_chat",
           "rect": { "x": 30, "y": 30, "w": 10, "h": 20 }
+        },
+        {
+          "type": "content",
+          "contentRef": "mission-briefing",
+          "rect": { "x": 2, "y": 2, "w": 6, "h": 6 }
+        },
+        {
+          "type": "apply",
+          "rect": { "x": 50, "y": 50, "w": 10, "h": 10 },
+          "onApply": { "playVideo": { "src": "assets/video/intro.mp4" } }
         }
       ]
+    },
+    {
+      "id": "exit",
+      "title": "Outside",
+      "image": "assets/scenes/exit.jpg",
+      "end": true
     }
-  ]
+  ],
+
+  "events": [ "…see Events above…" ]
 }
 ```
+
+**Scene fields:** `id`, `title`, `image`, `end` (exactly one scene per game
+should have it - it is how completion is detected), `content`, `hotspots`,
+`settings`. A scene's display name is `title`, not `name`.
+
+**Hotspot types:** `goTo` (`target`), `pickup` (`itemId`), `puzzle`
+(`puzzleRef`), `dialog` (`dialogId`), `content` (`contentRef`), `apply`
+(`onApply`). Every type also accepts `rect`, `label`, `requireItems`,
+`requireFlags`, `acceptItems`, `states` and `showNeedHint`.
 
 ### puzzles.json
 ```json
@@ -560,50 +768,78 @@ Uses Vitest with JSDOM for DOM testing. Test files mirror source structure.
 ```
 
 ### dialogs.json
+
+The list of lines is `sequence`, and a line names its speaker with `speaker`.
+
 ```json
 {
+  "meta": { "id": "my-game", "name": "Dialogs" },
   "characters": [
     {
       "id": "guard",
-      "name": "Palace Guard",
+      "name": "@character.guard.name@Palace Guard",
       "poses": {
         "neutral": "assets/characters/guard_neutral.png",
         "suspicious": "assets/characters/guard_suspicious.png"
       }
+    },
+    {
+      "id": "hero",
+      "name": "@character.hero.name@Hrdina",
+      "poses": { "neutral": "{heroBase}neutral.png" }
     }
   ],
   "dialogs": [
     {
       "id": "guard_chat",
-      "left": { "characterId": "hero" },
-      "right": { "characterId": "guard", "defaultPose": "neutral" },
-      "steps": [
+      "typewriter": { "enabled": true, "speed": 15 },
+      "left":  { "characterId": "hero", "defaultPose": "neutral" },
+      "right": { "characterId": "guard", "defaultPose": "neutral", "mirror": true },
+      "sequence": [
         {
-          "side": "right",
+          "id": "s1",
+          "speaker": "right",
           "text": "Halt! State your business.",
           "pose": "suspicious"
         },
         {
-          "side": "left",
-          "text": "I'm here to see the professor."
+          "id": "s2",
+          "speaker": "left",
+          "text": "I'm here to see the professor.",
+          "onNext": { "setFlags": ["asked_for_professor"] }
         },
         {
-          "side": "right",
-          "text": "Very well. Proceed.",
-          "pose": "neutral",
-          "requireFlags": ["has_invitation"],
+          "id": "s3",
+          "speaker": "right",
+          "text": "Very well. Which way?",
           "choices": [
-            {
-              "label": "Thank you",
-              "action": [{ "goTo": "laboratory" }]
-            }
+            { "label": "The laboratory", "onChoose": { "end": true, "onEnd": { "goTo": "laboratory" } } },
+            { "label": "Ask again",      "onChoose": { "jump": "s1" } },
+            { "label": "Say nothing",    "onChoose": { "setFlags": ["stayed_quiet"] } }
           ]
         }
-      ]
+      ],
+      "onEnd": {
+        "message": "The guard steps aside.",
+        "setFlags": ["guard_passed"],
+        "goTo": "corridor"
+      }
     }
   ]
 }
 ```
+
+**A step** takes `id`, `speaker` (`"left"` or `"right"`), `text`, `pose`,
+`mirror`, `choices` and `onNext`. **A choice** takes `label` and `onChoose`,
+which understands `setFlags`, `jump` (to a step `id`), `end` and `onEnd`. A step
+has no `requireFlags` or `requireItems`: conditions live on hotspots and events,
+not inside a dialog. Tapping anywhere advances one step, and tapping during the
+typewriter animation completes the line instead. That applies to a step with
+`choices` too: the buttons are an offer, not a gate, so a step whose branches
+matter should say so in its text.
+
+**Blocking.** `openDialog` returns only once the dialog has closed *and* its
+`onEnd` has finished, including any scene change it makes.
 
 ---
 
@@ -636,7 +872,7 @@ Contributions welcome! Areas for improvement:
 - Accessibility improvements (keyboard navigation, screen readers)
 
 ### Adding a New Puzzle Type
-1. Create `engine/puzzles/your-puzzle.js` extending `BasePuzzle`
+1. Create `engine/puzzles/kinds/your-puzzle.js` extending `BasePuzzle`
 2. Implement `mount()`, `validate()`, `destroy()`
 3. Register in `engine/puzzles/index.js`
 4. Add CSS in `styles/puzzles.css` under `.pz--kind-your-puzzle`
@@ -646,9 +882,20 @@ Contributions welcome! Areas for improvement:
 
 ## 📄 License
 
+**The engine is MIT. The demo game is not.**
+
+- Everything except `games/demo` - the engine, the editor, the styles, the test
+  suite - is MIT licensed. See [`LICENSE`](LICENSE).
+- `games/demo` is a complete game rather than a sample. You may read it, run it
+  locally and develop against it; you may not redistribute it or use it in paid
+  teaching. See [`games/LICENSE`](games/LICENSE).
+- The commercial games are in a separate private repository, licensed per school.
+
+The MIT text below applies to the engine only.
+
 MIT License
 
-Copyright (c) 2024 Antonín Fischer (raven2cz)
+Copyright (c) 2025 Antonín Fischer (raven2cz)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

@@ -1,0 +1,55 @@
+# Builds the artefact a deployment consumes: the engine, without any games.
+#
+# Triggered by pushing a tag, which `npm version` makes. Everything that could
+# refuse the release has already run by then - the suite in `preversion`, the
+# version and changelog checks in `version` - so this re-runs the suite as a
+# guard against a tag pushed by hand and then packages.
+name: release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - run: npm ci
+      - run: npm test
+
+      - name: The tag must be the version in package.json
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          PKG=$(node -p "require('./package.json').version")
+          if [ "$TAG" != "$PKG" ]; then
+            echo "tag $GITHUB_REF_NAME does not match package.json $PKG" >&2
+            exit 1
+          fi
+
+      - name: Pack the engine
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          NAME="escape-game-engine-$VERSION"
+          # The file list lives in package.json#files, so the tarball and an npm
+          # pack can never disagree about what the engine is.
+          FILES=$(node -p "require('./package.json').files.join(' ')")
+          git archive --format=tar.gz --prefix="$NAME/" -o "$NAME.tar.gz" HEAD -- $FILES
+          sha256sum "$NAME.tar.gz" > "$NAME.tar.gz.sha256"
+          echo "NAME=$NAME" >> "$GITHUB_ENV"
+
+      - name: Publish
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ${{ env.NAME }}.tar.gz
+            ${{ env.NAME }}.tar.gz.sha256
+          body_path: CHANGELOG.md

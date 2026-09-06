@@ -304,7 +304,9 @@ export class ContentPanel {
     this._contentId = contentId;
     this._def = def;
 
-    (this.game.hotspotLayer || document.body).appendChild(container);
+    // Beside the hotspot layer, not inside it: that layer's children are owned
+    // by _renderHotspots() and were cleared wholesale. See EI-023.
+    (this.game._modalHost?.() || this.game.hotspotLayer || document.body).appendChild(container);
 
     document.addEventListener('keydown', this._onKeyDown);
 

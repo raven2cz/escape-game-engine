@@ -3,6 +3,7 @@
 export const ENGINE_I18N = {
     cs: {
         'engine.sceneNotFound': 'Scéna nebyla nalezena: {id}',
+        'engine.sceneImageFailed': 'Obrázek scény se nepodařilo načíst. Hraj dál, nebo zkus stránku obnovit.',
         'engine.missingItems': 'Něco ti chybí…',
         'engine.needUnlock': 'Nejprve musíš něco odemknout…',
         'engine.pickedUp': 'Sebráno: {name}',
@@ -17,9 +18,16 @@ export const ENGINE_I18N = {
         'engine.use.applied': 'Předmět byl použit.',
         'engine.use.button': 'Použít',
         'engine.use.notApplicable': 'Tento předmět tady nelze použít.',
+        'engine.video.skip': 'Přeskočit video',
+        'engine.video.play': '▶ Přehrát',
+        'engine.appTitle': 'Úniková hra',
+        'engine.restart': '↺ Restart',
+        'engine.editor': '✎ Edit',
+        'engine.aspectDrift': 'Pozor: tento obrázek má jiný poměr stran než ostatní. Doporučeno sjednotit.',
     },
     en: {
         'engine.sceneNotFound': 'Scene not found: {id}',
+        'engine.sceneImageFailed': 'The scene image could not be loaded. Carry on, or try reloading the page.',
         'engine.missingItems': 'You are missing something…',
         'engine.needUnlock': 'Something needs to be unlocked first…',
         'engine.pickedUp': 'Picked up: {name}',
@@ -35,5 +43,11 @@ export const ENGINE_I18N = {
         'engine.use.applied': 'Item applied.',
         'engine.use.button': 'Use',
         'engine.use.notApplicable': 'You cannot use this item here.',
+        'engine.video.skip': 'Skip video',
+        'engine.video.play': '▶ Play',
+        'engine.appTitle': 'Escape game',
+        'engine.restart': '↺ Restart',
+        'engine.editor': '✎ Edit',
+        'engine.aspectDrift': 'This image has a different aspect ratio from the others. Worth making them consistent.',
     }
 };

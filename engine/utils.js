@@ -41,4 +41,34 @@ function normalizeText(value) {
     return noDia.replace(/\s+/g, ''); // final: no spaces for strict matching
 }
 
-export { normalizeText };
+/**
+ * Read a flag specification into `[name, value]` pairs.
+ *
+ * Games write flags three ways, and all three have to mean what they look like:
+ *
+ *     "setFlags": "lab_unlocked"
+ *     "setFlags": ["lab_unlocked", "lamp_lit"]
+ *     "setFlags": { "lab_unlocked": true, "first_visit": false }
+ *
+ * The single name used to fall through to `Object.entries()`, which walks a
+ * string character by character: one flag called "0", one called "1", and the
+ * flag the author asked for never set. Nothing threw, the state saved, and the
+ * door simply never opened. `giveItem` had always accepted a single value, which
+ * is exactly what made this worth a trap.
+ *
+ * @param {string|string[]|Object<string, boolean>|null|undefined} spec
+ * @returns {Array<[string, boolean]>}
+ */
+function flagEntries(spec) {
+    if (!spec) return [];
+    if (typeof spec === 'string') return [[spec, true]];
+    if (Array.isArray(spec)) {
+        return spec.filter(name => typeof name === 'string').map(name => [name, true]);
+    }
+    if (typeof spec === 'object') {
+        return Object.entries(spec).map(([name, value]) => [name, !!value]);
+    }
+    return [];
+}
+
+export { normalizeText, flagEntries };

@@ -8,6 +8,8 @@
  * allowing the main Engine to await the conversation.
  */
 
+import {flagEntries} from './utils.js';
+
 export class DialogUI {
     /**
      * @param {import('./engine.js').Game} game
@@ -24,6 +26,12 @@ export class DialogUI {
 
         /** @type {Function|null} Resolver for the Promise returned by open() */
         this._closeResolver = null;
+
+        /** True between the start of open() and the resolver being installed. */
+        this._opening = false;
+
+        /** Bound on the portrait preload. Same reasoning as Game.sceneImageTimeoutMs. */
+        this.preloadTimeoutMs = game?.sceneImageTimeoutMs ?? 8000;
 
         /** * Input lock to prevent race conditions during async transitions.
          * Prevents "double-click" skipping issues.
@@ -215,6 +223,32 @@ export class DialogUI {
     async open(dialogId) {
         this._dbg('open() →', dialogId);
 
+        // One dialog at a time, and a second request is refused rather than
+        // allowed to take over. There is a single _closeResolver, so a second
+        // open() used to replace the first one's, and the action that was
+        // awaiting the first dialog then waited forever: the run carried on with
+        // a step silently skipped. Refusing loses a line of dialogue; taking
+        // over lost the rest of the event. See EI-013.
+        if (this._opening || this._closeResolver) {
+            console.warn('[DLG] open() refused, a dialog is already open:', dialogId);
+            return;
+        }
+
+        // The claim has to be made synchronously: _open() awaits a portrait
+        // preload before it installs the resolver, and a second open() could
+        // otherwise walk straight past the check above during that await.
+        this._opening = true;
+        try {
+            return await this._open(dialogId);
+        } finally {
+            // _open() drops the claim itself the moment the resolver takes over,
+            // so that a dialog opened from this one's onEnd is not refused. This
+            // only covers the paths that never got that far.
+            this._opening = false;
+        }
+    }
+
+    async _open(dialogId) {
         const list = Array.isArray(this.game.dialogsData?.dialogs) ? this.game.dialogsData.dialogs : [];
 
         // Resolve ID
@@ -250,14 +284,7 @@ export class DialogUI {
         }
 
         if (assetsToLoad.length > 0) {
-            await Promise.all(assetsToLoad.map(src => {
-                return new Promise(resolve => {
-                    const img = new Image();
-                    img.onload = resolve;
-                    img.onerror = resolve; // Nechceme zaseknout hru, když obrázek chybí
-                    img.src = src;
-                });
-            }));
+            await Promise.all(assetsToLoad.map(src => this._preload(src)));
         }
         // --- PRELOAD PHASE END ---
 
@@ -290,10 +317,47 @@ export class DialogUI {
             }
         }
 
+        // The resolver is installed before the first step is rendered, not
+        // after. A dialog whose sequence is empty ends inside _renderStep(),
+        // which used to happen while there was no resolver to call, so the
+        // promise handed back was never settled and the event that opened the
+        // dialog stopped there.
+        const closed = new Promise(resolve => {
+            this._closeResolver = resolve;
+        });
+        this._opening = false;
+
         this._renderStep();
 
+        return closed;
+    }
+
+    /**
+     * Wait for a portrait, but not forever.
+     *
+     * `onerror` has always been handled here, with a comment saying the game
+     * must not get stuck on a missing image. A request that is dropped rather
+     * than refused fires neither event, and a school network drops requests.
+     * Without the timeout that hangs open(): the resolver is never installed, so
+     * _opening stays claimed, every later dialog is refused, and if the dialog
+     * was opened from a hotspot the activation lock is held too and no tap does
+     * anything. The scene loader got this treatment in EI-003; this one is the
+     * same defect one file over.
+     */
+    _preload(src) {
         return new Promise(resolve => {
-            this._closeResolver = resolve;
+            const img = new Image();
+            let settled = false;
+            const done = () => {
+                if (settled) return;
+                settled = true;
+                clearTimeout(timer);
+                resolve();
+            };
+            const timer = setTimeout(done, this.preloadTimeoutMs);
+            img.onload = done;
+            img.onerror = done; // Nechceme zaseknout hru, když obrázek chybí
+            img.src = src;
         });
     }
 
@@ -311,11 +375,6 @@ export class DialogUI {
         }
     }
 
-    refresh() {
-        if (!this.active) return;
-        this._renderStep();
-    }
-
     // --- Character & Asset Resolution ---
 
     _findCharacter(charId) {
@@ -324,7 +383,14 @@ export class DialogUI {
         // Special handling for 'hero' placeholder
         if (charId === 'hero') {
             const hero = this.game.getHero();
-            const byId = chars.find(c => c?.id === hero.id);
+
+            // A game that names its heroes may also give each one a character of
+            // its own, and that is preferred over the template. The exception is
+            // the neutral hero a game with no heroes falls back to: its id is
+            // `hero` too, so this lookup would find the template itself and
+            // return it with its `{heroBase}` placeholders still in the text.
+            // See NEUTRAL_HERO in engine.js and EI-015.
+            const byId = hero.id !== 'hero' ? chars.find(c => c?.id === hero.id) : null;
             if (byId) return byId;
 
             const tpl = chars.find(c => c?.id === 'hero');
@@ -493,7 +559,15 @@ export class DialogUI {
     // --- Logic & Flow ---
 
     async _applyChoice(step, ch) {
+        // The step this choice belongs to has to still be the one on screen.
+        // _flashChoice disables the button that was tapped for 220 ms but not
+        // its siblings, so a second choice can arrive while the first is being
+        // applied. The lock alone stopped that until EI-021 started releasing it
+        // as soon as a dialog ends, which it has to; this is the check that was
+        // missing underneath it. Without it the second choice runs against a
+        // dialog that is already over: its flags get set and its onEnd runs.
         if (this._busy) return;
+        if (this.active?.dlg?.sequence?.[this.active.idx] !== step) return;
         this._busy = true;
 
         try {
@@ -556,17 +630,10 @@ export class DialogUI {
     async _applyFlags(flags) {
         const g = this.game;
         let changed = false;
-        if (Array.isArray(flags)) {
-            for (const f of flags) if (!g.state.flags[f]) {
-                g.state.flags[f] = true;
+        for (const [flag, value] of flagEntries(flags)) {
+            if (!!g.state.flags[flag] !== value) {
+                g.state.flags[flag] = value;
                 changed = true;
-            }
-        } else if (flags && typeof flags === 'object') {
-            for (const [k, v] of Object.entries(flags)) {
-                if (!!g.state.flags[k] !== !!v) {
-                    g.state.flags[k] = !!v;
-                    changed = true;
-                }
             }
         }
 
@@ -590,6 +657,24 @@ export class DialogUI {
         this._hide();
         this.active = null;
 
+        // Take ownership of the resolver now, before the logic below runs.
+        // onEnd can set a flag or navigate, either of which can open another
+        // dialog; while this one still held _closeResolver that dialog would be
+        // refused, and before EI-013 it would have stolen this one's resolver
+        // instead. The promise is still settled last, so the engine stays
+        // blocked until everything this dialog set in motion is finished.
+        const resolveClosed = this._closeResolver;
+        this._closeResolver = null;
+
+        // This dialog run is over, so release the input lock now rather than in
+        // next()'s finally. What follows can open another dialog, and next()
+        // does not return until that one is finished: _busy would still be held
+        // by an advance that belongs to a dialog nobody is looking at any more,
+        // and _handleInput() refuses every tap while it is. The second dialog
+        // could then never be closed and the run stopped there. Advancing this
+        // dialog again is impossible regardless, because `active` is null. EI-021.
+        this._busy = false;
+
         // 2. Apply logic
         if (onEnd) {
             if (onEnd.message) g._msg(g._text(onEnd.message));
@@ -602,9 +687,6 @@ export class DialogUI {
 
         // 3. Unblock Engine
         // Now we tell the engine "dialog is fully done".
-        if (this._closeResolver) {
-            this._closeResolver();
-            this._closeResolver = null;
-        }
+        if (resolveClosed) resolveClosed();
     }
 }
