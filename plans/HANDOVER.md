@@ -118,10 +118,13 @@ content panel.
 
 **Waiting on the hosted runtime, deliberately:**
 
-- **EI-002 step two.** Run and team identity, `state:<sessionId>:<gameId>:<teamId>`.
-  Step one namespaced the key per game and put persistence behind
-  `opts.storage`; two teams on one tablet still share a slot, because the
-  identity has to come from the runtime rather than be invented here.
+- **EI-002 step two**, now P3. Run and team identity,
+  `state:<sessionId>:<gameId>:<teamId>`. Step one namespaced the key per game and
+  put persistence behind `opts.storage`. The remaining case is not two teams at
+  once - one tablet has one screen - but the same tablet used by 7.A in the first
+  period and 7.B in the second, where the second class resumes the first's
+  progress with the intro already spent. `?reset=1` or Restart handles it today;
+  what the runtime removes is having to remember.
 - **EI-010**, one progress signal instead of per-game conventions. The seam it
   needs now exists: `opts.storage`, plus the puzzle runner wrapper in
   `engine/puzzles/index.js` that every kind already goes through.

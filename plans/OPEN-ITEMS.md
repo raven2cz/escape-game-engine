@@ -22,7 +22,7 @@ pre-existing defect rather than a new one.
 | #      | prio | status | topic                                                          |
 |--------|------|--------|----------------------------------------------------------------|
 | EI-001 | P1   | DONE   | Once-events can be marked done before their effects apply       |
-| EI-002 | P1   | PART   | One saved state for every game and every team                   |
+| EI-002 | P3   | PART   | One saved state for every game and every team                   |
 | EI-003 | P1   | DONE   | goto() hangs on a missing image and persists the broken scene   |
 | EI-004 | P1   | DONE   | MIT licence also covers `games/`                                |
 | EI-005 | P2   | DONE   | `reset=1` stays in the URL and wipes progress on every reload   |
@@ -176,6 +176,27 @@ A second review round caught the mirror image of the first hole: discarding the
 old entry did not check whose it was, so a teacher opening game B with a reset
 link, or a team restarting game B, took game A's lesson with it. Reading and
 discarding now share one ownership test, `_readLegacyState()`.
+
+**Priority lowered to P3 after the owner questioned the premise, and he was
+right.** The entry above says "two teams on one tablet", and asked when that
+would actually happen, there is no good answer for the *simultaneous* case: one
+tablet has one browser and one screen, and a team playing on it is the team using
+it. That scenario was written from the brief rather than from the room.
+
+What is real is the **sequential** one. A school tablet trolley is shared between
+classes: 7.A plays in the first period, 7.B in the second, on the same iPad and
+the same game. Without a reset, 7.B resumes 7.A's inventory, flags and scene, and
+the intro is skipped because it is already in `eventsFired` - which looks less
+like resumed progress and more like a broken game.
+
+**And it is already handled**, as long as somebody does it: `?reset=1` on the
+link the teacher hands out, or the Restart button. EI-005 made `reset=1` safe to
+leave in a QR code, which is what makes that a workable answer rather than a trap.
+
+So this is not a defect waiting to be fixed; it is a manual step waiting to be
+automated by something that does not exist. What the runtime removes is the
+*need to remember*: a lesson gets an identity, and a new lesson is a new slot
+whether or not anyone pressed anything.
 
 **Step two: left for the hosted runtime, and the owner has agreed to leave the
 call here.** Run and team identity,
