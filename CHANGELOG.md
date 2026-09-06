@@ -15,6 +15,12 @@ repository; see `docs/RELEASING.md` for which version means what.
   not taken over within ten seconds, replaces it with what to do about it. The
   supported minimum is written down in the README and in `docs/RELEASING.md`.
   (EI-027)
+- **A lesson can now have a slot of its own.** One tablet had one saved game per
+  game, so the class in the second period resumed the class from the first, intro
+  already spent. Put `session=` in the link a class is given - any string that
+  differs between lessons - and each gets its own. `team=` too, if one lesson runs
+  on more than one tablet. Without either, nothing changes and a lesson already
+  running is untouched. `docs/RELEASING.md` has the shape of the link. (EI-002)
 - Removed the `ResizeObserver` fallback in the match puzzle. It could never run:
   the engine's own syntax has a higher floor than the observer does. (EI-027)
 

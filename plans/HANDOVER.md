@@ -81,8 +81,10 @@ repository.
   transcripts were scanned for credentials first and are clean.
 - **EI-020**: delete `games/demo`. A demo of the framework is wanted eventually,
   but as a deliberate separate thing, not as this leftover. Done.
-- **EI-002 step two** and **EI-010**: left where they were. EI-010 belongs to the
-  dashboard project, which is a day's work of its own.
+- **EI-002 step two**: done. The engine takes `sessionId` and `teamId` from the
+  caller and never invents them; `?session=` in the link a class is given is what
+  makes it work before the runtime exists. **EI-010**: left where it was. It
+  belongs to the dashboard project, which is a day's work of its own.
 - **Merging to `main`**: done on 2026-09-06 as `94fd2cd`, one merge commit over
   thirty-nine. `main` is where work continues; the branch is kept but finished.
 - **Whether an iPad older than iOS 13.4 is supported.** EI-027 gave the match
@@ -122,13 +124,11 @@ content panel.
 
 **Waiting on the hosted runtime, deliberately:**
 
-- **EI-002 step two**, now P3. Run and team identity,
-  `state:<sessionId>:<gameId>:<teamId>`. Step one namespaced the key per game and
-  put persistence behind `opts.storage`. The remaining case is not two teams at
-  once - one tablet has one screen - but the same tablet used by 7.A in the first
-  period and 7.B in the second, where the second class resumes the first's
-  progress with the intro already spent. `?reset=1` or Restart handles it today;
-  what the runtime removes is having to remember.
+- **EI-010** is the only one left, and only that. **EI-002 is closed**: the key
+  is `state:<sessionId>:<gameId>:<teamId>` when an identity is supplied and
+  unchanged when it is not. What the runtime still owes is minting the session
+  itself, so that nobody has to put it in the link - but that is the runtime's
+  work, not a gap in the engine.
 - **EI-010**, one progress signal instead of per-game conventions. The seam it
   needs now exists: `opts.storage`, plus the puzzle runner wrapper in
   `engine/puzzles/index.js` that every kind already goes through.

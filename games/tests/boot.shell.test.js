@@ -91,6 +91,20 @@ describe('the loading shell in index.html', () => {
     });
 });
 
+describe('the shell as the teacher\'s link', () => {
+    it('reads the lesson and the team out of the query string', () => {
+        // EI-002 step two, at the only end a teacher can reach. Putting
+        // `?session=` in the link a class is given is what stops the next class
+        // resuming its progress, and it works only if this file forwards it.
+        // A dropped line here is silent: the game runs perfectly and shares a
+        // slot with the period before it.
+        const module = HTML.match(/<script[^>]*type="module"[^>]*>([\s\S]*?)<\/script>/i)[1];
+
+        expect(module).toMatch(/sessionId:\s*params\.get\('session'\)/);
+        expect(module).toMatch(/teamId:\s*params\.get\('team'\)/);
+    });
+});
+
 describe('the loading shell, running', () => {
     let timer;
 

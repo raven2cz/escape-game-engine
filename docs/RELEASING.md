@@ -185,6 +185,37 @@ and not on the tag.
 
 ---
 
+## The link a class is given
+
+One tablet, one game, one saved slot - unless the link says otherwise. That is
+fine for a class that plays once, and wrong for a trolley iPad where 7.A plays in
+the first period and 7.B in the second: 7.B resumes 7.A's inventory and scene,
+with the intro already spent, which reads as a broken game rather than as
+progress.
+
+Two ways to avoid it, and the first is better because it needs nobody to remember
+anything at the moment it matters:
+
+    .../?game=warp-engine&session=2026-09-08-2     a slot of its own
+    .../?game=warp-engine&reset=1                  start clean every time
+
+`session` is any string that differs between lessons - a date and a period does
+the job. Add `team` as well if one lesson ever runs on more than one tablet and
+they must not share. Both are opaque to the engine; it only keeps them apart.
+
+`reset=1` is the blunter one: it wipes on every load, so a team that reloads
+mid-lesson loses the lesson. Prefer `session`, and keep `reset=1` for the case
+where somebody has to clear a tablet by hand.
+
+**Reusing last week's QR code is the failure mode.** A link with no `session` is
+the old behaviour, and the engine cannot tell. Generate the link per lesson, or
+put `reset=1` in the one you print.
+
+The hosted runtime will mint the session itself and pass it to `boot()`, at which
+point none of this is the teacher's problem. Until then it is a string in a URL.
+
+---
+
 ## What a release promises about browsers
 
 **iPadOS 15 / Safari 15, and equivalents.** Written down here because it is a

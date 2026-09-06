@@ -73,6 +73,18 @@ export class Game {
         this._ownsLocalStorage = !opts.storage;
         this.storage = opts.storage || this._localStorage();
 
+        // Which lesson, and which team within it. Both come from the caller and
+        // both are optional. The engine cannot invent them: "a new lesson" is a
+        // human event with no signal in the browser, and a guess - a timer, a
+        // date change - would end a double period or a lesson across a break.
+        //
+        // Supplying them is what stops 7.B resuming 7.A's progress on the same
+        // trolley iPad. Today that means putting `?session=` in the link the
+        // teacher hands out; the hosted runtime will pass them directly. See
+        // EI-002.
+        this.sessionId = String(opts.sessionId ?? '').trim() || null;
+        this.teamId = String(opts.teamId ?? '').trim() || null;
+
         // How long to wait for a scene image before carrying on without it.
         // A school network drops requests, and a request that is dropped rather
         // than refused never fires anything at all. See EI-003.
@@ -1981,7 +1993,22 @@ export class Game {
      * the run and team can be added to it without moving anything else.
      */
     _storageKey() {
-        return `state:${this.meta?.id || 'unknown'}`;
+        const gameId = this.meta?.id || 'unknown';
+
+        // No identity: exactly the key this engine has always used. An upgrade
+        // must not end a lesson that is already running, and most runs - a
+        // tablet opening a link with no session in it - are this case.
+        if (!this.sessionId && !this.teamId) return `state:${gameId}`;
+
+        // Otherwise all four segments, always, with an empty one for whichever
+        // is missing. Positional rather than "include it if present", because
+        // `state:a:alpha` would otherwise mean both session `a` and team `a`.
+        //
+        // The two caller-supplied parts are encoded: a colon in an id would
+        // shift the segments and let one identity read another's slot. The game
+        // id is left alone, because encoding it would change the key for
+        // existing lessons to no purpose - game ids are kebab-case.
+        return `state:${encodeURIComponent(this.sessionId ?? '')}:${gameId}:${encodeURIComponent(this.teamId ?? '')}`;
     }
 
     /** Default storage: the browser's, behind the same interface as any other. */
@@ -2154,6 +2181,12 @@ export class Game {
      */
     _readLegacyState() {
         if (!this._ownsLocalStorage) return null;
+
+        // A run with an identity is a new lesson by definition. Adopting the
+        // device-wide leftover into it would import the previous class's
+        // progress - the exact failure this item exists to stop - and it would
+        // do it silently, because adoption looks like resumed progress.
+        if (this.sessionId || this.teamId) return null;
 
         let raw = null;
         try {

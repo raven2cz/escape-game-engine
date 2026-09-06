@@ -278,3 +278,145 @@ describe('EI-002: saved state has an identity', () => {
         expect(second.state.inventory).toEqual(['alpha_key']);
     });
 });
+
+// EI-002 step two: the identity of the lesson and the team.
+//
+// Step one made the key per game, which stops two games overwriting each other.
+// It does nothing about the case that actually happens: a trolley iPad on which
+// 7.A plays in the first period and 7.B in the second, on the same game. 7.B
+// resumes 7.A's inventory, flags and scene, and the intro is skipped because it
+// is already in `eventsFired` - which does not look like resumed progress, it
+// looks like a broken game.
+//
+// The engine cannot detect that a new lesson began. There is no signal for it in
+// the browser, and a guess - a timer, a date change - would end a double period
+// or a lesson that spans a break. So the identity is supplied: `?session=` in the
+// link the class is given today, and the hosted runtime directly once it exists.
+// The engine's job is to use it if it is there and to behave exactly as before if
+// it is not, because most links will not have one.
+
+const withIds = (ids) => ({ gameOpts: ids });
+
+describe('EI-002 step two: run and team identity', () => {
+    beforeEach(() => {
+        localStorage.clear();
+        history.replaceState(null, '', '/');
+    });
+
+    it('gives the next lesson its own slot', async () => {
+        // 7.A, first period.
+        const first = await alpha().boot(withIds({ sessionId: 'p1' }));
+        first.state.inventory.push('key_7a');
+        await first.goto('deeper');
+
+        // 7.B, second period, same tablet, same game, same link but a new
+        // session. Nobody pressed anything.
+        const second = await alpha().boot(withIds({ sessionId: 'p2' }));
+
+        expect(second.state.inventory).toEqual([]);
+        expect(second.state.scene).toBe('start');
+
+        // And 7.A's lesson is still there, which matters when a period is split
+        // over a break and the class comes back to it.
+        const back = await alpha().boot(withIds({ sessionId: 'p1' }));
+        expect(back.state.inventory).toEqual(['key_7a']);
+        expect(back.state.scene).toBe('deeper');
+    });
+
+    it('keeps two teams in one lesson apart', async () => {
+        const red = await alpha().boot(withIds({ sessionId: 'p1', teamId: 'red' }));
+        red.state.inventory.push('red_key');
+        red._saveState();
+
+        const blue = await alpha().boot(withIds({ sessionId: 'p1', teamId: 'blue' }));
+        expect(blue.state.inventory).toEqual([]);
+
+        const redAgain = await alpha().boot(withIds({ sessionId: 'p1', teamId: 'red' }));
+        expect(redAgain.state.inventory).toEqual(['red_key']);
+    });
+
+    it('leaves the key alone when nobody supplies an identity', async () => {
+        // The back-compatibility case, and the one that matters most: shipping
+        // this must not end a lesson that is running. Most links have no session
+        // in them and the key has to be byte-identical to the old one.
+        const harness = alpha();
+        await harness.boot();
+
+        expect(Object.keys(harness.storageDump())).toEqual(['state:alpha']);
+    });
+
+    it('does not confuse a missing session with a missing team', async () => {
+        // `state:a:alpha` would have to mean both, if the key only included the
+        // parts that were present. It does not: all four segments, always, with
+        // an empty one for whichever is absent.
+        const harness = alpha();
+        await harness.boot(withIds({ sessionId: 'a' }));
+        await harness.boot(withIds({ teamId: 'a' }));
+
+        // Both wrote, and to two different places. storageDump() is the whole
+        // store, so this asserts on the keys themselves rather than on whichever
+        // one happens to have been written first.
+        expect(Object.keys(harness.storageDump()).sort())
+            .toEqual(['state::alpha:a', 'state:a:alpha:']);
+    });
+
+    it('does not let a colon in an id reach another slot', async () => {
+        // An id is a string from a caller, and a runtime may well use something
+        // URL-shaped. Unencoded, session `p1:red` and session `p1` team `red`
+        // would be the same key, and one team would resume the other's lesson.
+        const harness = alpha();
+        await harness.boot(withIds({ sessionId: 'p1:red' }));
+        await harness.boot(withIds({ sessionId: 'p1', teamId: 'red' }));
+
+        expect(Object.keys(harness.storageDump()).sort())
+            .toEqual(['state:p1%3Ared:alpha:', 'state:p1:alpha:red']);
+    });
+
+    it('treats a blank identity as none at all', async () => {
+        // An empty query parameter is what `?session=` gives, and a link built
+        // by string concatenation produces that easily. It has to mean "no
+        // session", not "a session whose name is nothing".
+        const harness = alpha();
+        await harness.boot(withIds({ sessionId: '', teamId: '   ' }));
+
+        expect(Object.keys(harness.storageDump())).toEqual(['state:alpha']);
+    });
+
+    it('does not adopt the device-wide leftover into a lesson', async () => {
+        // Adoption exists so that the step-one upgrade did not end a running
+        // lesson. Into an identified run it would do the opposite of what this
+        // item is for: import the previous class's progress, silently, looking
+        // exactly like resumed progress.
+        localStorage.setItem(LEGACY_KEY, JSON.stringify({
+            signature: 'alpha|1.0.0|cs',
+            scene: 'deeper',
+            inventory: ['someone_elses_key'],
+            flags: {},
+            eventsFired: {},
+            hero: null,
+        }));
+
+        const game = await alpha().boot(withIds({ sessionId: 'p2' }));
+
+        expect(game.state.inventory).toEqual([]);
+        expect(game.state.scene).toBe('start');
+        // And it is left where it was, because the run it belongs to may still
+        // be resumed by a tablet opening the link without a session.
+        expect(localStorage.getItem(LEGACY_KEY)).not.toBeNull();
+    });
+
+    it('restarts one team without touching the other', async () => {
+        const red = await alpha().boot(withIds({ sessionId: 'p1', teamId: 'red' }));
+        red.state.inventory.push('red_key');
+        red._saveState();
+
+        const blue = await alpha().boot(withIds({ sessionId: 'p1', teamId: 'blue' }));
+        blue.state.inventory.push('blue_key');
+        blue._saveState();
+
+        blue.storage.clear();
+
+        const redAgain = await alpha().boot(withIds({ sessionId: 'p1', teamId: 'red' }));
+        expect(redAgain.state.inventory).toEqual(['red_key']);
+    });
+});

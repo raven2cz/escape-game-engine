@@ -605,6 +605,20 @@ game assets with them, to a public URL. It was removed once the games became
 proprietary: a static public site cannot enforce a per-lesson licence, and it was
 serving the full-resolution source artwork along with the games.
 
+**Give each lesson its own slot.** One tablet keeps one saved game per game, so
+without this the class in the second period resumes the class from the first -
+same inventory, same scene, intro already spent, which looks like a broken game.
+
+    ?game=warp-engine&session=2026-09-08-2     a slot of its own
+    ?game=warp-engine&reset=1                  start clean on every load
+
+`session` is any string that differs between lessons; a date and a period will
+do. Add `team` if one lesson ever runs on more than one tablet. Prefer `session`
+over `reset=1`, which wipes on every load and so loses the lesson if a team
+reloads. A link with neither behaves as it always has - the engine cannot tell
+that a new class picked up the tablet, so reusing last week's QR code is the
+thing to watch for. See `docs/RELEASING.md`.
+
 ---
 
 ## 🧪 Testing

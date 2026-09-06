@@ -64,6 +64,12 @@
     boot({
         gameId: params.get('game') || DEFAULT_GAME,
         lang: params.get('lang') || 'cs',
+        // Which lesson and which team. Absent by default, which keeps one slot
+        // per game on the tablet. Put `?session=` in the link a class is given
+        // and the next class gets its own slot without anyone resetting
+        // anything. The hosted runtime passes these itself. See EI-002.
+        sessionId: params.get('session'),
+        teamId: params.get('team'),
         // Local use, so the editor is offered. The runtime will not pass this.
         editor: params.get('editor') !== '0',
         // Not `await boot(...)`: a game whose first scene opens a dialog is not

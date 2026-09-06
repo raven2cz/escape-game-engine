@@ -117,6 +117,11 @@ function watchSceneAspect(game, sceneImage) {
  *                                 `./games/<gameId>/`; the runtime passes its own
  *                                 versioned prefix.
  * @param {object} [opts.storage]  {load, save, clear}. The runtime's, when hosted.
+ * @param {string} [opts.sessionId] which lesson this run belongs to
+ * @param {string} [opts.teamId]    which team within it
+ *        Both optional, and the engine never invents them. Without them one
+ *        tablet has one slot per game, so the next class resumes the last
+ *        class's progress unless somebody resets. See EI-002.
  * @param {HTMLElement} [opts.root]   where to build. Defaults to document.body.
  * @param {boolean} [opts.editor]  offer the editor. Defaults to off; a tablet in
  *                                 a lesson should not fetch it or see the button.
@@ -134,6 +139,8 @@ export async function boot(opts = {}) {
 
     const lang = (opts.lang || 'cs').toLowerCase();
     const baseUrl = opts.baseUrl || `./games/${gameId}/`;
+    const sessionId = opts.sessionId || null;
+    const teamId = opts.teamId || null;
     const root = opts.root || document.body;
 
     STYLESHEETS.forEach(addStylesheet);
@@ -164,6 +171,8 @@ export async function boot(opts = {}) {
         lang,
         i18n: {engine: engineStrings, game: gameStrings || {}},
         ...(opts.storage ? {storage: opts.storage} : {}),
+        sessionId,
+        teamId,
 
         sceneImage: el('sceneImage'),
         hotspotLayer: el('hotspotLayer'),

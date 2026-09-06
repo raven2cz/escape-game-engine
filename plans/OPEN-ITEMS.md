@@ -22,7 +22,7 @@ pre-existing defect rather than a new one.
 | #      | prio | status | topic                                                          |
 |--------|------|--------|----------------------------------------------------------------|
 | EI-001 | P1   | DONE   | Once-events can be marked done before their effects apply       |
-| EI-002 | P3   | PART   | One saved state for every game and every team                   |
+| EI-002 | P3   | DONE   | One saved state for every game and every team                   |
 | EI-003 | P1   | DONE   | goto() hangs on a missing image and persists the broken scene   |
 | EI-004 | P1   | DONE   | MIT licence also covers `games/`                                |
 | EI-005 | P2   | DONE   | `reset=1` stays in the URL and wipes progress on every reload   |
@@ -198,18 +198,59 @@ automated by something that does not exist. What the runtime removes is the
 *need to remember*: a lesson gets an identity, and a new lesson is a new slot
 whether or not anyone pressed anything.
 
-**Step two: left for the hosted runtime, and the owner has agreed to leave the
-call here.** Run and team identity,
-`state:<sessionId>:<gameId>:<teamId>`. The identity has to come from the hosted
-runtime, which does not exist yet; inventing one now would mean the runtime
-contradicting it later. Until then, two teams on one tablet still share a slot.
-The key is shaped so that the run and team can be added without moving anything
-else.
+**Step two, as applied.** The key is
+`state:<sessionId>:<gameId>:<teamId>` whenever either identity is supplied, and
+`state:<gameId>` - byte for byte the step-one key - whenever neither is. Both come
+from the caller:
+
+- `new Game({sessionId, teamId})`, `boot({sessionId, teamId})`, and `?session=` /
+  `?team=` on the link in `index.html`.
+- **The engine never invents them, and that is the point.** "A new lesson began"
+  has no signal in the browser. Every automatic guess available - a timer, a date
+  change, a fresh tab - breaks a double period, a lesson across a break, or a
+  tablet that went to sleep. Getting that wrong ends a lesson silently, which is
+  the failure this whole registry is about.
+
+Four things the shape has to survive, all tested:
+
+- **All four segments, always**, with an empty one for whatever is missing.
+  "Include the parts that are present" would make `state:a:alpha` mean both
+  session `a` and team `a`.
+- **The caller's parts are encoded.** A colon in an id would shift the segments,
+  and session `p1:red` would read the slot of session `p1` team `red`. The game
+  id is deliberately not encoded: it is kebab-case, and encoding it would change
+  the key for lessons already running to no purpose.
+- **A blank id is no id.** `?session=` produces an empty string, which a link
+  built by concatenation produces easily. It has to mean "no session", not "a
+  session called nothing".
+- **The legacy device-wide entry is never adopted into an identified run.**
+  Adoption exists so the step-one upgrade did not end a running lesson; into a
+  new lesson it would import the previous class's progress, silently, looking
+  exactly like resumed progress. It is left in place rather than deleted, because
+  a tablet opening the link without a session may still be entitled to it.
+
+**What this does and does not solve.** With `?session=<lesson>` in the link a
+class is handed, 7.B gets its own slot without anyone pressing anything - which is
+deployable today, before any runtime exists. What it does not do is remove the
+need to *put it there*: a teacher reusing last week's QR code is back to the old
+behaviour, with `?reset=1` and Restart as the answer. Only the hosted runtime can
+mint the identity itself, and now it has somewhere to put it rather than a shape
+to negotiate.
 
 **Tests.** `games/tests/engine.state-identity.test.js`: two games stay apart, the
 key is per game, changing language preserves progress, a republished version
 still starts fresh, the legacy key is adopted once and only for its own game, and
-a caller can substitute its own storage. `engine.assets.persistence.test.js` was
+a caller can substitute its own storage. Step two adds eight: the next lesson gets
+its own slot and the previous one survives, two teams stay apart, no identity
+leaves the key untouched, a missing session and a missing team do not collide, a
+colon cannot reach another slot, a blank id is none, the legacy entry is not
+adopted, and a restart takes one team only. Six mutations run against them, six
+caught - including reverting step two outright and dropping the encoding.
+
+The wiring is tested where it can be lost silently: `engine.boot.test.js` asserts
+`boot()` forwards the identity, and `boot.shell.test.js` asserts `index.html`
+reads it out of the query string. A game that shares a slot with the period
+before it runs perfectly, so neither failure would show up any other way. `engine.assets.persistence.test.js` was
 updated: it asserted the old behaviour, that changing language produces a fresh
 state, and now asserts the version case instead.
 

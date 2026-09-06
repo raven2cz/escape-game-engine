@@ -86,6 +86,23 @@ describe('boot()', () => {
         expect(clearedBeforeFirstFetch).toBe(true);
     });
 
+    it('passes the lesson and team identity through to the game', async () => {
+        // EI-002 step two. boot() is the only path the hosted runtime has into
+        // the engine, so an option it drops is an option that does not exist.
+        // Asserted through the key that gets written rather than through the
+        // property, because the key is what actually separates two classes.
+        await boot({ gameId: 'boot-test', sessionId: 'p2', teamId: 'red' });
+
+        expect(localStorage.getItem('state:p2:boot-test:red')).not.toBeNull();
+        expect(localStorage.getItem('state:boot-test')).toBeNull();
+    });
+
+    it('keeps the old key when no identity is given', async () => {
+        await boot({ gameId: 'boot-test' });
+
+        expect(localStorage.getItem('state:boot-test')).not.toBeNull();
+    });
+
     it('brings its own stylesheets, resolved against the engine', async () => {
         await boot({ gameId: 'boot-test' });
 
