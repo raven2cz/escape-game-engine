@@ -47,7 +47,11 @@ see the note at the end of the evidence document.
 > a real domain model. This part is not to be botched.
 
 Not yet implemented; below is the design as Fable submitted it, now read through
-the four decisions above.
+the four decisions above. **The dashboard-facing layer — the public API, the
+projection, the services and the async transport — is designed authoritatively in
+[EI-010-DESIGN-API.md](EI-010-DESIGN-API.md), which supersedes the "ship the saved
+state" recommendation here.** What remains useful below is the evidence-derived
+choke-point analysis and the entity discussion.
 
 Design only. Nothing is implemented; every step in section 4 is a separate,
 reviewable change. Verified against `escape-game-engine@main` (fd36dd3) and
