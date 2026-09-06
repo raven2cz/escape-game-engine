@@ -47,7 +47,7 @@ pre-existing defect rather than a new one.
 | EI-024 | P2   | DONE   | A single flag name set one flag per character instead           |
 | EI-025 | P1   | DONE   | Proprietary games sat in a public repository                     |
 | EI-026 | P3   | DONE   | Three demo puzzles name a backdrop that has never existed        |
-| EI-027 | P2   | PART   | Match puzzles do not open on an iPad older than iOS 13.4         |
+| EI-027 | P2   | DONE   | An unsupported tablet shows a blank page and says nothing        |
 | EI-028 | P1   | DONE   | Redrawing the match lines never terminates once a pair exists    |
 | EI-029 | P3   | DONE   | A list puzzle did not close the step it had started              |
 
@@ -1308,72 +1308,83 @@ which carries a `hero` character template nothing references, pointing at an
 
 ---
 
-## EI-027: Match puzzles do not open on an iPad older than iOS 13.4
+## EI-027: An unsupported tablet shows a blank page and says nothing
 
-**Priority:** P2. This is the iPad question that had been open since the audit,
-now that the owner has answered it: support the older devices.
+**Priority:** P2. **Closed as a product decision, not as a compatibility fix.**
 
-**Where:** `engine/puzzles/kinds/match.js`, the `columns` mode branch of
-`mount()`.
+**How it started.** In `columns` mode the match puzzle draws SVG lines between
+connected pairs and uses a `ResizeObserver` to redraw them when the layout moves.
+`ResizeObserver` reached Safari in 13.4, so on an older iPad the constructor does
+not exist and `new ResizeObserver(...)` throws **during mount** - the puzzle never
+opens. Four of the six games use `columns` mode, so it read as serious, and a
+`window.resize` fallback was written.
 
-**What happens.** In `columns` mode the puzzle draws SVG lines between the pairs
-the player has connected. The lines are absolutely positioned, so a
-`ResizeObserver` watches the flow element and redraws them when the layout moves.
+**Why that fallback was wrong.** codex SOL pointed out that the engine's own
+syntax has the same floor as the API it was working around: 285 uses of optional
+chaining and 80 of `??` across `engine/`, both Safari 13.1 - the same release
+that brought `ResizeObserver`. An iPad too old for the observer cannot parse the
+engine at all. The fallback was unreachable in every browser that can load the
+product.
 
-`ResizeObserver` reached Safari in 13.4, which is iOS 13.4, March 2020. On an
-older iPad the constructor does not exist, so `new ResizeObserver(...)` throws a
-`ReferenceError` - **during mount**. The puzzle never opens, and the team is
-stuck on it with no way past.
+**What the owner asked, and what came back.** The owner referred the question out:
+support these iPads or not. SOL costed it. The scope is not a transpiler pass:
 
-**Why it matters.** It is not a corner of the product. Four of the six shipped
-games use `columns` mode: `leeuwenhoek`/`demo` (`match-bio-click`), `reactor`
-(`puzzle-atom-3`), `time-factory` (`puzzle-hammer`) and `warp-engine`
-(`newton-match`). The iPads that cannot reach iOS 13.4 - iPad Air 1, iPad mini 2
-and 3, iPad 4 - are from 2012 to 2014 and are exactly what a school still has in
-a cupboard.
+- Syntax can be lowered, but `Object.fromEntries` and `String.replaceAll` are
+  runtime methods needing polyfills.
+- **Pointer Events also arrived in 13.4**, and they are the cloze puzzle's only
+  drag implementation. That is a maintained polyfill or a second implementation.
+- The CSS has a *higher* floor than the JavaScript: `aspect-ratio` (Safari 15)
+  sizes the scene container, `inset` sizes every overlay, flex `gap` (14.5) is
+  used throughout. Hand-maintained duplicates or a CSS transformer.
+- The oldest tier needs a classic bundle, not modules - so a bundler, and with it
+  `import.meta.url`, the stylesheet URLs, the dynamic editor import and the
+  versioned asset prefixes all need deliberate handling.
 
-**Fix as applied.** `_watchForResize(flow)` uses `ResizeObserver` wherever it
-exists and falls back to `resize` and `orientationchange` on `window`. The
-fallback notices less - a layout change with no window resize goes unseen, so a
-line can sit stale until the next one - which is a cosmetic price for a puzzle
-that opens. `unmount()` takes the window listeners off again: a listener on
-`window` outlives the element it was added for, and a lesson opens a lot of
-puzzles.
+That is a permanent build subsystem, a second distribution, and real-device
+testing that jsdom cannot stand in for - for a fleet that is a declining tail. The
+devices at stake are the iPad Air 1 and mini 2/3 (2013-2014, capped at iOS 12.5)
+and the iPad 4 and older. They have had no security update since January 2023,
+and installing another browser does not help: the engine is the OS.
 
-**Test.** `games/tests/puzzles.match.resize.test.js`: the puzzle opens with
-`ResizeObserver` deleted, the fallback redraws on a window resize, it stops
-listening once the puzzle is closed, and `ResizeObserver` is still preferred when
-the browser has one. The first three fail before the fix, with the same
-`ReferenceError` a 2013 iPad would give.
+**Decision: the minimum is iPadOS 15 / Safari 15.** Not 13.4, and this costs
+nothing - **every iPad that can run 13.4 can also run 15**, so the higher line
+excludes no additional hardware, only devices nobody has updated. It still admits
+the 2014 Air 2 and 2015 mini 4, which Apple was still patching in 2026.
 
-**Note on the test stub.** `games/tests/setup.localstorage.js` stubs
-`ResizeObserver` because jsdom has none. That stub is why the suite was green
-while this defect was live: it made every test run look like a modern iPad. The
-new test deletes the stub for its own cases, which is the only way to see the
-old one.
+**Fix as applied.** The real defect was never the puzzle; it was that an
+unsupported tablet shows *nothing*. It cannot report on itself - it fails on
+syntax before any engine code runs - so the message has to come from outside the
+engine:
 
-**Status corrected to PART after review: the fallback cannot fire on any real
-browser, and it does not deliver what it was asked to.** codex SOL pointed out
-that the engine's own syntax has the same floor as the API it works around.
-Counted: 285 uses of optional chaining and 80 of `??` across `engine/`. Both
-landed in Safari 13.1, which is iOS 13.4, the same release that brought
-`ResizeObserver`. So an iPad too old for `ResizeObserver` cannot parse the engine
-at all - it fails at the first module, before any of this runs. The same holds
-elsewhere: Chrome had `ResizeObserver` in 64 and optional chaining only in 80, so
-every browser that can read the engine already has the observer.
+- `index.html` renders `Načítám hru…` as static HTML, then a classic ES5 script
+  starts a ten-second timer. `boot()` replaces the body with its skeleton before
+  it awaits anything, so the element's absence is the success signal - nothing in
+  `boot.js` has to remember to call anything.
+- If the element is still there when the timer fires, it becomes: *"Hru se na
+  tomto zařízení nepodařilo spustit. Zkuste stránku obnovit. Pokud to nepomůže,
+  aktualizujte iPad alespoň na iPadOS 15, nebo použijte novější tablet či
+  počítač."* - it failed, the cheap thing to try, and a number to check against
+  Nastavení.
+- Not `nomodule`: Safari 12 understands modules and would suppress it while still
+  being unable to parse the engine. Not user-agent detection either. The only
+  reliable signal is that nothing happened - which also covers a blocked import,
+  a missing file or a proxy that mangled the response.
+- The `ResizeObserver` fallback and its four tests were removed. Under this
+  minimum they are unreachable, and keeping them implies a promise the product
+  does not make. EI-028's redraw-termination test stays.
 
-**The fallback was kept anyway**, because supporting those iPads means adding a
-build step that transpiles the syntax, and a transpiler does not polyfill a DOM
-API - `ResizeObserver` would still be missing and this code would then be the
-thing that makes the puzzle open. It is necessary but not sufficient, and this
-entry says so rather than letting a future session assume the question is closed.
+**Test.** `games/tests/boot.shell.test.js`, 8 cases, executing the *real* script
+source out of `index.html` rather than a copy - a copy would keep passing after
+somebody edited the file, which is the only way this can break. Ten mutations were
+run against it and all ten were caught: `const` for `var`, an arrow function, the
+null guard removed, the timer shortened, the classic script turned into a module,
+`nomodule` added, the version number dropped from the message, the message made
+unactionable, the loading text emptied, user-agent sniffing added.
 
-**What is actually still open.** Supporting an iPad older than iOS 13.4 requires
-a build step for the engine, which is a decision against its no-build design, or
-a decision that those devices are out of scope. That is the owner's, and it is
-the real content of the iPad question the audit raised.
-
----
+**What this leaves open.** Nothing in this repository can verify Safari 15 itself;
+jsdom is not a browser. The engine ships raw, so a newer API or CSS property is a
+silent blank page. That is written into `docs/RELEASING.md` as a rule for
+releases, because it is the one thing no test here will catch.
 
 ## EI-028: Redrawing the match lines never terminates once a pair exists
 

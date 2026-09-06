@@ -318,6 +318,28 @@ Add `?lang=en` to URL or modify `index.html` default.
 
 ## 📱 iPad & Mobile
 
+### Supported devices
+
+**Minimum: iPadOS 15 / Safari 15.** In practice that is an iPad Air 2 or mini 4
+(2014-2015) or newer, updated. Also Chrome, Edge and Firefox from 2021 onward.
+
+Older iPads are not supported, and this is a decision rather than an oversight.
+The engine's own syntax needs Safari 13.1 and its CSS needs Safari 15
+(`aspect-ratio`, `inset`, flex `gap`), and the cloze puzzle's drag depends on
+Pointer Events, which reached iPadOS in 13.4. Supporting iOS 12 would mean a
+transpiler, a Pointer Events polyfill, hand-maintained CSS fallbacks and a legacy
+bundle - a permanent build subsystem for this no-build project.
+
+15 rather than 13.4 costs nothing: **every iPad that can run 13.4 can also run
+15**, so raising the line excludes no additional hardware, only devices that have
+not been updated. Apple still patched iPadOS 15 in 2026, so it is a supported
+floor rather than an arbitrary one.
+
+An unsupported tablet cannot report this itself - it fails on syntax before any
+engine code runs - so `index.html` carries a small classic ES5 script that says
+so in Czech after ten seconds. Any HTML shell that boots this engine must carry
+the same block; `games/tests/boot.shell.test.js` is what keeps it honest.
+
 ### Touch Support
 - All puzzles support touch/pen/mouse input
 - Drag-and-drop works on touch devices

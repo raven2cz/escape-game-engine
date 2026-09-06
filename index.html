@@ -5,12 +5,51 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>Úniková hra</title>
     <meta name="theme-color" content="#17171c">
+    <style>
+        html, body { margin: 0; height: 100%; background: #0f0f12; color: #f5f5f5;
+                     font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+        #boot-status { display: flex; align-items: center; justify-content: center;
+                       min-height: 100vh; padding: 24px; text-align: center;
+                       font-size: 18px; line-height: 1.5; }
+    </style>
 </head>
 <body>
+<div id="boot-status">Načítám hru…</div>
+
+<script>
+    /* Classic script, ES5 only, and that is the whole point.
+     *
+     * An iPad older than iPadOS 15 cannot parse the module below - the engine
+     * uses syntax and CSS that arrived later - so it fails silently and the
+     * page stays blank. A teacher with thirty children and a blank tablet has
+     * nothing to act on, which is the worst outcome this product has.
+     *
+     * So: say something immediately, and if the engine has not taken over the
+     * page within ten seconds, say what to do about it. boot() replaces the
+     * body with its own skeleton, so the check below is simply whether this
+     * element is still here.
+     *
+     * Not `nomodule`: Safari 12 understands modules and would suppress it,
+     * while still being unable to parse this engine. Not user-agent sniffing
+     * either. The only reliable signal is that nothing happened.
+     *
+     * The hosted runtime generates its own HTML and must carry this same block,
+     * for the same reason. */
+    (function () {
+        setTimeout(function () {
+            var el = document.getElementById('boot-status');
+            if (!el) return; /* the engine took over: nothing to say */
+            el.textContent = 'Hru se na tomto zařízení nepodařilo spustit. '
+                + 'Zkuste stránku obnovit. Pokud to nepomůže, aktualizujte iPad '
+                + 'alespoň na iPadOS 15, nebo použijte novější tablet či počítač.';
+        }, 10000);
+    })();
+</script>
+
 <script type="module">
     // The whole shell. Everything else - the DOM the engine expects, the
     // stylesheets, the i18n, the wiring - is in engine/boot.js, so that the
-    // hosted runtime's generated HTML can be this same five lines with different
+    // hosted runtime's generated HTML can be this same few lines with different
     // arguments instead of a copy that drifts. See plans/RELEASE.md.
     import {boot} from './engine/boot.js';
 

@@ -38,7 +38,6 @@ export default class MatchPuzzle extends BasePuzzle {
         this._isUpdatingLines = false; // Prevent ResizeObserver infinite loop
         this._resizeTimeout = null; // Debounce resize updates
         this._resizeObserver = null;
-        this._onWindowResize = null; // fallback when ResizeObserver is missing
     }
 
     /**
@@ -299,36 +298,20 @@ export default class MatchPuzzle extends BasePuzzle {
      * The lines are absolutely positioned between two tokens, so anything that
      * reflows the puzzle leaves them pointing where the tokens used to be.
      *
-     * `ResizeObserver` is the right tool and is used wherever it exists. It
-     * reached Safari in 13.4, which is iOS 13.4, so on an iPad older than that -
-     * an iPad Air 1, an iPad mini 2 or 3, an iPad 4 - the constructor is simply
-     * not there and throws. It threw during mount, which meant the puzzle never
-     * opened at all and the team was stuck on it, in four of the six games.
-     *
-     * The fallback watches `window` instead. It notices less: a layout change
-     * with no window resize goes unseen, so a line can sit stale until the next
-     * one. That is a cosmetic price for a puzzle that opens.
+     * There used to be a `window.resize` fallback here for browsers without
+     * `ResizeObserver`. It could never run: the engine's own syntax and CSS have
+     * a higher floor than the observer does, so a browser missing it cannot load
+     * the engine at all. The minimum is iPadOS 15; see docs/RELEASING.md and
+     * EI-027.
      */
     _watchForResize(flow) {
-        const redraw = () => {
+        this._resizeObserver = new ResizeObserver(() => {
             // Debounce: a resize arrives as a burst, and redrawing every frame
             // of an iPad rotation is wasted work.
             if (this._resizeTimeout) clearTimeout(this._resizeTimeout);
             this._resizeTimeout = setTimeout(() => this._updateConnectionLines(), 150);
-        };
-
-        if (typeof ResizeObserver === 'function') {
-            this._resizeObserver = new ResizeObserver(redraw);
-            this._resizeObserver.observe(flow);
-            return;
-        }
-
-        // Kept so unmount() can take it off again. A listener on `window`
-        // outlives the element it was added for, and a lesson opens a lot of
-        // puzzles.
-        this._onWindowResize = redraw;
-        window.addEventListener('resize', this._onWindowResize);
-        window.addEventListener('orientationchange', this._onWindowResize);
+        });
+        this._resizeObserver.observe(flow);
     }
 
     _mountColumnsMode(flow) {
@@ -883,13 +866,6 @@ export default class MatchPuzzle extends BasePuzzle {
         if (this._resizeObserver) {
             this._resizeObserver.disconnect();
             this._resizeObserver = null;
-        }
-
-        // ...or the window listener that stands in for it on older iPads.
-        if (this._onWindowResize) {
-            window.removeEventListener('resize', this._onWindowResize);
-            window.removeEventListener('orientationchange', this._onWindowResize);
-            this._onWindowResize = null;
         }
 
         // Clear resize timeout

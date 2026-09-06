@@ -185,6 +185,28 @@ and not on the tag.
 
 ---
 
+## What a release promises about browsers
+
+**iPadOS 15 / Safari 15, and equivalents.** Written down here because it is a
+promise a release makes, and because the engine cannot check it: an unsupported
+browser fails on syntax before any of this code runs.
+
+Two consequences for anyone changing things:
+
+- **Anything the engine uses must be in Safari 15.** There is no build step and
+  no polyfill layer, so a newer API or CSS property is shipped raw. The failure
+  is silent and total - a blank page - and no test in this repository can see it,
+  because jsdom is not Safari.
+- **Every HTML shell must carry the ES5 fallback block** from `index.html`: a
+  `#boot-status` element and a classic script that replaces its text after ten
+  seconds. It is what turns a blank tablet into a sentence a teacher can act on.
+  When the hosted runtime generates its own HTML, this goes in it too.
+
+Raising the minimum later is a product decision, not a technical one. Lowering it
+is not available without a build subsystem; see the README and EI-027.
+
+---
+
 ## Deploying
 
 The hosted runtime does this and does not exist yet. What is fixed is the

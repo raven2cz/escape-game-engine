@@ -47,6 +47,45 @@ describe('boot()', () => {
         expect(game.currentScene.id).toBe('room');
     });
 
+    it('clears the loading shell it booted into', async () => {
+        // The other half of EI-027. The shell's ES5 fallback decides "the engine
+        // never started" by looking for #boot-status, so boot() taking the page
+        // over has to remove it - and it does that by replacing the body, not by
+        // knowing the element exists.
+        //
+        // This is here rather than in boot.shell.test.js because it is the join
+        // between the two: a boot() that appended instead of replacing would
+        // leave a live game with a failure message written over it ten seconds
+        // in, and neither file alone would notice.
+        document.body.innerHTML = '<div id="boot-status">Načítám hru…</div>';
+
+        await boot({ gameId: 'boot-test' });
+
+        expect(document.getElementById('boot-status')).toBeNull();
+    });
+
+    it('clears it before it awaits anything', async () => {
+        // Ten seconds is generous, but a school connection can spend them on one
+        // fetch. The element has to go while the page is still being set up, not
+        // after the game data has arrived - otherwise the message is a race
+        // against the network rather than a report that nothing ran.
+        document.body.innerHTML = '<div id="boot-status">Načítám hru…</div>';
+
+        let clearedBeforeFirstFetch = null;
+        vi.stubGlobal('fetch', async (url) => {
+            if (clearedBeforeFirstFetch === null) {
+                clearedBeforeFirstFetch = document.getElementById('boot-status') === null;
+            }
+            const name = String(url).split('?')[0].split('/').pop();
+            if (name === 'scenes.json') return { ok: true, json: async () => SCENES };
+            return { ok: false, status: 404, json: async () => ({}) };
+        });
+
+        await boot({ gameId: 'boot-test' });
+
+        expect(clearedBeforeFirstFetch).toBe(true);
+    });
+
     it('brings its own stylesheets, resolved against the engine', async () => {
         await boot({ gameId: 'boot-test' });
 

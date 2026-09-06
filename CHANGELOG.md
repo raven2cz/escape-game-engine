@@ -7,6 +7,17 @@ entry is written while the change is fresh, and nobody has to predict a number.
 Versions are the engine's own. Games are versioned separately, in their own
 repository; see `docs/RELEASING.md` for which version means what.
 
+## Unreleased
+
+- **A tablet too old to run the game now says so.** Below iPadOS 15 the engine
+  fails on syntax before any of its own code runs, so the page simply stayed
+  blank. `index.html` now shows "Načítám hru…" immediately and, if the engine has
+  not taken over within ten seconds, replaces it with what to do about it. The
+  supported minimum is written down in the README and in `docs/RELEASING.md`.
+  (EI-027)
+- Removed the `ResizeObserver` fallback in the match puzzle. It could never run:
+  the engine's own syntax has a higher floor than the observer does. (EI-027)
+
 ## 1.0.0 - 2026-09-06
 
 The first tagged release, cut after the stabilization audit of September 2026.
