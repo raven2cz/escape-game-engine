@@ -354,6 +354,27 @@ export class Game {
      * only meant the chest in leeuwenhoek shut itself again after a reload,
      * with `chest_opened` still set and the key still in the inventory. EI-006.
      */
+    /**
+     * Where a puzzle or a content panel is mounted.
+     *
+     * Over the scene, but *beside* the hotspot layer rather than inside it. The
+     * layer is a hit-testing surface: `_renderHotspots()` owns its children and
+     * used to clear them wholesale, which tore an open puzzle out of the DOM
+     * without settling it and left the engine, and the activation lock with it,
+     * waiting for a promise nothing would resolve. See EI-023.
+     *
+     * The geometry is unchanged. The layer is `position: absolute` with all four
+     * offsets at zero inside a `position: relative` scene container, so it fills
+     * that container exactly; a surface positioned in percentages resolves them
+     * against the same box either way. Same host as the dialog overlay uses.
+     */
+    _modalHost() {
+        return this.sceneImage?.closest('#sceneContainer')
+            || this.hotspotLayer?.parentElement
+            || this.hotspotLayer
+            || document.body;
+    }
+
     /** The scene the pupil is looking at, which is not always the saved one. */
     _hereId() {
         return this.currentScene?.id ?? this.state?.scene;
@@ -880,7 +901,7 @@ export class Game {
                 }
             });
 
-            runner.mountInto(this.hotspotLayer);
+            runner.mountInto(this._modalHost());
         });
     }
 

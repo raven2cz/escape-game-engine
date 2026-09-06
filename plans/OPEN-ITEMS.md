@@ -46,7 +46,8 @@ pre-existing defect rather than a new one.
 | EI-023 | P3   | DONE   | Re-rendering hotspots can destroy a mounted puzzle or panel      |
 | EI-024 | P2   | DONE   | A single flag name set one flag per character instead           |
 | EI-025 | P1   | DONE   | Proprietary games sat in a public repository                     |
-| EI-026 | P3   | OPEN   | Three demo puzzles name a backdrop that has never existed        |
+| EI-026 | P3   | DONE   | Three demo puzzles name a backdrop that has never existed        |
+| EI-027 | P2   | DONE   | Match puzzles do not open on an iPad older than iOS 13.4         |
 
 Where the fix lands is decided in [STABILIZATION.md](STABILIZATION.md).
 
@@ -1266,13 +1267,64 @@ registry that no unit test could ever have found, because nothing is wrong with
 the code. It is seen in a classroom, on a projector, by thirty people at once.
 Only the owner can fix it, because it needs artwork.
 
-**Fix.** Either supply the two images, or drop the `background` key from the
-three puzzles. The references were left in place on purpose: deleting them would
-delete the intent, and somebody clearly wanted a backdrop there.
+**Status:** DONE. The owner's decision: the games have been played for years
+without those backdrops, so drop the references and run clean.
+
+**Fix as applied.** The `background` key is gone from all three puzzles and the
+empty `assets/puzzles/` directory with it. Nothing renders differently - a
+missing background and no background were always the same picture - but the data
+no longer claims something that is not there, and the asset test needed no
+exception list in the end. The same three puzzles were cleaned in the games
+repository, where they ship as `leeuwenhoek`.
 
 **Test.** `games/tests/games.data.test.js`, "every asset a game references
-exists", with these two paths listed by name in `MISSING_ARTWORK` and the reason
-written next to them. A *new* missing asset fails; verified by pointing a scene
-at a file that is not there. The same test in the games repository lists two more
-known gaps, both in `stop-train`, which carries a `hero` character template
-nothing references.
+exists". No exceptions here any more; verified by pointing a scene at a file that
+is not there. The games repository still lists four known gaps in `stop-train`,
+which carries a `hero` character template nothing references, pointing at an
+`assets/npc/` directory that game never had.
+
+---
+
+## EI-027: Match puzzles do not open on an iPad older than iOS 13.4
+
+**Priority:** P2. This is the iPad question that had been open since the audit,
+now that the owner has answered it: support the older devices.
+
+**Where:** `engine/puzzles/kinds/match.js`, the `columns` mode branch of
+`mount()`.
+
+**What happens.** In `columns` mode the puzzle draws SVG lines between the pairs
+the player has connected. The lines are absolutely positioned, so a
+`ResizeObserver` watches the flow element and redraws them when the layout moves.
+
+`ResizeObserver` reached Safari in 13.4, which is iOS 13.4, March 2020. On an
+older iPad the constructor does not exist, so `new ResizeObserver(...)` throws a
+`ReferenceError` - **during mount**. The puzzle never opens, and the team is
+stuck on it with no way past.
+
+**Why it matters.** It is not a corner of the product. Four of the six shipped
+games use `columns` mode: `leeuwenhoek`/`demo` (`match-bio-click`), `reactor`
+(`puzzle-atom-3`), `time-factory` (`puzzle-hammer`) and `warp-engine`
+(`newton-match`). The iPads that cannot reach iOS 13.4 - iPad Air 1, iPad mini 2
+and 3, iPad 4 - are from 2012 to 2014 and are exactly what a school still has in
+a cupboard.
+
+**Fix as applied.** `_watchForResize(flow)` uses `ResizeObserver` wherever it
+exists and falls back to `resize` and `orientationchange` on `window`. The
+fallback notices less - a layout change with no window resize goes unseen, so a
+line can sit stale until the next one - which is a cosmetic price for a puzzle
+that opens. `unmount()` takes the window listeners off again: a listener on
+`window` outlives the element it was added for, and a lesson opens a lot of
+puzzles.
+
+**Test.** `games/tests/puzzles.match.resize.test.js`: the puzzle opens with
+`ResizeObserver` deleted, the fallback redraws on a window resize, it stops
+listening once the puzzle is closed, and `ResizeObserver` is still preferred when
+the browser has one. The first three fail before the fix, with the same
+`ReferenceError` a 2013 iPad would give.
+
+**Note on the test stub.** `games/tests/setup.localstorage.js` stubs
+`ResizeObserver` because jsdom has none. That stub is why the suite was green
+while this defect was live: it made every test run look like a modern iPad. The
+new test deletes the stub for its own cases, which is the only way to see the
+old one.

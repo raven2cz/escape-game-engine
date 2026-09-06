@@ -82,17 +82,6 @@ describe('shipped games', () => {
             }
         }
     });
-    // Three puzzle backgrounds in `demo` name a file that has never existed. The
-    // puzzles render with no backdrop, which is what a missing background looks
-    // like either way, so nobody noticed. The references are left in place
-    // rather than deleted, because somebody meant there to be a backdrop and
-    // deleting the reference would delete the intent; they are listed here so
-    // that a *new* missing asset still fails. See EI-026.
-    const MISSING_ARTWORK = [
-        'assets/puzzles/bg-paper.jpg',
-        'assets/puzzles/bg-board.jpg',
-    ];
-
     it('every asset a game references exists', () => {
         // A missing image is not a code defect and no unit test sees it. It is
         // seen in a classroom, on a projector, by thirty people at once.
@@ -109,7 +98,6 @@ describe('shipped games', () => {
                 if (Array.isArray(node)) return node.forEach(walk);
                 if (node && typeof node === 'object') return Object.values(node).forEach(walk);
                 if (typeof node !== 'string' || !assetLike.test(node)) return;
-                if (MISSING_ARTWORK.includes(node)) return;
 
                 const candidates = node.includes('/hero/') && heroes.length
                     ? heroes.map(h => node.replace('/hero/', `/${h}/`))

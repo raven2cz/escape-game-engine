@@ -318,14 +318,6 @@
     }
 }
 
-.pz.is-touch.pz--kind-match .pz-token:hover,
-.pz.is-touch.pz-kind-match .pz-token:hover {
-    background: inherit !important;
-    border-color: inherit !important;
-    box-shadow: none !important;
-    transform: none !important;
-}
-
 .pz--kind-match .pz-token,
 .pz-kind-match .pz-token {
     -webkit-tap-highlight-color: transparent;
@@ -413,7 +405,6 @@
     opacity: .6;
 }
 
-.pz-input.is-error,
 .pz-input.invalid {
     background: var(--pz-wrong-bg);
     border-color: var(--pz-wrong-border);
@@ -566,20 +557,6 @@
 }
 
 /* Horizontal layout tweaks removed - handled above */
-
-/* ============================================================================
-   DEBUG MODE (aktivní s ?debug=1)
-   ============================================================================ */
-
-.pz.debug-mode .pz__window {
-    border: 2px dashed rgba(255, 0, 0, 0.7) !important;
-    background: rgba(255, 0, 0, 0.05) !important;
-}
-
-.pz.debug-mode .pz__flow {
-    border: 2px dashed rgba(0, 0, 255, 0.7) !important;
-    background: rgba(0, 0, 255, 0.05) !important;
-}
 
 /* ============================================================================
    LIST SUMMARY SCREEN

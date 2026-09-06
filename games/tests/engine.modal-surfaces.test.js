@@ -51,6 +51,42 @@ describe('EI-023: a re-render underneath an open puzzle', () => {
         localStorage.clear();
     });
 
+    it('does not mount a puzzle inside the layer that detects taps', async () => {
+        // The hotspot layer is a hit-testing surface. It was also the host for
+        // every modal surface, which is what let a re-render destroy an open
+        // puzzle in the first place. Keeping them apart removes the class of
+        // defect rather than the one instance.
+        const harness = createReloadHarness({ scenes: SCENES });
+        const game = await harness.boot();
+
+        game._openPuzzleByRef({ ref: 'riddle', rect: { x: 10, y: 10, w: 80, h: 80 } });
+        await waitFor(() => document.querySelector('.pz-container'), { label: 'the puzzle' });
+
+        const puzzle = document.querySelector('.pz-container');
+        expect(document.getElementById('hotspotLayer').contains(puzzle)).toBe(false);
+
+        // Still over the scene, so the percentages it is positioned in mean the
+        // same thing: the layer exactly fills the scene container.
+        expect(document.getElementById('sceneContainer').contains(puzzle)).toBe(true);
+
+        document.querySelector('.pz-btn--cancel').click();
+    });
+
+    it('does not mount a content panel there either', async () => {
+        const harness = createReloadHarness({ scenes: SCENES });
+        const game = await harness.boot();
+
+        const closed = game.contentPanel.open('note');
+        await waitFor(() => document.querySelector('.cp-container'), { label: 'the panel' });
+
+        const panel = document.querySelector('.cp-container');
+        expect(document.getElementById('hotspotLayer').contains(panel)).toBe(false);
+        expect(document.getElementById('sceneContainer').contains(panel)).toBe(true);
+
+        game.contentPanel.close();
+        await closed;
+    });
+
     it('leaves the puzzle mounted', async () => {
         const harness = createReloadHarness({ scenes: SCENES });
         const game = await harness.boot();

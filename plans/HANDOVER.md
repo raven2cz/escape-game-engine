@@ -78,10 +78,6 @@ repository.
 
 **Still open, and it needs the owner:**
 
-- **EI-026: two puzzle backdrops that have never existed**, in `games/demo` and
-  therefore in the `leeuwenhoek` that is sold. Needs artwork, so only the owner
-  can close it. The references are left in place and listed by name in the data
-  test, so a new missing asset still fails.
 - **How the games repository depends on the engine.** Deliberately unbound: a git
   dependency does not install on npm 12, and a submodule would pull 430 MB of
   history. The hosted runtime is what will put an engine version and a set of
@@ -92,19 +88,12 @@ repository.
   and it was always the public demo. But a school can play it for free, and the
   demo licence forbidding that is a sentence, not a lock. Trimming it to a few
   scenes, or writing a demo for the purpose, is the alternative. See EI-025.
-- **The oldest iPad that has to work**, which decides whether `ResizeObserver`
-  needs a runtime fallback and not just a test stub.
 
-**Left undone inside finished items, both needing eyes on a screen rather than a
-test:**
-
-- **EI-023** was fixed by making `_renderHotspots()` remove only its own output.
-  The better shape is to mount the puzzle and the content panel somewhere other
-  than the hit-testing layer, but both are positioned in percentages of it, so
-  moving them is a visual change nobody can check from a test.
-- **EI-018** left the CSS alone. The audit lists classes the JS never sets;
-  deciding that safely means also reading every game's `game.css`, and a wrongly
-  deleted class is a silent visual regression.
+**Wants a look on a real screen, not a test:** EI-023 moved the puzzle and the
+content panel out of the hotspot layer and onto the scene container. The geometry
+should be identical - the layer fills that container exactly - but "should be" is
+not the same as "was looked at". Open `games/demo` and check a puzzle and a
+content panel.
 
 **Waiting on the hosted runtime, deliberately:**
 
