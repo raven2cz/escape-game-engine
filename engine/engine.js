@@ -3,6 +3,7 @@
 
 import {createPuzzleRunner} from './puzzles/index.js';
 import {flagEntries} from './utils.js';
+import {ENGINE_VERSION, ENGINE_API_VERSION} from './version.js';
 import {DialogUI} from './dialogs.js';
 import {ContentPanel} from './content.js';
 
@@ -2012,6 +2013,14 @@ export class Game {
     _saveState() {
         this.state.signature = this._signature();
         this.state.stateSchemaVersion = STATE_SCHEMA_VERSION;
+
+        // Stamped, never read back. _normalizeState() is a whitelist and drops
+        // these on load, which is right: they describe the engine that wrote the
+        // blob, not anything the engine should trust a blob to tell it. They are
+        // here for the first support call about a state nobody can explain.
+        this.state.engineVersion = ENGINE_VERSION;
+        this.state.engineApiVersion = ENGINE_API_VERSION;
+
         this.storage.save(this.state);
     }
 

@@ -148,4 +148,15 @@ describe('EI-012: a saved state is checked before it is used', () => {
         const game = await harness().boot();
         expect(game._loadState().stateSchemaVersion).toBe(1);
     });
+
+    it('stamps which engine wrote it', async () => {
+        // Never read back - the whitelist drops it on load - but a stored state
+        // that cannot say which engine produced it is a support call nobody can
+        // answer.
+        const game = await harness().boot();
+        const stored = game._loadState();
+
+        expect(stored.engineVersion).toMatch(/^\d+\.\d+\.\d+$/);
+        expect(Number.isInteger(stored.engineApiVersion)).toBe(true);
+    });
 });

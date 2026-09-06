@@ -21,6 +21,8 @@
     },
     "scripts": {
         "test": "vitest run",
-        "dev": "node scripts/dev-server.mjs"
+        "dev": "node scripts/dev-server.mjs",
+        "preversion": "npm test",
+        "version": "node scripts/version-sync.mjs && git add engine/version.js CHANGELOG.md"
     }
 }
