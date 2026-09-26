@@ -8,7 +8,7 @@ where the work is and what comes next.
 ## Where things stand
 
     branch    main - EI-010 was merged as 9e098c8 on 2026-09-26
-    released  engine v1.1.0, games games-2026.09.2, both with published artifacts
+    released  engine v1.1.1, games games-2026.09.3, both with published artifacts
     games     moved to raven2cz/escape-games (private); this repo keeps games/demo
     suite     550 here (9 skipped by design), 31 in the games repository;
               CI runs both on push and PR
