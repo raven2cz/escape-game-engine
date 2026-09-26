@@ -24,13 +24,46 @@ describe('freshProgress', () => {
     it('starts a run now, with nothing recorded', () => {
         expect(state.progress).toEqual({
             run: 'run-1', revision: 0, seq: 0, startedAt: 1_000_000,
-            scene: null, sceneEnteredAt: 1_000_000, completedAt: null,
+            scene: null, sceneEnteredAt: 1_000_000, progressAt: 1_000_000, completedAt: null,
             sceneTime: {}, puzzles: {}, itemsUsed: {}, dialogsSeen: {},
         });
     });
 });
 
 describe('ProgressModel', () => {
+    it('keeps the time of the last progress: a new scene, a first solve, an item gained or used, the end', () => {
+        signals.emit(SIGNALS.SCENE_ENTERED, {scene: 'quiz'});
+        const entered = clock.now();
+        clock.advance(60_000);
+        // Opening a puzzle, answering wrong, a dialog, the same scene again: none of it is progress.
+        signals.emit(SIGNALS.PUZZLE_OPENED, {ref: 'q1'});
+        signals.emit(SIGNALS.PUZZLE_EVALUATED, {ref: 'q1', ok: false});
+        signals.emit(SIGNALS.DIALOG_ENDED, {id: 'hello'});
+        signals.emit(SIGNALS.SCENE_ENTERED, {scene: 'quiz'});
+        expect(state.progress.progressAt).toBe(entered);
+
+        signals.emit(SIGNALS.PUZZLE_SOLVED, {ref: 'q1'});
+        expect(state.progress.progressAt).toBe(clock.now());
+        const solved = clock.now();
+        clock.advance(1000);
+        signals.emit(SIGNALS.PUZZLE_SOLVED, {ref: 'q1'});            // solved again: not new
+        expect(state.progress.progressAt).toBe(solved);
+
+        signals.emit(SIGNALS.ITEM_GIVEN, {id: 'key'});
+        expect(state.progress.progressAt).toBe(clock.now());
+        clock.advance(1000);
+        signals.emit(SIGNALS.ITEM_USED, {id: 'key'});
+        expect(state.progress.progressAt).toBe(clock.now());
+        const used = clock.now();
+        clock.advance(1000);
+        signals.emit(SIGNALS.ITEM_USED, {id: 'key'});               // used again: not new
+        expect(state.progress.progressAt).toBe(used);
+
+        clock.advance(1000);
+        signals.emit(SIGNALS.RUN_COMPLETED, {});
+        expect(state.progress.progressAt).toBe(clock.now());
+    });
+
     it('times each scene and keeps the clock running on a re-entry of the same scene', () => {
         signals.emit(SIGNALS.SCENE_ENTERED, {scene: 'hall'});
         clock.advance(5000);
@@ -114,11 +147,20 @@ describe('normalizeProgress', () => {
 
     it('keeps a valid record, run and revision included', () => {
         const saved = {
-            run: 'kept', revision: 7, seq: 3, startedAt: 10, scene: 'lab', sceneEnteredAt: 20, completedAt: 30,
+            run: 'kept', revision: 7, seq: 3, startedAt: 10, scene: 'lab', sceneEnteredAt: 20, progressAt: 25,
+            completedAt: 30,
             sceneTime: {hall: 5}, puzzles: {q: {seq: 1, attempts: 2, mistakes: 1, solved: true}},
             itemsUsed: {key: 2}, dialogsSeen: {intro: 3},
         };
         expect(normalizeProgress(structuredClone(saved), clock)).toEqual(saved);
+    });
+
+    it('a save from before 1.1.1 has no last progress: it is the scene entry, as the board always assumed', () => {
+        const p = normalizeProgress({run: 'old', revision: 1, scene: 'lab', sceneEnteredAt: 20}, clock);
+        expect(p.progressAt).toBe(20);
+        // ...and a last progress before the scene entry is not possible, so it is not kept.
+        expect(normalizeProgress({run: 'x', revision: 1, sceneEnteredAt: 50, progressAt: 40}, clock).progressAt).toBe(50);
+        expect(normalizeProgress({run: 'x', revision: 1, sceneEnteredAt: 50, progressAt: 'soon'}, clock).progressAt).toBe(50);
     });
 
     it('drops what is the wrong type, and anything it does not know', () => {

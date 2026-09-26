@@ -26,7 +26,9 @@ export const WIRE_MAX_BYTES = 48 * 1024;
 const STR_MAX = 200;
 const LIST_MAX = 500;
 
-// Field types. A schema node is one of these strings, or {obj}, {objOrNull}, {list}.
+// Field types. A schema node is one of these strings, or {obj}, {objOrNull}, {list},
+// or {optional}: a field added after its api version, which an older tablet does
+// not send. It is always written (null when unknown) and may be absent on input.
 const T = Object.freeze({
     INT: 'int', INT_OR_NULL: 'int?', STR: 'str', STR_OR_NULL: 'str?', BOOL: 'bool',
 });
@@ -49,7 +51,14 @@ export const REPORT_SCHEMA = Object.freeze({
         updatedAt: T.INT,
         completedAt: T.INT_OR_NULL,
         completed: T.BOOL,
-        position: {obj: {scene: T.STR_OR_NULL, label: T.STR_OR_NULL, since: T.INT}},
+        position: {
+            obj: {
+                scene: T.STR_OR_NULL, label: T.STR_OR_NULL, since: T.INT,
+                // Engine 1.1.1: the last progress in this scene (entering it, a
+                // task solved, an item gained or used). What "stuck" is measured from.
+                progressAt: {optional: T.INT_OR_NULL},
+            },
+        },
         activity: {objOrNull: {ref: T.STR, label: T.STR_OR_NULL, since: T.INT}},
         progress: {
             obj: {
@@ -84,6 +93,7 @@ function coerce(node, value) {
         case T.BOOL: return value === true;
         default: break;
     }
+    if (node.optional) return coerce(node.optional, value);
     if (node.obj) return copyObject(node.obj, value);
     if (node.objOrNull) return value == null ? null : copyObject(node.objOrNull, value);
     if (node.list) {
@@ -132,7 +142,7 @@ export function toWire(report) {
  * each of the declared type. For the board, the runtime and the tests.
  * @returns {string[]} problems; empty when the value is a well-formed report
  */
-export function checkReport(value, node = REPORT_SCHEMA, path = 'report') {
+export function checkReport(value, node = REPORT_SCHEMA, path = 'report', {ignoreUnknown = false} = {}) {
     const problems = [];
     const typeOk = {
         [T.INT]: v => Number.isInteger(v) && v >= 0,
@@ -145,18 +155,26 @@ export function checkReport(value, node = REPORT_SCHEMA, path = 'report') {
         if (!typeOk[node](value)) problems.push(`${path} is not ${node}`);
         return problems;
     }
+    if (node.optional) return checkReport(value, node.optional, path, {ignoreUnknown});
     const fields = node.obj || node.objOrNull;
     if (fields) {
         if (value === null && node.objOrNull) return problems;
         if (!value || typeof value !== 'object' || Array.isArray(value)) return [`${path} is not an object`];
         // Own keys only: `in` would accept `constructor`, `toString` or
         // `__proto__` as declared fields, and carry whatever is under them.
-        for (const key of Object.keys(value)) {
-            if (!hasOwn(fields, key)) problems.push(`${path}.${key} is not part of the contract`);
+        // A board reading a report of its own api version ignores a field it
+        // does not know (docs/DASHBOARD-API.md §3); toWire() then drops it.
+        if (!ignoreUnknown) {
+            for (const key of Object.keys(value)) {
+                if (!hasOwn(fields, key)) problems.push(`${path}.${key} is not part of the contract`);
+            }
         }
         for (const [key, child] of Object.entries(fields)) {
-            if (!hasOwn(value, key)) problems.push(`${path}.${key} is missing`);
-            else problems.push(...checkReport(value[key], child, `${path}.${key}`));
+            if (!hasOwn(value, key)) {
+                if (!child.optional) problems.push(`${path}.${key} is missing`);
+            } else {
+                problems.push(...checkReport(value[key], child, `${path}.${key}`, {ignoreUnknown}));
+            }
         }
         // Meaning, not only shape: an avatar is an id from the shared catalogue.
         if (node === REPORT_SCHEMA && value.avatar != null && !avatarById(value.avatar)) {
@@ -166,7 +184,7 @@ export function checkReport(value, node = REPORT_SCHEMA, path = 'report') {
     }
     if (node.list) {
         if (!Array.isArray(value)) return [`${path} is not a list`];
-        value.forEach((item, i) => problems.push(...checkReport(item, node.list, `${path}[${i}]`)));
+        value.forEach((item, i) => problems.push(...checkReport(item, node.list, `${path}[${i}]`, {ignoreUnknown})));
     }
     return problems;
 }

@@ -48,6 +48,10 @@ export function freshProgress(clock, mintRun = mintRunId) {
         startedAt: now,
         scene: null,
         sceneEnteredAt: now,
+        // The last progress: a new scene, a task solved, an item gained or used,
+        // the end. Stuck is measured from here, not from entering the scene: a
+        // room with nine quiz questions takes ten minutes of steady work.
+        progressAt: now,
         completedAt: null,
         sceneTime: {},
         puzzles: {},
@@ -94,6 +98,9 @@ export function normalizeProgress(raw, clock, mintRun = mintRunId) {
     out.startedAt = stamp(raw.startedAt) ?? fresh.startedAt;
     out.scene = okId(raw.scene) ? raw.scene : null;
     out.sceneEnteredAt = stamp(raw.sceneEnteredAt) ?? fresh.sceneEnteredAt;
+    // A save from before engine 1.1.1 has none: the scene entry is the last
+    // progress it can vouch for, which is exactly what the board used to assume.
+    out.progressAt = Math.max(stamp(raw.progressAt) ?? 0, out.sceneEnteredAt);
     out.completedAt = stamp(raw.completedAt);
 
     const boundedMap = (src, limit, value) => {
@@ -179,14 +186,22 @@ export class ProgressModel {
             const rec = this._touch(p, ref);
             if (rec && !rec.solved) {
                 rec.solved = true;
+                p.progressAt = this._clock.now();
                 this.changes++;
             }
         });
-        on(SIGNALS.ITEM_USED, (p, {id}) => this._mark(p.itemsUsed, id, PROGRESS_LIMITS.items, p));
+        on(SIGNALS.ITEM_GIVEN, (p) => {
+            p.progressAt = this._clock.now();
+            this.changes++;
+        });
+        on(SIGNALS.ITEM_USED, (p, {id}) => {
+            if (this._mark(p.itemsUsed, id, PROGRESS_LIMITS.items, p)) p.progressAt = this._clock.now();
+        });
         on(SIGNALS.DIALOG_ENDED, (p, {id}) => this._mark(p.dialogsSeen, id, PROGRESS_LIMITS.dialogs, p));
         on(SIGNALS.RUN_COMPLETED, (p) => {
             if (p.completedAt == null) {
                 p.completedAt = this._clock.now();
+                p.progressAt = p.completedAt;
                 this.changes++;
             }
         });
@@ -215,6 +230,7 @@ export class ProgressModel {
         }
         p.scene = scene;
         p.sceneEnteredAt = now;
+        p.progressAt = now;
         this._open.length = 0;
         this.changes++;
     }
@@ -230,10 +246,12 @@ export class ProgressModel {
         return rec;
     }
 
+    /** @returns {boolean} whether the id was new */
     _mark(map, id, limit, p) {
-        if (!okId(id) || map[id] != null) return;
-        if (Object.keys(map).length >= limit) return;
+        if (!okId(id) || map[id] != null) return false;
+        if (Object.keys(map).length >= limit) return false;
         map[id] = ++p.seq;
         this.changes++;
+        return true;
     }
 }

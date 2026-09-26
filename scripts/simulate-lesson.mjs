@@ -104,7 +104,7 @@ export function createLesson({scenesDoc, puzzles = null, dialogs = null, session
             state: {inventory: [], solved: {}, flags: {}, visited: {}, scene: route[0].scene},
             progress: {
                 run: `sim-${name}-${startedAt}`, revision: 0, seq: 0, startedAt,
-                scene: route[0].scene, sceneEnteredAt: startedAt, completedAt: null,
+                scene: route[0].scene, sceneEnteredAt: startedAt, progressAt: startedAt, completedAt: null,
                 sceneTime: {}, puzzles: {}, itemsUsed: {}, dialogsSeen: {},
             },
             activity: null,
@@ -124,6 +124,7 @@ export function createLesson({scenesDoc, puzzles = null, dialogs = null, session
         t.state.visited[leg.scene] = true;
         t.progress.scene = leg.scene;
         t.progress.sceneEnteredAt = at;
+        t.progress.progressAt = at;
         if (leg.end && t.progress.completedAt == null) t.progress.completedAt = at;
         // Everything collected is spent just before the end, as warp-engine does at the core.
         if (route[idx + 1]?.end) {
@@ -169,6 +170,7 @@ export function createLesson({scenesDoc, puzzles = null, dialogs = null, session
                 return;
             }
             rec.solved = true;
+            t.progress.progressAt = at;
             t.state.solved[`solved:pz:${ref}`] = true;
             t.activity = null;
             t.opened = false;
@@ -194,7 +196,10 @@ export function createLesson({scenesDoc, puzzles = null, dialogs = null, session
             const idx = route.findIndex((leg, i) => i > t.stepIdx && leg.tasks.length);
             if (idx > 0) enter(t, idx, now - 11 * MIN);
         }
-        if (t.role === 'stuck') t.progress.sceneEnteredAt = Math.min(t.progress.sceneEnteredAt, now - 11 * MIN);
+        if (t.role === 'stuck') {
+            t.progress.sceneEnteredAt = Math.min(t.progress.sceneEnteredAt, now - 11 * MIN);
+            t.progress.progressAt = Math.min(t.progress.progressAt, t.progress.sceneEnteredAt);
+        }
         syncFlags(t);
     }
 

@@ -27,8 +27,8 @@ them makes one move when it should not.
 | you changed | bump |
 |---|---|
 | any engine code | `ENGINE_VERSION`, with `npm version` |
-| a field in the saved state, or how one is read | `STATE_SCHEMA_VERSION` as well |
-| what the engine reports to the runtime or the dashboard | `ENGINE_API_VERSION` as well |
+| a field in the saved state renamed, removed or read differently | `STATE_SCHEMA_VERSION` as well |
+| a field of the report removed or changing meaning (an added optional one does not, see DASHBOARD-API §3) | `ENGINE_API_VERSION` as well |
 | a game's text, images, positions, hints; anything **added** | `meta.version` |
 | **renamed or removed** any id a save can hold | `meta.saveVersion` as well, and schedule it |
 

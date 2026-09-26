@@ -311,3 +311,48 @@ describe('list', () => {
         expect(events.filter(([n]) => n === SIGNALS.PUZZLE_SOLVED)).toHaveLength(1);
     });
 });
+
+describe('group: where the unsorted tokens start', () => {
+    const mount = (groups, n, layout = undefined) => {
+        engine.hotspotLayer.innerHTML = '';
+        const runner = createPuzzleRunner({
+            ref: 'spread',
+            config: {id: 'spread', kind: 'group', groups, layout,
+                tokens: Array.from({length: n}, (_, i) => ({id: `t${i}`, text: `Token ${i}`})), solutions: {}},
+            engine,
+            instanceOptions: {},
+            onResolve: () => {},
+        });
+        runner.mountInto(engine.hotspotLayer);
+        return [...engine.hotspotLayer.querySelectorAll('.pz-kind-group .pz-token')]
+            .map(el => ({left: parseFloat(el.style.left), top: parseFloat(el.style.top)}));
+    };
+
+    it('groups side by side: the tokens line up down the middle, apart and on the board', () => {
+        // One spot for all of them hid every label but the top one (Volta, eight tokens).
+        const pos = mount([{id: 'a', label: 'A'}, {id: 'b', label: 'B'}], 8);
+        expect(pos.every(p => p.left === 50)).toBe(true);
+        const tops = pos.map(p => p.top);
+        expect(new Set(tops).size).toBe(8);
+        expect(Math.min(...tops)).toBeGreaterThanOrEqual(15);
+        expect(Math.max(...tops)).toBeLessThanOrEqual(90);
+        // ...and no closer than the height of a token on a small board.
+        const gaps = tops.slice(1).map((t, i) => t - tops[i]);
+        expect(Math.min(...gaps)).toBeGreaterThanOrEqual(10);
+    });
+
+    it('groups stacked: across the middle; a single token sits in the centre', () => {
+        const stacked = mount([{id: 'a'}, {id: 'b'}, {id: 'c'}], 4, {direction: 'horizontal'});
+        expect(stacked.every(p => p.top === 50)).toBe(true);
+        const lefts = stacked.map(p => p.left);
+        expect(new Set(lefts).size).toBe(4);
+        expect(Math.min(...lefts)).toBeGreaterThanOrEqual(10);
+        expect(Math.max(...lefts)).toBeLessThanOrEqual(90);
+        expect(mount([{id: 'a'}, {id: 'b'}], 1)).toEqual([{left: 50, top: 53}]);
+    });
+
+    it('a manual layout keeps the tokens in the centre, since only the author knows where the free space is', () => {
+        const groups = [{id: 'a', rect: {x: 0, y: 0, w: 100, h: 40}}, {id: 'b', rect: {x: 0, y: 60, w: 100, h: 40}}];
+        expect(mount(groups, 3, {mode: 'manual'})).toEqual([{left: 50, top: 50}, {left: 50, top: 50}, {left: 50, top: 50}]);
+    });
+});

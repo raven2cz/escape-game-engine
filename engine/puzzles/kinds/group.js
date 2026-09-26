@@ -33,6 +33,9 @@ export default class GroupPuzzle extends BasePuzzle {
         const mode = layoutCfg.mode || 'auto';
 
         // Create group areas
+        // Manual layout: where the free space is depends on the author's
+        // rectangles, so the tokens start where they always did, in the centre.
+        this._spreadAxis = null;
         if (mode === 'manual') {
             // Manual positioning
             (this.config.groups || []).forEach(g => {
@@ -53,6 +56,9 @@ export default class GroupPuzzle extends BasePuzzle {
 
             // Calculate optimal grid dimensions
             const {cols, rows} = this._calculateGridDimensions(groupCount, dir);
+            // Groups side by side: the unsorted tokens line up down the middle.
+            // Groups stacked: across it.
+            this._spreadAxis = cols >= rows ? 'vertical' : 'horizontal';
 
             const gap = layoutCfg.gap || '10px';
 
@@ -73,15 +79,19 @@ export default class GroupPuzzle extends BasePuzzle {
             });
         }
 
-        // Create draggable tokens (start at center)
-        (this.config.tokens || []).forEach((t, i) => {
+        // Create draggable tokens. They start spread out along the middle of the
+        // board, each readable: all of them on one spot in the centre hid every
+        // label but the top one, and a pupil had to dig through the pile.
+        const tokens = this.config.tokens || [];
+        tokens.forEach((t, i) => {
             const id = String(t.id ?? i);
             const el = this.createToken(t);
+            const {left, top} = this._startPosition(i, tokens.length);
 
             Object.assign(el.style, {
                 position: 'absolute',
-                left: '50%',
-                top: '50%',
+                left,
+                top,
                 transform: 'translate(-50%, -50%)',
                 cursor: 'grab',
                 zIndex: '5'
@@ -152,6 +162,21 @@ export default class GroupPuzzle extends BasePuzzle {
 
         this._groupAreas.set(String(group.id), el);
         return el;
+    }
+
+    /**
+     * Where the i-th of n unsorted tokens starts, in percent of the board: on the
+     * line between the groups, evenly spaced, never outside the board.
+     */
+    _startPosition(i, n) {
+        if (!this._spreadAxis) return {left: '50%', top: '50%'};
+        const offset = i - (n - 1) / 2;
+        if (this._spreadAxis === 'horizontal') {
+            const step = n > 1 ? Math.min(20, 80 / (n - 1)) : 0;
+            return {left: `${50 + offset * step}%`, top: '50%'};
+        }
+        const step = n > 1 ? Math.min(12, 72 / (n - 1)) : 0;
+        return {left: '50%', top: `${53 + offset * step}%`};
     }
 
     /**

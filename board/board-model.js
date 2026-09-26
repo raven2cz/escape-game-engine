@@ -21,11 +21,11 @@ export const BOARD_DEFAULTS = Object.freeze({
     staleMs: 60_000,
     /** No report for this long: treat it as disconnected. */
     offlineMs: 3 * 60_000,
-    /** Never call a player stuck before this long in one place. */
+    /** Never call a player stuck before this long without progress. */
     stuckMinMs: 4 * 60_000,
-    /** ...and not before this many times the class's median stay. */
+    /** ...and not before this many times the class's median time without progress. */
     stuckFactor: 2,
-    /** Past this, one place is too long whatever the rest of the class is doing (most may have finished). */
+    /** Past this, no progress is too long whatever the rest of the class is doing (most may have finished). */
     stuckAlwaysMs: 10 * 60_000,
 });
 
@@ -72,7 +72,7 @@ export class ReportStore {
             // on (the dev server lists what is stored).
             if (typeof report.game !== 'string' || typeof report.run !== 'string') return 'invalid';
             report = positionOnly(report);
-        } else if (checkReport(report).length) {
+        } else if (checkReport(report, undefined, 'report', {ignoreUnknown: true}).length) {
             return 'invalid';
         } else {
             // Kept and handed on only as rebuilt from the schema, field by field.
@@ -180,6 +180,10 @@ export function summarize(catalogue, entries, options = {}) {
             scene: r.position?.scene ?? null,
             sceneLabel: r.position?.label ?? sceneLabel.get(r.position?.scene) ?? r.position?.scene ?? null,
             sceneForMs: r.completed ? 0 : clamp(now - since),
+            // Time since the last progress: a task solved, an item, a new scene.
+            // A tablet before engine 1.1.1 does not send it, and then it is the
+            // time in the scene, as it always was.
+            idleMs: r.completed ? 0 : clamp(now - Math.max(r.position?.progressAt ?? 0, since)),
             activity: r.activity
                 ? {ref: r.activity.ref, label: r.activity.label || r.activity.ref, forMs: clamp(now - r.activity.since)}
                 : null,
@@ -209,23 +213,26 @@ export function summarize(catalogue, entries, options = {}) {
         };
     }).sort((a, b) => byName(a.name, b.name));
 
-    // Stuck: much longer in one place than the rest of the class, and long in
-    // absolute terms. A disconnected player is shown as that instead; "no news"
-    // is not the same as "no progress".
+    // Stuck: much longer without progress than the rest of the class, and long
+    // in absolute terms. Measured from the last progress, not from entering the
+    // scene: a room of nine quiz questions is ten minutes of steady work, and a
+    // board that turned the whole class red there would be useless. A
+    // disconnected player is shown as that instead; "no news" is not the same
+    // as "no progress".
     const playing = players.filter(t => !t.completed);
     // The class baseline is the players we are actually hearing from; a
     // disconnected tablet's frozen clock says nothing about the room.
-    const med = median(playing.filter(t => t.connection !== 'offline').map(t => t.sceneForMs));
+    const med = median(playing.filter(t => t.connection !== 'offline').map(t => t.idleMs));
     const threshold = Math.min(o.stuckAlwaysMs, Math.max(o.stuckMinMs, o.stuckFactor * med));
     for (const t of playing) {
-        const longStay = t.sceneForMs >= threshold;
+        const longStay = t.idleMs >= threshold;
         const longPuzzle = !!t.activity && t.activity.forMs >= threshold;
         t.stuck = t.connection !== 'offline' && (longStay || longPuzzle);
         // What made them stuck, with its own place and time: a puzzle opened a
         // minute ago must not inherit the nine minutes spent in the room.
         t.stuckOn = !t.stuck ? null : longPuzzle
             ? {place: t.activity.label, forMs: t.activity.forMs}
-            : {place: t.sceneLabel, forMs: t.sceneForMs};
+            : {place: t.sceneLabel, forMs: t.idleMs};
     }
 
     // Who the teacher should walk to first: stuck (longest first), then lost
@@ -266,7 +273,7 @@ export function summarize(catalogue, entries, options = {}) {
             completed: players.filter(t => t.completed).length,
             stuck: players.filter(t => t.stuck).length,
             offline: players.filter(t => t.connection === 'offline').length,
-            medianStayMs: med,
+            medianIdleMs: med,
         },
     };
 }

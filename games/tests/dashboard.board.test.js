@@ -29,11 +29,11 @@ const catalogue = buildCatalogue({
 }, {p1: {kind: 'phrase', title: 'První'}, p2: {kind: 'quiz', title: 'Druhá'}});
 
 /** A real report for a team, built by the engine's own projector. */
-function report({team, run = `run-${team}`, revision = 1, scene = 'hall', since = NOW - MIN, puzzles = {}, solved = {},
+function report({team, run = `run-${team}`, revision = 1, scene = 'hall', since = NOW - MIN, progressAt = null, puzzles = {}, solved = {},
     flags = {}, inventory = [], itemsUsed = {}, completedAt = null, activity = null, startedAt = NOW - 10 * MIN, session = '7A', avatar = null, playerId = `id-${team}`}) {
     return toWire(project({
         state: {inventory, solved, flags, visited: {[scene]: true}, scene},
-        progress: {run, revision, startedAt, scene, sceneEnteredAt: since, completedAt, puzzles, itemsUsed, dialogsSeen: {}},
+        progress: {run, revision, startedAt, scene, sceneEnteredAt: since, progressAt: progressAt ?? since, completedAt, puzzles, itemsUsed, dialogsSeen: {}},
         activity,
         catalogue,
         identity: {game: 'g', session, playerId, player: team, avatar},
@@ -74,11 +74,34 @@ describe('ReportStore', () => {
         expect(checkReport(store.list()[0].report)).toEqual([]);
     });
 
-    it('refuses anything that is not a report, including one carrying extra fields', () => {
+    it('refuses anything that is not a report', () => {
         const store = new ReportStore();
         expect(store.ingest(null, 1)).toBe('invalid');
         expect(store.ingest({hello: 'world'}, 1)).toBe('invalid');
-        expect(store.ingest({...report({team: 'a'}), flags: {x: true}}, 1)).toBe('invalid');
+        expect(store.ingest({...report({team: 'a'}), revision: 'seven'}, 1)).toBe('invalid');
+    });
+
+    it('ignores a field of its own api version it does not know, and never stores or hands it on', () => {
+        // DASHBOARD-API §3: adding an optional field does not move the api, so a
+        // board meets reports carrying fields added after it was built.
+        const store = new ReportStore();
+        const r = report({team: 'a'});
+        const extra = {...r, flags: {secret: true}, position: {...r.position, somethingNew: 1},
+            ['__proto__']: {polluted: true}};
+        expect(store.ingest(extra, 1)).toBe('accepted');
+        const kept = store.list()[0].report;
+        expect(JSON.stringify(kept)).not.toContain('secret');
+        expect(kept).not.toHaveProperty('flags');
+        expect(kept.position).not.toHaveProperty('somethingNew');
+        expect({}.polluted).toBeUndefined();
+    });
+
+    it('takes a report from before 1.1.1, which has no position.progressAt', () => {
+        const store = new ReportStore();
+        const r = report({team: 'a'});
+        const old = {...r, position: {scene: r.position.scene, label: r.position.label, since: r.position.since}};
+        expect(store.ingest(old, 1)).toBe('accepted');
+        expect(store.list()[0].report.position.progressAt).toBeNull();
     });
 
     it('keeps a report from a newer engine, marked and reduced to position, never verbatim', () => {
@@ -171,6 +194,27 @@ describe('summarize', () => {
             report({team: 'stuck', since: NOW - 43 * MIN}),
         ), {now: NOW});
         expect(m.players.find(t => t.name === 'stuck').stuck).toBe(true);
+    });
+
+    it('measures stuck from the last progress, so a long room of steady work is not a stuck class', () => {
+        // Reaktor: nine quiz questions in the first room. Twelve minutes in,
+        // everyone is still there, answering. Only the one who has not solved
+        // anything for eleven minutes needs the teacher.
+        const m = summarize(catalogue, [
+            ...['a', 'b', 'c', 'd'].map(team => ({report: report({team, since: NOW - 12 * MIN, progressAt: NOW - MIN}), receivedAt: NOW})),
+            {report: report({team: 'e', since: NOW - 12 * MIN, progressAt: NOW - 11 * MIN}), receivedAt: NOW},
+        ], {now: NOW});
+        expect(m.players.filter(t => t.stuck).map(t => t.name)).toEqual(['e']);
+        expect(m.players.find(t => t.name === 'a')).toMatchObject({sceneForMs: 12 * MIN, idleMs: MIN, stuck: false});
+        // The card says how long without progress, not how long in the room.
+        expect(m.attention).toEqual([expect.objectContaining({name: 'e', reason: 'stuck', forMs: 11 * MIN})]);
+    });
+
+    it('a tablet before 1.1.1 sends no last progress, and is judged by its time in the scene as before', () => {
+        const r = report({team: 'old', since: NOW - 12 * MIN});
+        delete r.position.progressAt;
+        const m = summarize(catalogue, [{report: r, receivedAt: NOW}], {now: NOW});
+        expect(m.players[0]).toMatchObject({idleMs: 12 * MIN, stuck: true});
     });
 
     it('a long-open puzzle counts as stuck too; a disconnected player is shown as that instead', () => {
