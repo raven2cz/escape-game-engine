@@ -259,10 +259,10 @@ the manifest.
 
 **Corrected after review: the first draft implied a tag per game and never said
 how.** Six version streams in one repository is the same mistake as six engine
-pins, and `raven2cz/escape-games` has no tags at all today.
+pins, and `raven2cz/escape-games` had no tags at all when this was written.
 
 The games repository is versioned **as one unit**: one tag, `games-2026.09.1`
-(year, month, counter). A content fix in one game re-tags the repository and
+(year, month, counter; the latest is `games-2026.09.2`). A content fix in one game re-tags the repository and
 redeploys all six; the bytes of the other five do not change, and no team loses
 anything, because saves depend on `meta.saveVersion`, not on the tag.
 

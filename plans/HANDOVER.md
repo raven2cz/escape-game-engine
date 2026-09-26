@@ -7,10 +7,17 @@ where the work is and what comes next.
 
 ## Where things stand
 
-    branch    main - the audit was merged as 94fd2cd on 2026-09-06
-    released  engine v1.0.0, games games-2026.09.1, both with published artifacts
+    branch    main - EI-010 was merged as 9e098c8 on 2026-09-26
+    released  engine v1.1.0, games games-2026.09.2, both with published artifacts
     games     moved to raven2cz/escape-games (private); this repo keeps games/demo
-    suite     288 here, 25 in the games repository; CI runs both on push and PR
+    suite     550 here (9 skipped by design), 31 in the games repository;
+              CI runs both on push and PR
+
+**The stabilization is finished, and so is EI-010.** Engine 1.1.0 ships the
+dashboard API (`docs/DASHBOARD-API.md`), the teacher's board (`board/`) and the
+"Kdo hraje?" screen; the games declare their board labels in `games-2026.09.2`.
+What comes next is not engine work: the hosted runtime on Cloudflare, in the
+Kabinet repository (its OI-006), consumes both releases as they are.
 
 | commit | what |
 |---|---|
@@ -37,13 +44,15 @@ where the work is and what comes next.
 | `3699742` | `engine/version.js` and the release mechanics |
 | `0a014fd` | `docs/RELEASING.md` |
 | `079fff4` | `engine/boot.js` |
+| `4dddde5` | EI-002 step two: a lesson gets a slot of its own |
+| `b08c199` | EI-030: a dropped `puzzles.json` is retried, not cached |
+| `9e098c8` | EI-010: dashboard API, teacher's board, "Kdo hraje?" (engine 1.1.0) |
 
-Twenty-six items are on the registry and twenty-four are closed. Every code batch
-in the plan is done, so are the defects the three review rounds turned up, so is
-the cleanup, the owner has taken all the S5 decisions, and the games have moved to
-their own private repository. What is left is EI-026, which needs artwork, and
-EI-010 with EI-002 step two, which were always meant to wait for the hosted
-runtime design.
+Every code batch in the plan is done, so are the defects the review rounds
+turned up, so is the cleanup, the owner has taken all the S5 decisions, the games
+have their own private repository, and EI-002 step two and EI-010 are done. What
+is left on the registry is EI-026, which needs artwork, and EI-031, a repeated
+cloze gap in leeuwenhoek puzzles no scene reaches. `OPEN-ITEMS.md` is the list.
 
 ## The reload harness
 
@@ -98,7 +107,7 @@ repository.
 - **The first tag.** Done. `v1.0.0` could not be cut with `npm version` -
   package.json already said 1.0.0 - so it was `git tag -a v1.0.0` by hand, once.
   Every release after this one is `npm version <patch|minor|major>`; see
-  `docs/RELEASING.md`. The games repository is at `games-2026.09.1`, and is
+  `docs/RELEASING.md`. The games repository is at `games-2026.09.2`, and is
   versioned as one unit for all six games.
 
 **Still open, and it needs the owner:**
@@ -122,16 +131,17 @@ should be identical - the layer fills that container exactly - but "should be" i
 not the same as "was looked at". Open `games/demo` and check a puzzle and a
 content panel.
 
-**Waiting on the hosted runtime, deliberately:**
+**Done since, and no longer waiting on anything:**
 
-- **EI-010** is the only one left, and only that. **EI-002 is closed**: the key
-  is `state:<sessionId>:<gameId>:<teamId>` when an identity is supplied and
-  unchanged when it is not. What the runtime still owes is minting the session
-  itself, so that nobody has to put it in the link - but that is the runtime's
-  work, not a gap in the engine.
-- **EI-010**, one progress signal instead of per-game conventions. The seam it
-  needs now exists: `opts.storage`, plus the puzzle runner wrapper in
-  `engine/puzzles/index.js` that every kind already goes through.
+- **EI-002** is closed: the key is `state:<sessionId>:<gameId>:<teamId>` when an
+  identity is supplied and unchanged when it is not. Minting the session, so that
+  nobody has to put it in the link, is the runtime's work.
+- **EI-010** is closed in engine 1.1.0. Progress is private engine state; what
+  leaves the tablet is a versioned `DashboardReport` (API 2) projected from it,
+  and nothing else. `docs/DASHBOARD-API.md` is the contract of record,
+  `plans/EI-010-DESIGN-API.md` the reasoning. The runtime's job is only to carry
+  reports from tablets to the board: an `HttpTransport` to its endpoint and a
+  store keyed by session, game and player id.
 
 ## How to work here
 

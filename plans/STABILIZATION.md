@@ -1,5 +1,9 @@
 # Stabilization plan
 
+**Status: finished.** Every batch below is done; the last deferred items,
+EI-002 step two and EI-010, closed in engine 1.1.0 (2026-09-26). Kept for the
+reasoning. `HANDOVER.md` says where things stand now.
+
 Companion to [OPEN-ITEMS.md](OPEN-ITEMS.md). That file says what is wrong; this
 one says in what order it gets fixed and how each fix is proved.
 
