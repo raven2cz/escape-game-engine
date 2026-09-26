@@ -35,7 +35,9 @@ repository; see `docs/RELEASING.md` for which version means what.
   teacher's board, where the picture replaces the initials. Remembered for the
   lesson on the tablet, so a reload does not ask again; Restart forgets it for
   the next child. Shown when the link has a `session` but no player; local play
-  is unchanged. The report's `team` field is now `player`, and it gains an
+  is unchanged. The player gets a stable id, never shown; the name is only a
+  label, so two pupils called Anička stay two players. The report's `team`
+  field is now `playerId` (the identity) plus `player` (the name), and gains an
   optional `avatar` id (API still 2, unreleased). Picture credits in
   `engine/avatars/CREDITS.md` and on the screen. (EI-010)
 - `scripts/simulate-lesson.mjs` plays a lesson with simulated teams against the

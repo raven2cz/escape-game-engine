@@ -28,7 +28,7 @@ const SOLVED_PREFIX = 'solved:pz:';
  * @param {object} input.progress   state.progress (read only)
  * @param {{ref: string, since: number}|null} input.activity  the open leaf, from ProgressModel
  * @param {object} input.catalogue  from buildCatalogue()
- * @param {{game: string, gameVersion?: string|null, session?: string|null, player?: string|null, avatar?: string|null}} input.identity
+ * @param {{game: string, gameVersion?: string|null, session?: string|null, playerId?: string|null, player?: string|null, avatar?: string|null}} input.identity
  * @param {number} input.now
  * @param {number} input.revision   the revision this report is sent under
  * @returns {object} a DashboardReport (plain data; pass it through toWire() before sending)
@@ -83,6 +83,7 @@ export function project({state, progress, activity, catalogue, identity, now, re
         game: identity.game,
         gameVersion: identity.gameVersion ?? null,
         session: identity.session ?? null,
+        playerId: identity.playerId ?? identity.player ?? null,
         player: identity.player ?? null,
         // Only an avatar from the shared catalogue; anything else is none.
         avatar: avatarById(identity.avatar)?.id ?? null,

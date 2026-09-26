@@ -1,9 +1,10 @@
 // engine/join.js
 //
 // "Kdo hraje?": the screen before a game in a lesson, where a pupil writes a
-// name (or nickname) and picks an animal. That name is the player: it is the
-// slot the game is saved under within the lesson (EI-002 `team`), and the name
-// and avatar on the teacher's board (EI-010).
+// name (or nickname) and picks a picture. The player gets a stable id, minted
+// here and never shown: that id is the slot the run is saved under within the
+// lesson (EI-002 `team`) and the player's identity on the teacher's board. The
+// name is only a label, so two pupils called Anička stay two players (EI-010).
 //
 // Remembered per lesson and game on the tablet, so a reload does not ask again.
 // Restart forgets it, so the next child on a shared tablet enters their own.
@@ -16,14 +17,31 @@ import {AVATARS, AVATAR_CREDITS, avatarById, avatarSrc} from './dashboard/avatar
 
 export const NAME_MAX = 24;
 
-/** A name fit to show: no control characters, spaces collapsed, at most NAME_MAX characters. */
+/**
+ * A name fit to show: normalised, no control, format (zero-width, bidi, word
+ * joiner, ...), separator, private-use or unassigned characters, spaces
+ * collapsed, at most NAME_MAX characters.
+ */
 export function cleanName(raw) {
     const s = String(raw ?? '')
-        .replace(/[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u2028-\u202e\u2066-\u2069]/g, '')
+        .normalize('NFC')
+        .replace(/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}\p{Co}\p{Cn}]/gu, '')
         .replace(/\s+/g, ' ')
         .trim();
     return [...s].slice(0, NAME_MAX).join('').trim();
 }
+
+/** A player id: opaque, stable for as long as the tablet remembers the player. */
+export function mintPlayerId() {
+    try {
+        if (globalThis.crypto?.randomUUID) return `p-${globalThis.crypto.randomUUID()}`;
+    } catch { /* fall through */
+    }
+    const rnd = () => Math.floor(Math.random() * 0x100000000).toString(36);
+    return `p-${Date.now().toString(36)}-${rnd()}${rnd()}`;
+}
+
+const ID = /^p-[A-Za-z0-9-]{8,80}$/;
 
 const key = (sessionId, gameId) => `player:${encodeURIComponent(sessionId ?? '')}:${gameId}`;
 
@@ -31,9 +49,10 @@ const key = (sessionId, gameId) => `player:${encodeURIComponent(sessionId ?? '')
 export function loadPlayer(sessionId, gameId, storage = globalThis.localStorage) {
     try {
         const raw = JSON.parse(storage?.getItem(key(sessionId, gameId)) ?? 'null');
+        const id = typeof raw?.id === 'string' && ID.test(raw.id) ? raw.id : null;
         const name = cleanName(raw?.name);
         const avatar = avatarById(raw?.avatar)?.id ?? null;
-        return name && avatar ? {name, avatar} : null;
+        return id && name && avatar ? {id, name, avatar} : null;
     } catch {
         return null;
     }
@@ -41,7 +60,7 @@ export function loadPlayer(sessionId, gameId, storage = globalThis.localStorage)
 
 export function savePlayer(sessionId, gameId, player, storage = globalThis.localStorage) {
     try {
-        storage?.setItem(key(sessionId, gameId), JSON.stringify({name: player.name, avatar: player.avatar}));
+        storage?.setItem(key(sessionId, gameId), JSON.stringify({id: player.id, name: player.name, avatar: player.avatar}));
     } catch { /* private mode: the pupil is asked again after a reload, nothing worse */
     }
 }
@@ -94,6 +113,17 @@ export function askWhoPlays(root, t = (_k, fallback) => fallback) {
         grid.setAttribute('role', 'radiogroup');
         grid.setAttribute('aria-label', t('engine.join.avatar', 'Vyber si obrázek'));
         let picked = null;
+        // One radio group: a single tab stop, arrows move and choose (ARIA
+        // radio group pattern), so a keyboard does not tab through 32 pictures.
+        const choose = (b, focus = false) => {
+            picked = b.dataset.avatar;
+            buttons.forEach(x => {
+                x.setAttribute('aria-checked', String(x === b));
+                x.tabIndex = x === b ? 0 : -1;
+            });
+            if (focus) b.focus();
+            update();
+        };
         const buttons = AVATARS.map((a) => {
             const b = el('button', `join-avatar join-avatar--${a.kind}`);
             const img = el('img');
@@ -107,13 +137,21 @@ export function askWhoPlays(root, t = (_k, fallback) => fallback) {
             b.setAttribute('aria-checked', 'false');
             b.setAttribute('aria-label', a.label);
             b.title = a.label;
-            b.addEventListener('click', () => {
-                picked = a.id;
-                buttons.forEach(x => x.setAttribute('aria-checked', String(x === b)));
-                update();
-            });
+            b.tabIndex = -1;
+            b.addEventListener('click', () => choose(b));
             grid.append(b);
             return b;
+        });
+        buttons[0].tabIndex = 0;
+        grid.addEventListener('keydown', (e) => {
+            const i = buttons.indexOf(document.activeElement);
+            if (i < 0) return;
+            const top = buttons[0].offsetTop;
+            const cols = Math.max(1, buttons.filter(b => b.offsetTop === top).length);
+            const step = {ArrowRight: 1, ArrowLeft: -1, ArrowDown: cols, ArrowUp: -cols}[e.key];
+            if (!step) return;
+            e.preventDefault();
+            choose(buttons[(i + step + buttons.length) % buttons.length], true);
         });
 
         const play = el('button', 'join-play', t('engine.join.play', 'Hrát'));

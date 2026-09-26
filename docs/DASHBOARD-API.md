@@ -57,7 +57,8 @@ costs nothing once the next arrives.
 | `game` | string | `meta.id` of the game |
 | `gameVersion` | string \| null | `meta.version`, for matching a catalogue |
 | `session` | string \| null | the lesson, as the tablet was given it. A hint, see §6 |
-| `player` | string \| null | the player's name, from "Kdo hraje?" or the link. A hint, see §6 |
+| `playerId` | string \| null | who is playing: a stable opaque id minted on "Kdo hraje?" (or the name from the link). The identity; a hint, see §6 |
+| `player` | string \| null | the player's name or nickname. Only a label: two pupils may share one |
 | `avatar` | string \| null | the picture the player picked: an id from `engine/dashboard/avatars.js`, or null |
 | `run` | string | this run. Kept across reloads, new after a reset |
 | `revision` | int | increases with every report of a run; never reused, even across a reload |
@@ -247,12 +248,12 @@ What the engine guarantees:
 
 What the server (hosted runtime) must do, because the tablet cannot:
 
-- **Bind `session` and `player` from its own authenticated context.** The report's
+- **Bind `session` and `playerId` from its own authenticated context.** The report's
   fields are hints for correlation, not trust. URL and credentials live inside
   the transport, never in the engine.
-- **Order and deduplicate on `(session, game, player, run, revision)`**: keep the
+- **Order and deduplicate on `(session, game, playerId, run, revision)`**: keep the
   highest revision of a run; a repeated or late report is not an error.
-- **Decide which run is current** when two share `session/game/player` (a reset,
+- **Decide which run is current** when two share `session/game/playerId` (a reset,
   or two tabs): the engine cannot, since the storage key does not include the run.
 - Keep the sequence it receives if history is wanted: reports carry the current
   picture only.

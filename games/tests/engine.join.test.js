@@ -4,7 +4,7 @@
 
 import {describe, it, expect, beforeEach, afterEach, vi} from 'vitest';
 import {boot} from '../../engine/boot.js';
-import {askWhoPlays, cleanName, loadPlayer, savePlayer, forgetPlayer, NAME_MAX} from '../../engine/join.js';
+import {askWhoPlays, cleanName, loadPlayer, savePlayer, forgetPlayer, mintPlayerId, NAME_MAX} from '../../engine/join.js';
 import {AVATARS} from '../../engine/dashboard/avatars.js';
 
 const SCENES = {
@@ -45,6 +45,10 @@ describe('cleanName', () => {
     it('trims, collapses spaces, strips invisible and control characters, and caps the length', () => {
         expect(cleanName('  Anička   Nová  ')).toBe('Anička Nová');
         expect(cleanName('An​i‮č\u0007ka')).toBe('Anička');
+        // Every format character, not a hand-picked list: word joiner, Arabic letter mark...
+        expect(cleanName('\u2060')).toBe('');
+        expect(cleanName('Ani\u061Cčka\u2060')).toBe('Anička');
+        expect(cleanName('Anic\u030Cka')).toBe('Anička');              // combining háček, normalised
         expect([...cleanName('🦊'.repeat(40))]).toHaveLength(NAME_MAX);
         expect(cleanName('   ')).toBe('');
         expect(cleanName(null)).toBe('');
@@ -53,14 +57,18 @@ describe('cleanName', () => {
 
 describe('remembering the player', () => {
     it('per lesson and game; forgets on request; ignores anything malformed', () => {
-        savePlayer('7A', 'g', {name: 'Anička', avatar: 'fox'});
-        expect(loadPlayer('7A', 'g')).toEqual({name: 'Anička', avatar: 'fox'});
+        const id = mintPlayerId();
+        savePlayer('7A', 'g', {id, name: 'Anička', avatar: 'fox'});
+        expect(loadPlayer('7A', 'g')).toEqual({id, name: 'Anička', avatar: 'fox'});
         expect(loadPlayer('7B', 'g')).toBeNull();
         expect(loadPlayer('7A', 'other')).toBeNull();
         forgetPlayer('7A', 'g');
         expect(loadPlayer('7A', 'g')).toBeNull();
-        localStorage.setItem('player:7A:g', JSON.stringify({name: 'X', avatar: 'dragon'}));
+        localStorage.setItem('player:7A:g', JSON.stringify({id, name: 'X', avatar: 'dragon'}));
         expect(loadPlayer('7A', 'g')).toBeNull();
+        localStorage.setItem('player:7A:g', JSON.stringify({name: 'X', avatar: 'fox'}));   // no id
+        expect(loadPlayer('7A', 'g')).toBeNull();
+        expect(mintPlayerId()).not.toBe(mintPlayerId());
         localStorage.setItem('player:7A:g', '{not json');
         expect(loadPlayer('7A', 'g')).toBeNull();
     });
@@ -103,6 +111,20 @@ describe('the screen', () => {
         expect(document.querySelector('.join-overlay')).toBeNull();
     });
 
+    it('the pictures are one radio group: one tab stop, arrows move and choose', async () => {
+        void askWhoPlays(document.body);
+        const buttons = [...document.querySelectorAll('.join-avatar')];
+        expect(buttons.filter(b => b.tabIndex === 0)).toHaveLength(1);
+        buttons[0].focus();
+        buttons[0].dispatchEvent(new KeyboardEvent('keydown', {key: 'ArrowRight', bubbles: true}));
+        expect(document.activeElement).toBe(buttons[1]);
+        expect(buttons[1].getAttribute('aria-checked')).toBe('true');
+        expect(buttons.filter(b => b.tabIndex === 0)).toEqual([buttons[1]]);
+        buttons[1].dispatchEvent(new KeyboardEvent('keydown', {key: 'ArrowLeft', bubbles: true}));
+        buttons[0].dispatchEvent(new KeyboardEvent('keydown', {key: 'ArrowLeft', bubbles: true}));
+        expect(document.activeElement).toBe(buttons.at(-1));             // wraps round
+    });
+
     it('a name is only ever text', async () => {
         const done = askWhoPlays(document.body);
         await answer('<img src=x>', 'fox');
@@ -117,28 +139,32 @@ describe('boot() in a lesson', () => {
         const booting = boot({gameId: 'join-test', sessionId: '7A'});
         await answer('Anička', 'unicorn');
         const game = await booting;
-        expect(game.teamId).toBe('Anička');
+        expect(game.teamId).toMatch(/^p-/);                              // the identity and save slot: an id
+        expect(game.playerName).toBe('Anička');                          // the name is only a label
         expect(game.avatar).toBe('unicorn');
-        expect(localStorage.getItem(`state:7A:join-test:${encodeURIComponent('Anička')}`)).not.toBeNull(); // saved under the player
+        expect(localStorage.getItem(`state:7A:join-test:${encodeURIComponent(game.teamId)}`)).not.toBeNull();
     });
 
     it('does not ask again on a reload of the same lesson', async () => {
-        savePlayer('7A', 'join-test', {name: 'Anička', avatar: 'unicorn'});
+        const id = mintPlayerId();
+        savePlayer('7A', 'join-test', {id, name: 'Anička', avatar: 'unicorn'});
         const game = await boot({gameId: 'join-test', sessionId: '7A'});
         expect(document.querySelector('.join-overlay')).toBeNull();
-        expect(game.teamId).toBe('Anička');
+        expect(game.teamId).toBe(id);
+        expect(game.playerName).toBe('Anička');
     });
 
     it('does not ask outside a lesson, or when the link already names the player', async () => {
         await boot({gameId: 'join-test'});
         expect(document.querySelector('.join-overlay')).toBeNull();
-        const named = await boot({gameId: 'join-test', sessionId: '7A', teamId: 'Petr'});
+        const named = await boot({gameId: 'join-test', sessionId: '7A', teamId: ' Pe‮tr '});
         expect(document.querySelector('.join-overlay')).toBeNull();
-        expect(named.teamId).toBe('Petr');
+        expect(named.teamId).toBe('Petr');                               // a name from the link is cleaned too
+        expect(named.playerName).toBe('Petr');
     });
 
     it('Restart forgets the player, so the next child on the tablet is asked', async () => {
-        savePlayer('7A', 'join-test', {name: 'Anička', avatar: 'unicorn'});
+        savePlayer('7A', 'join-test', {id: mintPlayerId(), name: 'Anička', avatar: 'unicorn'});
         const game = await boot({gameId: 'join-test', sessionId: '7A'});
         game.restart = vi.fn();                                     // the real one reloads the page
         document.querySelector('[data-boot="restart"]').click();
@@ -155,6 +181,18 @@ describe('boot() in a lesson', () => {
         await answer('Anička', 'unicorn');
         const game = await booting;
         game.reporter.flush();
-        expect(sent.at(-1)).toMatchObject({session: '7A', player: 'Anička', avatar: 'unicorn'});
+        expect(sent.at(-1)).toMatchObject({session: '7A', playerId: game.teamId, player: 'Anička', avatar: 'unicorn'});
+    });
+
+    it('two pupils with the same name are two players', async () => {
+        const one = boot({gameId: 'join-test', sessionId: '7A'});
+        await answer('Anička', 'fox');
+        const first = await one;
+        localStorage.removeItem('player:7A:join-test');                  // the second tablet
+        const two = boot({gameId: 'join-test', sessionId: '7A'});
+        await answer('Anička', 'cat');
+        const second = await two;
+        expect(first.playerName).toBe(second.playerName);
+        expect(first.teamId).not.toBe(second.teamId);
     });
 });

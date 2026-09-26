@@ -185,9 +185,11 @@ export default class OrderPuzzle extends BasePuzzle {
 
     onOk() {
         const want = this._solution();
-        // The sequence is built by placing tokens one by one; until every one
-        // is placed it is not an answer (see choice.js).
-        if (this._ordered.length < want.length) return {hold: true, status: 'incomplete'};
+        // The sequence is built by placing tokens one by one; until every token
+        // of the solution is placed it is not an answer (see choice.js). Counted
+        // by membership, not length: a distractor placed instead of a missing
+        // token does not finish the answer.
+        if (!want.every(id => this._ordered.includes(id))) return {hold: true, status: 'incomplete'};
         const answer = [...this._ordered]; // what was submitted; see phrase.js
         const ok = (want.length === this._ordered.length) &&
             want.every((id, i) => this._ordered[i] === id);

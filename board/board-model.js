@@ -42,10 +42,10 @@ function positionOnly(report) {
     return wire;
 }
 
-/** Where a report is filed: one slot per lesson, game and player. */
+/** Where a report is filed: one slot per lesson, game and player id (never the name: two pupils may share one). */
 export function teamKey(report) {
     const part = (v) => encodeURIComponent(v ?? '');
-    return `${part(report.session)}|${part(report.game)}|${part(report.player)}`;
+    return `${part(report.session)}|${part(report.game)}|${part(report.playerId ?? report.player)}`;
 }
 
 /**
@@ -74,6 +74,9 @@ export class ReportStore {
             report = positionOnly(report);
         } else if (checkReport(report).length) {
             return 'invalid';
+        } else {
+            // Kept and handed on only as rebuilt from the schema, field by field.
+            report = toWire(report);
         }
         const key = teamKey(report);
         const held = this._byKey.get(key);
@@ -218,14 +221,19 @@ export function summarize(catalogue, entries, options = {}) {
         const longStay = t.sceneForMs >= threshold;
         const longPuzzle = !!t.activity && t.activity.forMs >= threshold;
         t.stuck = t.connection !== 'offline' && (longStay || longPuzzle);
+        // What made them stuck, with its own place and time: a puzzle opened a
+        // minute ago must not inherit the nine minutes spent in the room.
+        t.stuckOn = !t.stuck ? null : longPuzzle
+            ? {place: t.activity.label, forMs: t.activity.forMs}
+            : {place: t.sceneLabel, forMs: t.sceneForMs};
     }
 
     // Who the teacher should walk to first: stuck (longest first), then lost
     // connection. With thirty rows these would otherwise drown.
     const attention = [
-        ...players.filter(t => t.stuck).sort((a, b) => Math.max(b.sceneForMs, b.activity?.forMs ?? 0) - Math.max(a.sceneForMs, a.activity?.forMs ?? 0))
+        ...players.filter(t => t.stuck).sort((a, b) => b.stuckOn.forMs - a.stuckOn.forMs)
             .map(t => ({key: t.key, name: t.name, avatar: t.avatar, reason: 'stuck',
-                place: t.activity?.label || t.sceneLabel, forMs: Math.max(t.sceneForMs, t.activity?.forMs ?? 0), mistakes: t.mistakes})),
+                place: t.stuckOn.place, forMs: t.stuckOn.forMs, mistakes: t.mistakes})),
         ...players.filter(t => !t.completed && t.connection === 'offline')
             .map(t => ({key: t.key, name: t.name, avatar: t.avatar, reason: 'offline', place: t.sceneLabel, forMs: t.lastSeenMs, mistakes: t.mistakes})),
     ];

@@ -167,7 +167,8 @@ export function createPuzzleRunner(args) {
             if (status === 'incomplete') {
                 // Not an answer yet. Say so without saying what is right or
                 // wrong: that feedback is for a finished answer.
-                const showHint = args.instanceOptions?.showErrorToast ?? cfg.showErrorToast ?? true;
+                // instanceOptions already merges the puzzle's own `options`.
+                const showHint = puzzle.instanceOptions?.showErrorToast ?? cfg.showErrorToast ?? true;
                 if (showHint && args.engine?.toast) {
                     args.engine.toast(i18nFn('engine.puzzle.incomplete', 'Nejdřív dokonči všechny odpovědi.'), 2500);
                 }

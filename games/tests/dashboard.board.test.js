@@ -8,7 +8,7 @@ import {describe, it, expect, beforeAll, afterAll, vi} from 'vitest';
 import {join, resolve} from 'node:path';
 import {buildCatalogue} from '../../engine/dashboard/catalogue.js';
 import {project} from '../../engine/dashboard/projector.js';
-import {toWire} from '../../engine/dashboard/report.js';
+import {toWire, checkReport} from '../../engine/dashboard/report.js';
 import {ReportStore, summarize, formatDuration, teamKey, avatarFor, BOARD_DEFAULTS} from '../../board/board-model.js';
 import {renderBoard} from '../../board/board-view.js';
 import {localSource, httpSource} from '../../board/sources.js';
@@ -30,13 +30,13 @@ const catalogue = buildCatalogue({
 
 /** A real report for a team, built by the engine's own projector. */
 function report({team, run = `run-${team}`, revision = 1, scene = 'hall', since = NOW - MIN, puzzles = {}, solved = {},
-    flags = {}, inventory = [], itemsUsed = {}, completedAt = null, activity = null, startedAt = NOW - 10 * MIN, session = '7A', avatar = null}) {
+    flags = {}, inventory = [], itemsUsed = {}, completedAt = null, activity = null, startedAt = NOW - 10 * MIN, session = '7A', avatar = null, playerId = `id-${team}`}) {
     return toWire(project({
         state: {inventory, solved, flags, visited: {[scene]: true}, scene},
         progress: {run, revision, startedAt, scene, sceneEnteredAt: since, completedAt, puzzles, itemsUsed, dialogsSeen: {}},
         activity,
         catalogue,
-        identity: {game: 'g', session, player: team, avatar},
+        identity: {game: 'g', session, playerId, player: team, avatar},
         now: NOW,
         revision,
     }));
@@ -59,6 +59,19 @@ describe('ReportStore', () => {
         expect(store.ingest(report({team: 'a', run: 'r2', revision: 1, startedAt: NOW - MIN}), 2)).toBe('accepted');
         expect(store.ingest(report({team: 'a', run: 'r1', revision: 10, startedAt: NOW - 20 * MIN}), 3)).toBe('stale');
         expect(store.list()[0].report.run).toBe('r2');
+    });
+
+    it('two pupils with the same name stay two rows', () => {
+        const store = new ReportStore();
+        store.ingest(report({team: 'Anička', playerId: 'p-1'}), 1);
+        store.ingest(report({team: 'Anička', playerId: 'p-2'}), 1);
+        expect(store.list()).toHaveLength(2);
+    });
+
+    it('keeps only what it rebuilt from the schema', () => {
+        const store = new ReportStore();
+        store.ingest(report({team: 'a'}), 1);
+        expect(checkReport(store.list()[0].report)).toEqual([]);
     });
 
     it('refuses anything that is not a report, including one carrying extra fields', () => {
@@ -88,7 +101,7 @@ describe('ReportStore', () => {
         expect(store.list({game: 'g'})).toHaveLength(2);
         expect(store.list({game: 'g', session: '7B'})).toHaveLength(1);
         expect(store.list({game: 'other'})).toHaveLength(0);
-        expect(teamKey({session: 'a|b', game: 'g', player: 'c'})).toBe('a%7Cb|g|c');
+        expect(teamKey({session: 'a|b', game: 'g', playerId: 'c', player: 'Anička'})).toBe('a%7Cb|g|c');
     });
 });
 
@@ -171,6 +184,17 @@ describe('summarize', () => {
         expect(byName.b.connection).toBe('offline');
         expect(byName.b.stuck).toBe(false);
         expect(byName.c.connection).toBe('stale');
+    });
+
+    it('a stuck card shows what made them stuck, with its own time', () => {
+        // Nine minutes in the room, a puzzle opened a minute ago: the card says
+        // the room and nine minutes, not the puzzle with the room's time.
+        const m = summarize(catalogue, [
+            {report: report({team: 'a', since: NOW - MIN}), receivedAt: NOW},
+            {report: report({team: 'b', since: NOW - MIN}), receivedAt: NOW},
+            {report: report({team: 'c', since: NOW - 11 * MIN, activity: {ref: 'p1', since: NOW - MIN}}), receivedAt: NOW},
+        ], {now: NOW});
+        expect(m.attention[0]).toMatchObject({name: 'c', place: 'Chodba', forMs: 11 * MIN});
     });
 
     it('lists who needs attention first: stuck longest first, then disconnected', () => {

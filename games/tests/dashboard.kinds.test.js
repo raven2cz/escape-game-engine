@@ -224,6 +224,45 @@ describe.each(Object.keys(KINDS))('%s', (kind) => {
     });
 });
 
+describe('what SOL found in the incomplete rules', () => {
+    it('order: a distractor placed instead of a missing token is still unfinished', async () => {
+        const runner = createPuzzleRunner({
+            ref: 'pz-o', config: {id: 'pz-o', kind: 'order', tokens: [{id: 'a'}, {id: 'b'}, {id: 'x'}], solution: ['a', 'b']},
+            engine, instanceOptions: {blockUntilSolved: true, showErrorToast: false}, onResolve: () => {},
+        });
+        runner.mountInto(engine.hotspotLayer);
+        runner.puzzle._ordered = ['a', 'x'];
+        await runner.puzzle.onOk(); await flush();
+        expect(counted()).toEqual([]);
+    });
+
+    it('match: the solutions {a: b} spelling is understood like pairs', async () => {
+        const resolved = [];
+        const runner = createPuzzleRunner({
+            ref: 'pz-m', config: {id: 'pz-m', kind: 'match', mode: 'columns', solutions: {a: 'b'},
+                tokens: [{id: 'a', text: 'A', side: 'left'}, {id: 'b', text: 'B', side: 'right'}]},
+            engine, instanceOptions: {blockUntilSolved: true, showErrorToast: false}, onResolve: (r) => resolved.push(r.ok),
+        });
+        runner.mountInto(engine.hotspotLayer);
+        pairs(runner.puzzle, [['a', 'b']]);
+        await runner.puzzle.onOk(); await flush();
+        expect(resolved).toEqual([true]);
+    });
+
+    it('the unfinished hint follows the puzzle own showErrorToast option', async () => {
+        const toasts = [];
+        engine.toast = (m) => toasts.push(m);
+        const runner = createPuzzleRunner({
+            ref: 'pz-p', config: {id: 'pz-p', kind: 'phrase', solution: 'ano', options: {showErrorToast: false}},
+            engine, instanceOptions: {}, onResolve: () => {},
+        });
+        runner.mountInto(engine.hotspotLayer);
+        runner.puzzle._els.input.value = '';
+        await runner.puzzle.onOk(); await flush();
+        expect(toasts).toEqual([]);
+    });
+});
+
 describe('match answers', () => {
     it('two different pairings never look like the same answer, whatever the ids contain', async () => {
         const runner = createPuzzleRunner({

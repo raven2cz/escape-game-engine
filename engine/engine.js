@@ -93,8 +93,10 @@ export class Game {
         // EI-002.
         this.sessionId = String(opts.sessionId ?? '').trim() || null;
         this.teamId = String(opts.teamId ?? '').trim() || null;
-        // The player's animal, from the "Kdo hraje?" screen. Only for the
-        // teacher's board; nothing in the game depends on it.
+        // The player's name and picture, from the "Kdo hraje?" screen or the
+        // link. Only for the teacher's board; nothing in the game depends on
+        // them. `teamId` stays the identity (and the save slot).
+        this.playerName = String(opts.playerName ?? '').trim() || this.teamId;
         this.avatar = avatarById(opts.avatar)?.id ?? null;
 
         // How long to wait for a scene image before carrying on without it.
@@ -154,7 +156,8 @@ export class Game {
                     game: this.meta?.id || 'unknown',
                     gameVersion: this.meta?.version != null ? String(this.meta.version) : null,
                     session: this.sessionId,
-                    player: this.teamId,
+                    playerId: this.teamId,
+                    player: this.playerName,
                     avatar: this.avatar,
                 }),
                 persist: () => (this.state ? this._saveState() : false),

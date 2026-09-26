@@ -81,7 +81,7 @@ export class HttpTransport {
 /** Storage key under which LocalBoardTransport keeps a player's latest report. */
 export function localBoardKey(wire) {
     const part = (v) => encodeURIComponent(v ?? '');
-    return `dashboard:report:${part(wire.game)}:${part(wire.session)}:${part(wire.player)}`;
+    return `dashboard:report:${part(wire.game)}:${part(wire.session)}:${part(wire.playerId ?? wire.player)}`;
 }
 
 /**

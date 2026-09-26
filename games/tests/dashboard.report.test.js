@@ -143,6 +143,21 @@ describe('no leak: the internal state never reaches the wire', () => {
         expect(checkReport(wire)).toEqual([]);
     });
 
+    it('checkReport refuses fields named like built-in properties (constructor, toString, __proto__)', () => {
+        const wire = toWire(build());
+        for (const key of ['constructor', 'toString', '__proto__']) {
+            const tampered = JSON.parse(JSON.stringify(wire));
+            Object.defineProperty(tampered, key, {value: {secret: SECRET}, enumerable: true, configurable: true, writable: true});
+            expect(checkReport(tampered).join(), key).toContain(`report.${key} is not part of the contract`);
+        }
+    });
+
+    it('checkReport refuses an avatar that is not in the catalogue', () => {
+        const wire = toWire(build());
+        expect(checkReport({...wire, avatar: 'dragon'})).toContain('report.avatar is not in the avatar catalogue');
+        expect(checkReport({...wire, avatar: null})).toEqual([]);
+    });
+
     it('checkReport refuses anything outside the contract', () => {
         const wire = toWire(build());
         const tampered = {...wire, flags: {}, position: {...wire.position, extra: 1}};
@@ -283,7 +298,7 @@ describe('size', () => {
 
     it('the schema is the documented one (a change here is a contract change)', () => {
         expect(Object.keys(REPORT_SCHEMA.obj)).toEqual([
-            'api', 'game', 'gameVersion', 'session', 'player', 'avatar', 'run', 'revision', 'startedAt', 'updatedAt',
+            'api', 'game', 'gameVersion', 'session', 'playerId', 'player', 'avatar', 'run', 'revision', 'startedAt', 'updatedAt',
             'completedAt', 'completed', 'position', 'activity', 'progress', 'inventory', 'itemsUsed',
             'dialogsSeen', 'puzzles', 'milestones', 'truncated',
         ]);

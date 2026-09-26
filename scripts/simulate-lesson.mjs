@@ -214,7 +214,7 @@ export function createLesson({scenesDoc, puzzles = null, dialogs = null, session
                 t.progress.revision++;
                 reports.push(toWire(project({
                     state: t.state, progress: t.progress, activity: t.activity, catalogue,
-                    identity: {game, gameVersion: catalogue.version, session, player: t.name, avatar: t.avatar},
+                    identity: {game, gameVersion: catalogue.version, session, playerId: `sim-${t.name}`, player: t.name, avatar: t.avatar},
                     now: at, revision: t.progress.revision,
                 })));
             }

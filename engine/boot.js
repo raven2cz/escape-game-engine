@@ -18,7 +18,7 @@
 
 import {Game} from './engine.js';
 import {ENGINE_I18N} from './i18n.js';
-import {askWhoPlays, loadPlayer, savePlayer, forgetPlayer} from './join.js';
+import {askWhoPlays, loadPlayer, savePlayer, forgetPlayer, cleanName, mintPlayerId} from './join.js';
 
 /** The nodes the engine takes by reference, and the chrome around them. */
 const SKELETON = `
@@ -71,13 +71,20 @@ function addStylesheet(href) {
 }
 
 /** Fetch JSON, or an empty object. A game need not have translations. */
-async function fetchJsonSafe(url) {
+async function fetchJsonSafe(url, timeoutMs = 8000) {
+    // Bounded: a request a school network drops (rather than refuses) would
+    // otherwise hold the start of the game forever, after the loading shell
+    // and its ten-second warning are already gone.
+    const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timer = ctrl ? setTimeout(() => ctrl.abort(), timeoutMs) : null;
     try {
-        const r = await fetch(url, {cache: 'no-cache'});
+        const r = await fetch(url, {cache: 'no-cache', ...(ctrl ? {signal: ctrl.signal} : {})});
         if (!r.ok) throw new Error(r.statusText);
         return await r.json();
     } catch {
         return {};
+    } finally {
+        if (timer) clearTimeout(timer);
     }
 }
 
@@ -152,7 +159,10 @@ export async function boot(opts = {}) {
     const lang = (opts.lang || 'cs').toLowerCase();
     const baseUrl = opts.baseUrl || `./games/${gameId}/`;
     const sessionId = opts.sessionId || null;
-    let teamId = opts.teamId || null;
+    // A player named in the link is cleaned like a typed one: it is shown on
+    // the teacher's board.
+    let teamId = cleanName(opts.teamId) || null;
+    let playerName = teamId;
     let avatar = opts.avatar || null;
     const root = opts.root || document.body;
 
@@ -182,9 +192,10 @@ export async function boot(opts = {}) {
     // (a reload) is not asked again.
     const join = opts.join ?? (!!sessionId && !teamId);
     if (join) {
-        const player = loadPlayer(sessionId, gameId) || await askWhoPlays(root, t);
+        const player = loadPlayer(sessionId, gameId) || {id: mintPlayerId(), ...await askWhoPlays(root, t)};
         savePlayer(sessionId, gameId, player);
-        teamId = player.name;
+        teamId = player.id;          // the save slot and the identity: stable, never shown
+        playerName = player.name;    // only a label: two Aničkas stay two players
         avatar = player.avatar;
     }
 
@@ -198,6 +209,7 @@ export async function boot(opts = {}) {
         ...(opts.report ? {reportTransport: opts.report} : {}),
         sessionId,
         teamId,
+        playerName,
         avatar,
 
         sceneImage: el('sceneImage'),

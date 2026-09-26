@@ -51,6 +51,7 @@ pre-existing defect rather than a new one.
 | EI-028 | P1   | DONE   | Redrawing the match lines never terminates once a pair exists    |
 | EI-029 | P3   | DONE   | A list puzzle did not close the step it had started              |
 | EI-030 | P1   | DONE   | One dropped puzzles.json makes every puzzle unopenable           |
+| EI-031 | P3   | OPEN   | A gap used twice in one cloze text renders only once            |
 
 Where the fix lands is decided in [STABILIZATION.md](STABILIZATION.md).
 
@@ -1557,3 +1558,24 @@ forever; and the happy path still loads in one fetch. The two retry cases fail
 before the fix - verified by reverting the fix in a throwaway copy - with the map
 left empty and no second attempt. No prior test caught this because the suite's
 fetch stub always succeeds.
+
+---
+
+## EI-031: A gap used twice in one cloze text renders only once
+
+**Priority:** P3. Found by codex SOL while reviewing EI-010 (2026-09-26); not
+caused by it.
+
+**What happens.** `cloze.js` keeps one element per gap id (`_gapEls`), so when a
+text names the same gap twice (`{gap1} ... {gap1}`), only the last occurrence is
+wired up. The first stays visibly empty while one placement fills the id, so the
+puzzle can be solved with a gap still showing blank.
+
+**Reach.** Only `cloze-chemistry` and `cloze-math-quiz` in leeuwenhoek repeat a
+gap, and both are among the showcase puzzles no hotspot reaches. No pupil can
+open them today.
+
+**Fix.** Either mirror a placement into every occurrence of its gap, or require
+unique gap ids per occurrence and fix the two puzzles. A games-repo data test
+should refuse a repeated gap until then.
+

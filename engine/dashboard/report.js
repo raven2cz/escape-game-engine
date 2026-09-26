@@ -14,6 +14,7 @@
 // the transport, because nothing copies it.
 
 import {ENGINE_API_VERSION} from '../version.js';
+import {avatarById} from './avatars.js';
 
 /** Version of this contract. Moves when a field is removed or changes meaning, not when one is added. */
 export const DASHBOARD_API_VERSION = ENGINE_API_VERSION;
@@ -39,6 +40,7 @@ export const REPORT_SCHEMA = Object.freeze({
         game: T.STR,
         gameVersion: T.STR_OR_NULL,
         session: T.STR_OR_NULL,
+        playerId: T.STR_OR_NULL,
         player: T.STR_OR_NULL,
         avatar: T.STR_OR_NULL,
         run: T.STR,
@@ -144,12 +146,18 @@ export function checkReport(value, node = REPORT_SCHEMA, path = 'report') {
     if (fields) {
         if (value === null && node.objOrNull) return problems;
         if (!value || typeof value !== 'object' || Array.isArray(value)) return [`${path} is not an object`];
+        // Own keys only: `in` would accept `constructor`, `toString` or
+        // `__proto__` as declared fields, and carry whatever is under them.
         for (const key of Object.keys(value)) {
-            if (!(key in fields)) problems.push(`${path}.${key} is not part of the contract`);
+            if (!Object.hasOwn(fields, key)) problems.push(`${path}.${key} is not part of the contract`);
         }
         for (const [key, child] of Object.entries(fields)) {
-            if (!(key in value)) problems.push(`${path}.${key} is missing`);
+            if (!Object.hasOwn(value, key)) problems.push(`${path}.${key} is missing`);
             else problems.push(...checkReport(value[key], child, `${path}.${key}`));
+        }
+        // Meaning, not only shape: an avatar is an id from the shared catalogue.
+        if (node === REPORT_SCHEMA && value.avatar != null && !avatarById(value.avatar)) {
+            problems.push(`${path}.avatar is not in the avatar catalogue`);
         }
         return problems;
     }

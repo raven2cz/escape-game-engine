@@ -758,7 +758,11 @@ export default class MatchPuzzle extends BasePuzzle {
     }
 
     _solutionPairs() {
-        const raw = this.config.pairs || this.config.solutionPairs || [];
+        // Three spellings: pairs / solutionPairs as [[a, b], ...], or solutions
+        // as {a: b}. All mean the same symmetric pairing.
+        const raw = this.config.pairs || this.config.solutionPairs
+            || (this.config.solutions && typeof this.config.solutions === 'object' && !Array.isArray(this.config.solutions)
+                ? Object.entries(this.config.solutions) : []);
         const pairMap = new Map();
         raw.forEach(([a, b]) => {
             pairMap.set(String(a), String(b));
