@@ -1,0 +1,62 @@
+/* board/board.css: the teacher's board. Readable on a projector and a tablet. */
+
+:root {
+    --b-bg: #f7f7f4;
+    --b-ink: #1d2327;
+    --b-muted: #6b7378;
+    --b-line: #dfe2e0;
+    --b-ok: #1f8a4c;
+    --b-after: #b7791f;
+    --b-open: #3b6ea8;
+    --b-warn: #c0392b;
+    --b-off: #8a8f93;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    color: var(--b-ink);
+    background: var(--b-bg);
+}
+
+body { margin: 0; }
+.board-header { padding: 1rem 1.5rem 0; }
+.board-header h1 { margin: 0; font-size: 1.4rem; }
+.board-game { color: var(--b-muted); font-weight: 400; }
+.board-sub { margin: .25rem 0 0; color: var(--b-muted); }
+.board { padding: 1rem 1.5rem 2rem; }
+
+.board-summary { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: 1rem; }
+.board-pill { padding: .25rem .7rem; border-radius: 999px; background: #fff; border: 1px solid var(--b-line); }
+.board-pill--done { border-color: var(--b-ok); color: var(--b-ok); }
+.board-pill--warn { border-color: var(--b-warn); color: var(--b-warn); font-weight: 600; }
+.board-pill--off { border-color: var(--b-off); color: var(--b-off); }
+
+table { border-collapse: collapse; background: #fff; width: 100%; }
+th, td { border-bottom: 1px solid var(--b-line); padding: .45rem .6rem; text-align: left; vertical-align: middle; }
+thead th { font-size: .85rem; color: var(--b-muted); font-weight: 600; }
+
+.board-team.is-stuck { background: #fdf0ee; }
+.board-team.is-done { background: #eef8f1; }
+.board-team.is-offline { opacity: .6; }
+.board-team-name { font-weight: 600; }
+.board-note, .board-flag { font-weight: 400; font-size: .85rem; }
+.board-flag { color: var(--b-warn); font-weight: 600; }
+.board-meter { display: inline-block; width: 5rem; height: .45rem; margin-left: .5rem; background: var(--b-line); border-radius: 999px; vertical-align: middle; overflow: hidden; }
+.board-meter-fill { display: block; height: 100%; background: var(--b-ok); }
+.board-chip { display: inline-block; margin: .1rem .2rem .1rem 0; padding: .1rem .5rem; border-radius: 999px; border: 1px dashed var(--b-line); color: var(--b-muted); font-size: .85rem; }
+.board-chip.is-reached { border-style: solid; border-color: var(--b-ok); color: var(--b-ok); }
+.board-connection.is-stale { color: var(--b-after); }
+.board-connection.is-offline { color: var(--b-warn); }
+.board-empty { color: var(--b-muted); text-align: center; padding: 2rem; }
+
+.board-section { margin-top: 2rem; }
+.board-section h2 { font-size: 1.1rem; margin: 0 0 .5rem; }
+.board-grid td, .board-grid th { text-align: center; }
+.board-grid .board-task { text-align: left; font-weight: 400; }
+.board-cell { font-weight: 700; }
+.board-cell.is-first { color: var(--b-ok); }
+.board-cell.is-after { color: var(--b-after); }
+.board-cell.is-open { color: var(--b-open); }
+.board-cell.is-none { color: var(--b-off); }
+.board-hard.is-hard { color: var(--b-warn); font-weight: 700; }
+.board-legend { color: var(--b-muted); font-size: .85rem; }
+.board-item.is-has { color: var(--b-open); font-weight: 600; }
+.board-item.is-used { color: var(--b-ok); font-weight: 600; }
+.board-item.is-none { color: var(--b-off); }

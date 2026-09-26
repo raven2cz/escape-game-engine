@@ -26,6 +26,7 @@
 // and `/.git/`.
 
 import { createServer } from 'node:http';
+import { ReportStore } from '../board/board-model.js';
 import { createReadStream, existsSync, statSync, readdirSync, realpathSync } from 'node:fs';
 import { dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -102,6 +103,11 @@ export function resolveRequest(rawPath, games) {
         return { file: join(ENGINE_ROOT, 'index.html') };
     }
     if (pathname === '/favicon.ico') return { status: 204 };
+    // The board is opened as /board/?game=..., which is a directory; this is
+    // the one directory with an index, like the root.
+    if (pathname === '/board' || pathname === '/board/') {
+        return { file: join(ENGINE_ROOT, 'board', 'index.html') };
+    }
 
     const parts = pathname.split('/').filter(Boolean);
     // Checked after decoding: `%2e%2e` is `..` and would otherwise slip past.
@@ -110,7 +116,7 @@ export function resolveRequest(rawPath, games) {
 
     let root;
     let rest;
-    if (parts[0] === 'engine' || parts[0] === 'styles') {
+    if (parts[0] === 'engine' || parts[0] === 'styles' || parts[0] === 'board') {
         root = join(ENGINE_ROOT, parts[0]);
         rest = parts.slice(1);
     } else if (parts[0] === 'games') {
@@ -181,13 +187,80 @@ export function parseRange(header, size) {
     return { start, end };
 }
 
-export function createDevServer(games) {
+/** Largest report body the dev server accepts. The engine caps a report well below this. */
+export const MAX_REPORT_BYTES = 64 * 1024;
+
+/**
+ * The dashboard's two endpoints, for trying the board with real tablets on the
+ * same network. In memory only, no authentication: a development convenience,
+ * not the hosted runtime, which must bind session and team from its own
+ * authenticated context (docs/DASHBOARD-API.md).
+ *
+ *   POST /api/report                 one DashboardReport; 204, or 400 if it is not one
+ *   GET  /api/reports?game=&session= the latest report of every team, with receive times
+ *
+ * Returns true when it answered the request.
+ */
+function handleDashboardApi(req, res, url, reports, now) {
+    if (url.pathname === '/api/report') {
+        if (req.method !== 'POST') {
+            send(res, 405, { Allow: 'POST' });
+            return true;
+        }
+        const chunks = [];
+        let size = 0;
+        let refused = false;
+        req.on('data', (chunk) => {
+            if (refused) return;
+            size += chunk.length;
+            if (size > MAX_REPORT_BYTES) {
+                refused = true;
+                send(res, 413);
+                req.destroy();
+                return;
+            }
+            chunks.push(chunk);
+        });
+        req.on('end', () => {
+            if (refused) return;
+            let report;
+            try {
+                report = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+            } catch {
+                return send(res, 400);
+            }
+            // A stale or repeated report is not an error: the sender retries and
+            // beacons, and the store keeps the newest by (run, revision).
+            const verdict = reports.ingest(report, now());
+            return send(res, verdict === 'invalid' ? 400 : 204);
+        });
+        return true;
+    }
+    if (url.pathname === '/api/reports') {
+        if (req.method !== 'GET') {
+            send(res, 405, { Allow: 'GET' });
+            return true;
+        }
+        const list = reports.list({
+            game: url.searchParams.get('game') || null,
+            session: url.searchParams.has('session') ? url.searchParams.get('session') : null,
+        }).map(({ report, receivedAt }) => ({ report, receivedAt }));
+        send(res, 200, { 'Content-Type': 'application/json; charset=utf-8' }, JSON.stringify(list));
+        return true;
+    }
+    return false;
+}
+
+export function createDevServer(games, { reports = new ReportStore(), now = () => Date.now() } = {}) {
     return createServer((req, res) => {
+        const url = new URL(req.url, 'http://localhost');
+        if (handleDashboardApi(req, res, url, reports, now)) return;
+
         if (req.method !== 'GET' && req.method !== 'HEAD') {
             return send(res, 405, { Allow: 'GET, HEAD' });
         }
 
-        const { pathname } = new URL(req.url, 'http://localhost');
+        const { pathname } = url;
         const hit = resolveRequest(pathname, games);
         if (hit.status) return send(res, hit.status);
 
@@ -307,6 +380,8 @@ function main() {
     server.listen(opts.port, opts.host, () => {
         const shown = opts.host === '0.0.0.0' ? lanAddress() : opts.host;
         console.log(`\n  http://${shown}:${opts.port}/?game=demo`);
+        console.log(`  http://${shown}:${opts.port}/board/?game=demo&source=http   the teacher's board`);
+        console.log(`  (a tablet reports to it when opened with &report=http)`);
         if (opts.host !== '0.0.0.0') {
             console.log('  (--host 0.0.0.0 to open it on a tablet)');
         }

@@ -52,6 +52,7 @@
     // hosted runtime's generated HTML can be this same few lines with different
     // arguments instead of a copy that drifts. See plans/RELEASE.md.
     import {boot} from './engine/boot.js';
+    import {HttpTransport, LocalBoardTransport} from './engine/dashboard/transports.js';
 
     const params = new URLSearchParams(location.search);
 
@@ -72,6 +73,12 @@
         teamId: params.get('team'),
         // Local use, so the editor is offered. The runtime will not pass this.
         editor: params.get('editor') !== '0',
+        // Where the teacher's board hears about this team. Off unless asked
+        // for: `report=local` for a board in another tab (board/?game=...),
+        // `report=http` for the dev server's board, reachable from a tablet on
+        // the same network. The hosted runtime injects its own transport.
+        ...(params.get('report') === 'local' ? {report: new LocalBoardTransport()} : {}),
+        ...(params.get('report') === 'http' ? {report: new HttpTransport({url: '/api/report'})} : {}),
         // Not `await boot(...)`: a game whose first scene opens a dialog is not
         // "started" until somebody closes it, and the console wants a handle
         // before then.
