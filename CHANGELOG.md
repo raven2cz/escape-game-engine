@@ -7,6 +7,29 @@ entry is written while the change is fresh, and nobody has to predict a number.
 Versions are the engine's own. Games are versioned separately, in their own
 repository; see `docs/RELEASING.md` for which version means what.
 
+## Unreleased
+- **"Stuck" means no progress, not a long stay.** The report carries
+  `position.progressAt`, the last progress in the scene (entered, a task solved,
+  an item gained or used, the end), and the board measures stuck from it. A
+  room with many tasks, such as the nine-question quiz at the start of Reaktor,
+  no longer turns a whole class red after ten minutes of steady work: in a
+  simulated class of 28 the board went from 21 "possibly stuck" to the 2 who had
+  really stopped. The attention card says "bez posunu". A tablet on 1.1.0 sends
+  no `progressAt` and is judged as before. Saves from 1.1.0 carry on; no
+  `saveVersion` moves.
+- **A board no longer drops a report for carrying a field it does not know.**
+  `docs/DASHBOARD-API.md` always said a board ignores such fields; `ReportStore`
+  refused the whole report instead, which would have made every added optional
+  field lose the players of an older board. It now drops the field (it is never
+  stored or handed on) and keeps the player. The schema gains `{optional}` for
+  fields added after their api version.
+- **Sorting puzzles (group) start with the tokens spread out**, one under
+  another on the line between the groups (or across it, when the groups are
+  stacked), instead of all on one spot in the centre where only the top label
+  could be read.
+- The lesson simulator keeps the last progress too, so the board it feeds shows
+  what a real class would.
+
 ## 1.1.0
 - **The teacher can see the lesson.** The engine now keeps a private record of
   each team's run (where it is and since when, attempts and mistakes per task,

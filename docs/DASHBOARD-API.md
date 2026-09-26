@@ -66,7 +66,7 @@ costs nothing once the next arrives.
 | `updatedAt` | epoch ms | when this report was built, tablet clock |
 | `completedAt` | epoch ms \| null | first successful entry to the `end` scene |
 | `completed` | bool | `completedAt != null` |
-| `position` | `{scene, label, since}` | where the player is, the scene's label, and since when |
+| `position` | `{scene, label, since, progressAt}` | where the player is, the scene's label, since when, and the last progress there (optional, engine 1.1.1) |
 | `activity` | `{ref, label, since}` \| null | the puzzle open right now, or null |
 | `progress` | `{scenesVisited, scenesTotal, puzzlesSolved, puzzlesTotal}` | counts |
 | `inventory` | string[] | item ids held now, in the order they were got |
@@ -106,8 +106,15 @@ costs nothing once the next arrives.
   step; on the list's summary screen it is `null`. A reload closes every puzzle,
   so after a reload it is `null` until a puzzle is opened again.
 - **`position.since`** keeps running across a reload into the same scene.
-  Together with `activity.since` it is the whole "stuck" signal. The engine does
-  not decide who is stuck; the board does, against the rest of the class.
+- **`position.progressAt`** (engine 1.1.1, optional) is the last progress: the
+  scene entered, a task solved for the first time, an item gained or used, the
+  end. Never before `since`. Wrong answers, open puzzles, dialogs and a reload
+  are not progress. With `activity.since` it is the "stuck" signal, measured
+  from the last progress rather than from entering the scene: a room of nine
+  quiz questions is ten minutes of steady work, not ten minutes stuck. A tablet
+  before 1.1.1 does not send it; a board then uses `since`, as it always did.
+  The engine does not decide who is stuck; the board does, against the rest of
+  the class.
 - **Times are the tablet's clock.** A tablet that sleeps through a break counts
   the break; show times as a teaching hint, cap one stay at the lesson length.
 - **`completed`** is set by the first successful entry to the game's `end`
@@ -126,9 +133,16 @@ shed first, then the other lists, and `truncated` is set; the counts in
 ## 3. Versioning
 
 `api` moves when a field is **removed or changes meaning**. Adding an optional
-field does not move it. A board:
+field does not move it. Such a field is declared `{optional}` in the schema: it
+is always written (null when unknown), and a report without it is still valid,
+so an older tablet keeps working. A board:
 
-- shows what it understands and ignores fields it does not know;
+- shows what it understands and ignores fields it does not know: a report of its
+  own api version carrying an unknown field is accepted, and the field is dropped
+  by `toWire()` before anything is stored or handed on
+  (`checkReport(value, undefined, 'report', {ignoreUnknown: true})`). The strict
+  form, every key declared, is what the engine's own output is tested against.
+  (Until 1.1.1 the board refused such a report whole, contrary to this rule.);
 - given a report whose `api` is newer than its own, shows position-only with a
   note rather than dropping the player, and keeps only the fields it knows
   (rebuilt through `toWire()`, counts and lists emptied): a newer report is

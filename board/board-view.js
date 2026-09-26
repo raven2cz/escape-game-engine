@@ -71,7 +71,7 @@ function attentionStrip(model) {
         const text = h('div', 'board-card-text');
         text.append(h('strong', null, a.name));
         text.append(h('span', null, a.reason === 'stuck'
-            ? `${a.place ?? '?'}, ${formatDuration(a.forMs)}, chyb: ${a.mistakes}`
+            ? `${a.place ?? '?'}, bez posunu ${formatDuration(a.forMs)}, chyb: ${a.mistakes}`
             : `odpojeno ${formatDuration(a.forMs)}${a.place ? `, naposledy: ${a.place}` : ''}`));
         card.append(text);
         list.append(card);

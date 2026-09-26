@@ -97,6 +97,7 @@ export function project({state, progress, activity, catalogue, identity, now, re
             scene,
             label: scene != null ? (sceneLabel.get(scene) ?? null) : null,
             since: pr.sceneEnteredAt,
+            progressAt: Math.max(pr.progressAt ?? 0, pr.sceneEnteredAt),
         },
         activity: activity
             ? {ref: activity.ref, label: taskLabel.get(activity.ref) ?? null, since: activity.since}
