@@ -142,7 +142,9 @@ so an older tablet keeps working. A board:
   by `toWire()` before anything is stored or handed on
   (`checkReport(value, undefined, 'report', {ignoreUnknown: true})`). The strict
   form, every key declared, is what the engine's own output is tested against.
-  (Until 1.1.1 the board refused such a report whole, contrary to this rule.);
+  (Until 1.1.1 the reference board refused such a report whole, contrary to
+  this rule. It ran nowhere but on a developer's machine; a 1.1.0 board must be
+  updated with the engine it ships with.);
 - given a report whose `api` is newer than its own, shows position-only with a
   note rather than dropping the player, and keeps only the fields it knows
   (rebuilt through `toWire()`, counts and lists emptied): a newer report is

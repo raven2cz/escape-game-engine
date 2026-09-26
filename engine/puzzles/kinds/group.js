@@ -33,6 +33,9 @@ export default class GroupPuzzle extends BasePuzzle {
         const mode = layoutCfg.mode || 'auto';
 
         // Create group areas
+        // Manual layout: where the free space is depends on the author's
+        // rectangles, so the tokens start where they always did, in the centre.
+        this._spreadAxis = null;
         if (mode === 'manual') {
             // Manual positioning
             (this.config.groups || []).forEach(g => {
@@ -166,6 +169,7 @@ export default class GroupPuzzle extends BasePuzzle {
      * line between the groups, evenly spaced, never outside the board.
      */
     _startPosition(i, n) {
+        if (!this._spreadAxis) return {left: '50%', top: '50%'};
         const offset = i - (n - 1) / 2;
         if (this._spreadAxis === 'horizontal') {
             const step = n > 1 ? Math.min(20, 80 / (n - 1)) : 0;

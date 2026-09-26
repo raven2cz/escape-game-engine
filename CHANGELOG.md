@@ -22,11 +22,16 @@ repository; see `docs/RELEASING.md` for which version means what.
   refused the whole report instead, which would have made every added optional
   field lose the players of an older board. It now drops the field (it is never
   stored or handed on) and keeps the player. The schema gains `{optional}` for
-  fields added after their api version.
+  fields added after their api version. `api` stays 2: the field is optional and
+  additive, which is what §3 says does not move it. The one board that would
+  refuse a 1.1.1 tablet is the 1.1.0 reference board, which ships in the same
+  package as the engine and runs nowhere yet (no runtime, no board in the shop):
+  update board and engine together, as the package does.
 - **Sorting puzzles (group) start with the tokens spread out**, one under
   another on the line between the groups (or across it, when the groups are
   stacked), instead of all on one spot in the centre where only the top label
-  could be read.
+  could be read. A `manual` layout keeps the centre: only its author knows where
+  the free space is. No shipped game uses one.
 - The lesson simulator keeps the last progress too, so the board it feeds shows
   what a real class would.
 

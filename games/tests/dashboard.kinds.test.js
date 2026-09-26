@@ -350,4 +350,9 @@ describe('group: where the unsorted tokens start', () => {
         expect(Math.max(...lefts)).toBeLessThanOrEqual(90);
         expect(mount([{id: 'a'}, {id: 'b'}], 1)).toEqual([{left: 50, top: 53}]);
     });
+
+    it('a manual layout keeps the tokens in the centre, since only the author knows where the free space is', () => {
+        const groups = [{id: 'a', rect: {x: 0, y: 0, w: 100, h: 40}}, {id: 'b', rect: {x: 0, y: 60, w: 100, h: 40}}];
+        expect(mount(groups, 3, {mode: 'manual'})).toEqual([{left: 50, top: 50}, {left: 50, top: 50}, {left: 50, top: 50}]);
+    });
 });
