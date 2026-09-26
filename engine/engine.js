@@ -144,6 +144,7 @@ export class Game {
                 state: () => this.state,
                 progress: () => this.state?.progress || null,
                 activity: () => this.progressModel.activity(),
+                progressChanges: () => this.progressModel.changes,
                 catalogue: () => this.dashboardCatalogue(),
                 identity: () => ({
                     game: this.meta?.id || 'unknown',
@@ -360,6 +361,12 @@ export class Game {
 
         await this.goto(this.state.scene, {noSave: true});
         this._renderInventory();
+
+        // Entering the first scene of a fresh run is recorded in the progress
+        // without a save (noSave). Store it now, while starting, rather than
+        // leaving a write for a timer to make on its own later. A reload into
+        // the same scene changes nothing and writes nothing.
+        if (this.reporter.hasUnsavedProgress()) this._saveState();
 
         // The puzzle catalogue is what the dashboard's "solved of total" needs,
         // and it used to arrive only when a pupil first opened a puzzle. Fetch it
@@ -2194,7 +2201,7 @@ export class Game {
         // `false` from a storage means the write did not happen; anything else,
         // including an injected storage that returns nothing, is success.
         const saved = this.storage.save(this.state) !== false;
-        this.signals?.emit(SIGNALS.STATE_SAVED, {});
+        this.signals?.emit(SIGNALS.STATE_SAVED, {ok: saved});
         return saved;
     }
 

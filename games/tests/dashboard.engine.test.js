@@ -365,6 +365,34 @@ describe('completion', () => {
     });
 });
 
+describe('no writes of its own', () => {
+    // Found by CI: a game left idle wrote its progress on a timer a moment after
+    // starting. In a lesson that is harmless; in the test suite a retired game
+    // wrote into the next test's storage. It must not happen at all: after
+    // starting, the engine writes only when something happens.
+    const counting = () => {
+        const box = {saves: 0, value: null};
+        return {box, storage: {load: () => box.value, save: (st) => { box.saves++; box.value = JSON.parse(JSON.stringify(st)); }, clear: () => { box.value = null; }}};
+    };
+
+    it('an idle game writes nothing after it has started', async () => {
+        const {box, storage} = counting();
+        await boot({storage, reporterOptions: {windowMs: 5, minIntervalMs: 0}});
+        const afterStart = box.saves;
+        await new Promise(r => setTimeout(r, 120));
+        expect(box.saves).toBe(afterStart);
+        expect(box.value.progress.scene).toBe('hall');   // and the first scene was stored while starting
+    });
+
+    it('a reload into the same scene writes nothing after starting either', async () => {
+        const {box, storage} = counting();
+        await boot({storage});
+        const afterReload = await reload({storage}).then(() => box.saves);
+        await new Promise(r => setTimeout(r, 120));
+        expect(box.saves).toBe(afterReload);
+    });
+});
+
 describe('restart and storage', () => {
     it('restart stops reporting, so leaving the page cannot write the old run back', async () => {
         const game = await boot();

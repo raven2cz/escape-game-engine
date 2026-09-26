@@ -144,6 +144,12 @@ export class ProgressModel {
         this._clock = clock;
         /** Leaves open right now, innermost last. Not persisted: a reload closes every puzzle. */
         this._open = [];
+        /**
+         * How many times the persisted record has actually changed. The reporter
+         * compares it with what was last saved, so it writes only when there is
+         * something new: re-entering the same scene on a reload changes nothing.
+         */
+        this.changes = 0;
 
         const on = (name, fn) => signals.on(name, (payload) => {
             const p = this._progress();
@@ -167,15 +173,22 @@ export class ProgressModel {
             if (!rec) return;
             rec.attempts++;
             if (ok !== true) rec.mistakes++;
+            this.changes++;
         });
         on(SIGNALS.PUZZLE_SOLVED, (p, {ref}) => {
             const rec = this._touch(p, ref);
-            if (rec) rec.solved = true;
+            if (rec && !rec.solved) {
+                rec.solved = true;
+                this.changes++;
+            }
         });
         on(SIGNALS.ITEM_USED, (p, {id}) => this._mark(p.itemsUsed, id, PROGRESS_LIMITS.items, p));
         on(SIGNALS.DIALOG_ENDED, (p, {id}) => this._mark(p.dialogsSeen, id, PROGRESS_LIMITS.dialogs, p));
         on(SIGNALS.RUN_COMPLETED, (p) => {
-            if (p.completedAt == null) p.completedAt = this._clock.now();
+            if (p.completedAt == null) {
+                p.completedAt = this._clock.now();
+                this.changes++;
+            }
         });
     }
 
@@ -203,6 +216,7 @@ export class ProgressModel {
         p.scene = scene;
         p.sceneEnteredAt = now;
         this._open.length = 0;
+        this.changes++;
     }
 
     _touch(p, ref) {
@@ -220,5 +234,6 @@ export class ProgressModel {
         if (!okId(id) || map[id] != null) return;
         if (Object.keys(map).length >= limit) return;
         map[id] = ++p.seq;
+        this.changes++;
     }
 }

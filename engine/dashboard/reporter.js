@@ -67,12 +67,36 @@ export class DashboardReporter {
         this._stopped = false;
         this._detach = [];
 
-        this._unsubscribe = signals.on('*', (_payload, name) => {
-            // Our own save announces itself too. It is the result of a flush,
-            // not a new change, and reacting to it would flush forever.
-            if (name === SIGNALS.STATE_SAVED && this._persisting) return;
+        this._persistedChanges = this._changes();
+        this._unsubscribe = signals.on('*', (payload, name) => {
+            if (name === SIGNALS.STATE_SAVED) {
+                // Our own save announces itself too. It is the result of a
+                // flush, not a new change, and reacting to it would flush forever.
+                if (this._persisting) return;
+                // Any save the engine makes writes the whole state, progress
+                // included, so whatever progress changed is stored now.
+                if (payload?.ok !== false) this._markPersisted();
+                this._markDirty(false);
+                return;
+            }
             this._markDirty(PROGRESS_SIGNALS.has(name));
         });
+    }
+
+    /** The model's change count, when the source offers one. */
+    _changes() {
+        return typeof this._source.progressChanges === 'function' ? this._source.progressChanges() : null;
+    }
+
+    _markPersisted() {
+        this._progressDirty = false;
+        this._persistedChanges = this._changes();
+    }
+
+    /** Whether the progress record holds something storage does not have yet. */
+    hasUnsavedProgress() {
+        const now = this._changes();
+        return now !== null ? now !== this._persistedChanges : this._progressDirty;
     }
 
     /** The newest report that has not been accepted yet, if any. For tests and diagnostics. */
@@ -107,7 +131,7 @@ export class DashboardReporter {
         const progress = this._source.progress();
 
         if ((this._reportDirty || this._progressDirty) && progress) {
-            const needSave = this._progressDirty || enabled;
+            const needSave = this.hasUnsavedProgress() || enabled;
             const previous = progress.revision || 0;
             if (enabled) progress.revision = previous + 1;
             if (needSave && !this._persist()) {
@@ -121,6 +145,7 @@ export class DashboardReporter {
                 return;
             }
             this._persistFailures = 0;
+            if (needSave) this._markPersisted();
             this._reportDirty = false;
             this._progressDirty = false;
             if (enabled) {

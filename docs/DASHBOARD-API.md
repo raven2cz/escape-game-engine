@@ -232,6 +232,10 @@ What the engine guarantees:
   succeeds.
 - `restart()` stops the reporter before it clears storage, so the flush on the
   way out cannot write the old run back.
+- An idle game writes nothing after it has started. The flush saves only when
+  the progress record holds something storage does not have yet: any save the
+  engine makes stores it, and the first scene of a fresh run is stored while
+  starting.
 - A run whose saved revision is not a safe integer below 2^31 starts a new run.
 - A progress change that the engine would not have saved by itself (a held wrong
   answer, a dialog that sets nothing) reaches storage when that flush runs, so a
