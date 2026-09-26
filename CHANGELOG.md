@@ -7,8 +7,7 @@ entry is written while the change is fresh, and nobody has to predict a number.
 Versions are the engine's own. Games are versioned separately, in their own
 repository; see `docs/RELEASING.md` for which version means what.
 
-## Unreleased
-
+## 1.1.0
 - **The teacher can see the lesson.** The engine now keeps a private record of
   each team's run (where it is and since when, attempts and mistakes per task,
   items used, dialogs seen, when it finished) and reports it as a declared,
