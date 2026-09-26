@@ -84,9 +84,13 @@ export default class CodePuzzle extends BasePuzzle {
     }
 
     onOk() {
-        if (this._locked) return {hold: true};
+        if (this._locked) return {hold: true, status: 'locked'};
 
         const v = this._els.input?.value || '';
+        // Nothing typed is not an answer. Holding keeps a pupil who pressed OK
+        // by accident from failing a puzzle, and the dashboard from counting it.
+        if (!v.trim()) return {hold: true, status: 'incomplete'};
+        const answer = v; // what was submitted; see phrase.js
         const ok = this._isCorrect(v);
 
         if (!ok) {
@@ -96,7 +100,7 @@ export default class CodePuzzle extends BasePuzzle {
         }
 
         if (!ok && this.instanceOptions.blockUntilSolved) {
-            return {hold: true};
+            return {hold: true, status: 'wrong', answer};
         }
 
         return {ok, detail: {value: v}};

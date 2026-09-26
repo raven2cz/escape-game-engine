@@ -184,6 +184,7 @@ export default class OrderPuzzle extends BasePuzzle {
     }
 
     onOk() {
+        const answer = [...this._ordered]; // what was submitted; see phrase.js
         const want = this._solution();
         const ok = (want.length === this._ordered.length) &&
             want.every((id, i) => this._ordered[i] === id);
@@ -193,7 +194,7 @@ export default class OrderPuzzle extends BasePuzzle {
         }
 
         if (!ok && this.instanceOptions.blockUntilSolved) {
-            return {hold: true};
+            return {hold: true, status: 'wrong', answer};
         }
 
         if (DBG()) {

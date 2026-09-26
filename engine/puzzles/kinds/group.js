@@ -276,6 +276,10 @@ export default class GroupPuzzle extends BasePuzzle {
     }
 
     onOk() {
+        // Nothing sorted is not an answer, and not a mistake (see code.js).
+        if (this._inGroup.size === 0 && this._tokenEls.size > 0) return {hold: true, status: 'incomplete'};
+        // Taken now: a wrongly sorted token is taken back out below.
+        const answer = Object.fromEntries([...this._inGroup].sort()); // see phrase.js
         const sol = this._solutions();
         let allOk = true;
 
@@ -307,7 +311,7 @@ export default class GroupPuzzle extends BasePuzzle {
                     this._inGroup.delete(id);
                 }
             }
-            return {hold: true};
+            return {hold: true, status: 'wrong', answer};
         }
 
         const detail = {};

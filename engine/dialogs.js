@@ -9,6 +9,7 @@
  */
 
 import {flagEntries} from './utils.js';
+import {SIGNALS} from './dashboard/signals.js';
 
 export class DialogUI {
     /**
@@ -652,10 +653,19 @@ export class DialogUI {
     async _end(onEnd = null) {
         const g = this.game;
 
+        // The dialog's canonical id, taken before `active` is cleared below. It
+        // may have been opened by an alias (`scene.dialog`); the dashboard knows
+        // it by the id in dialogs.json, which is what a milestone names.
+        const endedId = this.active?.dlg?.id ?? this.active?.id ?? null;
+
         // 1. Visual close
         // We hide the overlay but do NOT resolve the promise yet.
         this._hide();
         this.active = null;
+
+        // Before anything below saves: a dialog that sets no flag saves nothing,
+        // and the reporter's flush persists the record instead. EI-010.
+        if (endedId) g.signals?.emit(SIGNALS.DIALOG_ENDED, {id: endedId});
 
         // Take ownership of the resolver now, before the logic below runs.
         // onEnd can set a flag or navigate, either of which can open another

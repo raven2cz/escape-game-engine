@@ -24,8 +24,9 @@ export const ENGINE_VERSION = '1.0.0';
  * dashboard written against 1 can look at an engine reporting 2 and say "I do
  * not understand this" instead of quietly mis-reading it.
  *
- * There is nothing to report yet: the progress events are EI-010 and belong to
- * the dashboard project. This integer exists now because it costs one line now
- * and a guessing game later.
+ * Version 2 is the first that promises anything: the DashboardReport contract
+ * in engine/dashboard/report.js, documented in docs/DASHBOARD-API.md. Adding an
+ * optional field does not move it; removing a field or changing what one means
+ * does. It is not the save format, which the engine never exposes.
  */
-export const ENGINE_API_VERSION = 1;
+export const ENGINE_API_VERSION = 2;

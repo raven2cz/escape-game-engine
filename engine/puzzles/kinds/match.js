@@ -769,6 +769,12 @@ export default class MatchPuzzle extends BasePuzzle {
 
     onOk() {
         const sol = this._solutionPairs();
+        // Nothing paired is not an answer, and not a mistake (see code.js),
+        // unless no pairs are expected.
+        if (this._pairs.size === 0 && sol.size > 0) return {hold: true, status: 'incomplete'};
+        // Taken now: wrong pairs are undone 800 ms later. Each pair once, either way round.
+        // Pairs as [a, b] arrays, not joined strings, so no id can make two pairings look alike.
+        const answer = [...new Set([...this._pairs].map(([a, b]) => JSON.stringify(a < b ? [a, b] : [b, a])))].sort();
         let allOk = true;
 
         const wrongTokens = [];
@@ -847,7 +853,7 @@ export default class MatchPuzzle extends BasePuzzle {
                     }
                 }, 800);
             }
-            return {hold: true};
+            return {hold: true, status: 'wrong', answer};
         }
 
         const detail = {};

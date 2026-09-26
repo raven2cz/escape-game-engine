@@ -116,7 +116,13 @@ function watchSceneAspect(game, sceneImage) {
  * @param {string} [opts.baseUrl]  where that game's files are. Defaults to
  *                                 `./games/<gameId>/`; the runtime passes its own
  *                                 versioned prefix.
- * @param {object} [opts.storage]  {load, save, clear}. The runtime's, when hosted.
+ * @param {object} [opts.storage]  {load, save, clear}. Where a reload finds the run.
+ *        Local only: it may cache the state on the device and must never
+ *        transmit it. The saved state is the engine's private model.
+ * @param {object} [opts.report]   the DashboardReport transport,
+ *        `{enabled, send(wire, {terminal})}`. The only sanctioned way anything
+ *        about a run leaves the tablet, and it carries a DashboardReport, never
+ *        the state. Defaults to sending nothing. See docs/DASHBOARD-API.md.
  * @param {string} [opts.sessionId] which lesson this run belongs to
  * @param {string} [opts.teamId]    which team within it
  *        Both optional, and the engine never invents them. Without them one
@@ -171,6 +177,7 @@ export async function boot(opts = {}) {
         lang,
         i18n: {engine: engineStrings, game: gameStrings || {}},
         ...(opts.storage ? {storage: opts.storage} : {}),
+        ...(opts.report ? {reportTransport: opts.report} : {}),
         sessionId,
         teamId,
 
