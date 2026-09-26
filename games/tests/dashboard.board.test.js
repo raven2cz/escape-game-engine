@@ -9,7 +9,7 @@ import {join, resolve} from 'node:path';
 import {buildCatalogue} from '../../engine/dashboard/catalogue.js';
 import {project} from '../../engine/dashboard/projector.js';
 import {toWire} from '../../engine/dashboard/report.js';
-import {ReportStore, summarize, formatDuration, teamKey, BOARD_DEFAULTS} from '../../board/board-model.js';
+import {ReportStore, summarize, formatDuration, teamKey, avatarFor, BOARD_DEFAULTS} from '../../board/board-model.js';
 import {renderBoard} from '../../board/board-view.js';
 import {localSource, httpSource} from '../../board/sources.js';
 import {localBoardKey} from '../../engine/dashboard/transports.js';
@@ -95,50 +95,87 @@ describe('ReportStore', () => {
 describe('summarize', () => {
     const entries = (...reports) => reports.map(r => ({report: r, receivedAt: NOW - 5000}));
 
-    it('a row per team: room, stay, progress, mistakes, open task, milestones, state', () => {
+    it('a row per player: room, stay, progress, mistakes, open task, milestones, state', () => {
         const m = summarize(catalogue, entries(report({
-            team: 'Modří', scene: 'lab', since: NOW - 3 * MIN,
+            team: 'Anička', scene: 'lab', since: NOW - 3 * MIN,
             puzzles: {p1: {seq: 1, attempts: 3, mistakes: 2, solved: true}}, flags: {door_open: true},
             activity: {ref: 'p2', since: NOW - 30_000},
         })), {now: NOW});
-        const t = m.teams[0];
+        const t = m.players[0];
         expect(t).toMatchObject({
-            team: 'Modří', sceneLabel: 'Laboratoř', sceneForMs: 3 * MIN, solved: 1, total: 2, mistakes: 2,
+            name: 'Anička', sceneLabel: 'Laboratoř', sceneForMs: 3 * MIN, solved: 1, total: 2, mistakes: 2,
             activity: {ref: 'p2', label: 'Druhá', forMs: 30_000}, completed: false, connection: 'ok', stuck: false,
         });
         expect(t.milestones).toEqual([{id: 'door', label: 'Dveře', reached: true}]);
     });
 
-    it('calls a team stuck only when it is long in absolute terms and long against the class', () => {
+    it('each player row carries a strip, one cell per task in game order', () => {
+        const m = summarize(catalogue, entries(
+            report({team: 'a', puzzles: {p1: {seq: 1, attempts: 1, mistakes: 0, solved: true}, p2: {seq: 2, attempts: 2, mistakes: 2, solved: false}}}),
+            report({team: 'b', puzzles: {p1: {seq: 1, attempts: 4, mistakes: 3, solved: true}}}),
+        ), {now: NOW});
+        expect(m.players.map(t => t.cells.map(c => [c.task, c.state, c.mistakes]))).toEqual([
+            [['p1', 'first', 0], ['p2', 'open', 2]],
+            [['p1', 'after', 3], ['p2', 'none', 0]],
+        ]);
+    });
+
+    it('per task across the class: solved by, tried by, with mistakes, and which are hard', () => {
+        const m = summarize(catalogue, entries(
+            report({team: 'a', puzzles: {p1: {seq: 1, attempts: 2, mistakes: 1, solved: true}}}),
+            report({team: 'b', puzzles: {p1: {seq: 1, attempts: 4, mistakes: 3, solved: false}}}),
+            report({team: 'c', puzzles: {p1: {seq: 1, attempts: 1, mistakes: 0, solved: true}}}),
+        ), {now: NOW});
+        expect(m.taskSummary).toEqual([
+            {id: 'p1', label: 'První', solvedBy: 2, touchedBy: 3, withMistakes: 2, hard: true},
+            {id: 'p2', label: 'Druhá', solvedBy: 0, touchedBy: 0, withMistakes: 0, hard: false},
+        ]);
+    });
+
+    it('calls a player stuck only when it is long in absolute terms and long against the class', () => {
         const m = summarize(catalogue, entries(
             report({team: 'a', since: NOW - 2 * MIN}),
             report({team: 'b', since: NOW - 3 * MIN}),
             report({team: 'c', since: NOW - 12 * MIN}),
         ), {now: NOW});
-        expect(m.teams.map(t => [t.team, t.stuck])).toEqual([['a', false], ['b', false], ['c', true]]);
+        expect(m.players.map(t => [t.name, t.stuck])).toEqual([['a', false], ['b', false], ['c', true]]);
         expect(m.summary.stuck).toBe(1);
 
-        // Everyone slow together is a hard room, not a stuck team.
+        // Everyone slow together is a hard room, not a stuck player.
         const allSlow = summarize(catalogue, entries(
             report({team: 'a', since: NOW - 10 * MIN}), report({team: 'b', since: NOW - 11 * MIN}),
         ), {now: NOW});
-        expect(allSlow.teams.every(t => !t.stuck)).toBe(true);
+        expect(allSlow.players.every(t => !t.stuck)).toBe(true);
     });
 
-    it('a long-open puzzle counts as stuck too; a disconnected team is shown as that instead', () => {
+    it('a long-open puzzle counts as stuck too; a disconnected player is shown as that instead', () => {
         const m = summarize(catalogue, [
             {report: report({team: 'a', activity: {ref: 'p1', since: NOW - 9 * MIN}}), receivedAt: NOW},
             {report: report({team: 'b', since: NOW - 20 * MIN}), receivedAt: NOW - 10 * MIN},
             {report: report({team: 'c'}), receivedAt: NOW - 90_000},
         ], {now: NOW});
-        const byTeam = Object.fromEntries(m.teams.map(t => [t.team, t]));
-        expect(byTeam.a.stuck).toBe(true);
-        expect(byTeam.b.connection).toBe('offline');
-        expect(byTeam.b.stuck).toBe(false);
-        expect(byTeam.c.connection).toBe('stale');
+        const byName = Object.fromEntries(m.players.map(t => [t.name, t]));
+        expect(byName.a.stuck).toBe(true);
+        expect(byName.b.connection).toBe('offline');
+        expect(byName.b.stuck).toBe(false);
+        expect(byName.c.connection).toBe('stale');
     });
 
-    it('a disconnected team does not inflate the class baseline', () => {
+    it('lists who needs attention first: stuck longest first, then disconnected', () => {
+        const m = summarize(catalogue, [
+            {report: report({team: 'a', since: NOW - MIN}), receivedAt: NOW},
+            {report: report({team: 'b', since: NOW - MIN}), receivedAt: NOW},
+            {report: report({team: 'f', since: NOW - MIN}), receivedAt: NOW},
+            {report: report({team: 'g', since: NOW - 2 * MIN}), receivedAt: NOW},
+            {report: report({team: 'c', since: NOW - 9 * MIN, puzzles: {p1: {seq: 1, attempts: 3, mistakes: 3, solved: false}}}), receivedAt: NOW},
+            {report: report({team: 'd', since: NOW - 14 * MIN}), receivedAt: NOW},
+            {report: report({team: 'e'}), receivedAt: NOW - 10 * MIN},
+        ], {now: NOW});
+        expect(m.attention.map(a => [a.name, a.reason])).toEqual([['d', 'stuck'], ['c', 'stuck'], ['e', 'offline']]);
+        expect(m.attention[1]).toMatchObject({place: 'Chodba', mistakes: 3});
+    });
+
+    it('a disconnected player does not inflate the class baseline', () => {
         const m = summarize(catalogue, [
             {report: report({team: 'a', since: NOW - MIN}), receivedAt: NOW},
             {report: report({team: 'b', since: NOW - MIN}), receivedAt: NOW},
@@ -146,41 +183,35 @@ describe('summarize', () => {
             {report: report({team: 'd', since: NOW - 60 * MIN}), receivedAt: NOW - 20 * MIN},
             {report: report({team: 'e', since: NOW - 60 * MIN}), receivedAt: NOW - 20 * MIN},
         ], {now: NOW});
-        expect(m.teams.find(t => t.team === 'c').stuck).toBe(true);
+        expect(m.players.find(t => t.name === 'c').stuck).toBe(true);
     });
 
     it('never shows one stay longer than a lesson (a tablet that slept through the break)', () => {
         const m = summarize(catalogue, entries(report({team: 'a', since: NOW - 300 * MIN})), {now: NOW});
-        expect(m.teams[0].sceneForMs).toBe(BOARD_DEFAULTS.lessonMs);
-    });
-
-    it('the grid: first try, after mistakes, open, untouched, and how many teams struggled', () => {
-        const m = summarize(catalogue, entries(
-            report({team: 'a', puzzles: {p1: {seq: 1, attempts: 1, mistakes: 0, solved: true}, p2: {seq: 2, attempts: 2, mistakes: 2, solved: false}}}),
-            report({team: 'b', puzzles: {p1: {seq: 1, attempts: 4, mistakes: 3, solved: true}}}),
-        ), {now: NOW});
-        expect(m.grid.map(r => [r.id, r.cells.map(c => c.state), r.withMistakes, r.solvedBy])).toEqual([
-            ['p1', ['first', 'after'], 1, 2],
-            ['p2', ['open', 'none'], 1, 0],
-        ]);
+        expect(m.players[0].sceneForMs).toBe(BOARD_DEFAULTS.lessonMs);
     });
 
     it('items: has, used, or not', () => {
         const m = summarize(catalogue, entries(report({team: 'a', inventory: ['lamp'], itemsUsed: {key: 1}})), {now: NOW});
-        expect(m.teams[0].items.map(i => [i.id, i.state])).toEqual([['key', 'used'], ['lamp', 'has']]);
+        expect(m.players[0].items.map(i => [i.id, i.state])).toEqual([['key', 'used'], ['lamp', 'has']]);
         expect(m.show).toEqual({items: true, milestones: true});
     });
 
-    it('a finished team: completion time, time played, and no stay clock', () => {
+    it('a finished player: completion time, time played, and no stay clock', () => {
         const m = summarize(catalogue, entries(report({team: 'a', scene: 'exit', completedAt: NOW - 2 * MIN, startedAt: NOW - 32 * MIN})), {now: NOW});
-        expect(m.teams[0]).toMatchObject({completed: true, playedMs: 30 * MIN, sceneForMs: 0, stuck: false});
+        expect(m.players[0]).toMatchObject({completed: true, playedMs: 30 * MIN, sceneForMs: 0, stuck: false});
         expect(m.summary.completed).toBe(1);
     });
 
-    it('works without a catalogue, from what the teams reported', () => {
+    it('works without a catalogue, from what the players reported', () => {
         const m = summarize(null, entries(report({team: 'a', puzzles: {p1: {seq: 1, attempts: 1, mistakes: 0, solved: true}}})), {now: NOW});
         expect(m.catalogueReady).toBe(false);
-        expect(m.grid.map(r => r.id)).toEqual(['p1']);
+        expect(m.tasks.map(t => t.id)).toEqual(['p1']);
+    });
+
+    it('sorts players by name the Czech way', () => {
+        const m = summarize(catalogue, entries(...['Šimon', 'Adam', 'Čeněk', 'Zuzana', 'Hynek'].map(team => report({team}))), {now: NOW});
+        expect(m.players.map(t => t.name)).toEqual(['Adam', 'Čeněk', 'Hynek', 'Šimon', 'Zuzana']);
     });
 
     it('needs to be told the time', () => {
@@ -194,6 +225,16 @@ describe('summarize', () => {
     });
 });
 
+describe('avatarFor', () => {
+    it('initials from one or two names, and the same colour for the same name', () => {
+        expect(avatarFor('Anička').initials).toBe('AN');
+        expect(avatarFor('Jan Novák').initials).toBe('JN');
+        expect(avatarFor('Anička').hue).toBe(avatarFor('Anička').hue);
+        expect(avatarFor('Anička').hue).not.toBe(avatarFor('Bára').hue);
+        expect(avatarFor('').initials).toBe('?');
+    });
+});
+
 describe('renderBoard', () => {
     const draw = (reports, opts = {}) => {
         const root = document.createElement('div');
@@ -201,31 +242,44 @@ describe('renderBoard', () => {
         return root;
     };
 
-    it('draws a row per team, the grid, milestones and items', () => {
+    it('draws a row per player with avatar, task strip, milestones; the task summary and items', () => {
         const root = draw([
-            report({team: 'b', puzzles: {p1: {seq: 1, attempts: 2, mistakes: 1, solved: true}}, flags: {door_open: true}, inventory: ['key']}),
-            report({team: 'a'}),
+            report({team: 'Bára', puzzles: {p1: {seq: 1, attempts: 2, mistakes: 1, solved: true}}, flags: {door_open: true}, inventory: ['key']}),
+            report({team: 'Adam'}),
         ]);
-        expect([...root.querySelectorAll('.board-team-name')].map(e => e.textContent)).toEqual(['a', 'b']);
-        expect(root.querySelector('tr[data-task="p1"]').textContent).toContain('✓1');
-        expect(root.querySelector('.board-chip.is-reached').textContent).toBe('Dveře');
-        expect(root.querySelector('.board-item.is-has').textContent).toBe('má');
+        expect([...root.querySelectorAll('.board-players .board-player-name')].map(e => e.textContent)).toEqual(['Adam', 'Bára']);
+        const bara = root.querySelectorAll('.board-player')[1];
+        expect(bara.querySelector('.board-avatar').textContent).toBe('BÁ');
+        expect([...bara.querySelectorAll('.board-strip .board-cell')].map(c => c.className)).toEqual(['board-cell is-after', 'board-cell is-none']);
+        expect(bara.querySelector('.board-cell.is-after').title).toBe('1. První: vyřešeno po chybách, chyb: 1');
+        expect(bara.querySelectorAll('.board-dot.is-reached')).toHaveLength(1);
+        expect(root.querySelector('.board-tasks tr[data-task="p1"]').textContent).toContain('1/2');
+        expect(root.querySelector('.board-item.is-has').title).toBe('Klíč: má');
     });
 
-    it('marks a stuck team', () => {
+    it('shows who needs attention above the table', () => {
         const root = draw([report({team: 'a', since: NOW - MIN}), report({team: 'b', since: NOW - MIN}), report({team: 'c', since: NOW - 15 * MIN})]);
-        const stuck = [...root.querySelectorAll('.board-team.is-stuck .board-team-name')].map(e => e.textContent);
-        expect(stuck).toEqual(['c']);
+        const cards = [...root.querySelectorAll('.board-attention .board-card')];
+        expect(cards.map(c => c.querySelector('strong').textContent)).toEqual(['c']);
+        expect(root.querySelector('.board-player.is-stuck .board-player-name').textContent).toBe('c');
+    });
+
+    it('stays one row per player for a whole class of thirty', () => {
+        const names = Array.from({length: 30}, (_, i) => `Hráč ${String(i + 1).padStart(2, '0')}`);
+        const root = draw(names.map(team => report({team})));
+        expect(root.querySelectorAll('.board-players tbody tr')).toHaveLength(30);
+        expect(root.querySelectorAll('.board-tasks tbody tr')).toHaveLength(2); // per task, not per player
+        expect(root.querySelector('.board-summary').textContent).toContain('Hráčů: 30');
     });
 
     it('treats every name as text, never markup', () => {
         const root = draw([report({team: '<img src=x onerror=alert(1)>'})]);
         expect(root.querySelector('img')).toBeNull();
-        expect(root.querySelector('.board-team-name').textContent).toBe('<img src=x onerror=alert(1)>');
+        expect(root.querySelector('.board-player-name').textContent).toBe('<img src=x onerror=alert(1)>');
     });
 
     it('says so when nobody has joined yet', () => {
-        expect(draw([]).textContent).toContain('Zatím se nepřipojil žádný tým.');
+        expect(draw([]).textContent).toContain('Zatím se nepřipojil žádný hráč.');
     });
 });
 

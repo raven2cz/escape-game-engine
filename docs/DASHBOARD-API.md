@@ -273,9 +273,13 @@ board:   http://<laptop>:5500/board/?game=warp-engine&session=7A&source=http
 dev server's `/api/report` and `/api/reports` are in memory and unauthenticated:
 a development convenience, not the runtime.
 
-What it shows: a row per team (room, time there, tasks solved of total, mistakes,
-the task open right now, milestones, connection, finished at), a task by team
-grid (first try, after mistakes, in progress, untouched, and how many teams
-struggled), and items (has, used, never had). A team is shown as possibly stuck
-when it has been in one place at least 4 minutes and at least twice the class's
-median; a disconnected team is shown as that instead.
+What it shows, built for a class of up to thirty or so pupils playing one per
+tablet (the report's `team` is whoever holds the tablet: in class, a player):
+who needs attention on top (possibly stuck, longest first, then disconnected),
+then one compact row per player (initials avatar, room, time there, tasks solved
+of total, a strip with one cell per task, mistakes, the task open right now,
+milestones as dots, played or finished at), then the class per task (solved by,
+tried by, with mistakes, the hard ones marked) and items (has, used, never had).
+A player is shown as possibly stuck when they have been in one place at least
+4 minutes and at least twice the class's median; a disconnected player is
+shown as that instead.

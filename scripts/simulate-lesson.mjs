@@ -2,7 +2,7 @@
 // scripts/simulate-lesson.mjs
 //
 // A lesson without a class: simulated teams play a real game and report to the
-// dev server's board, so the board can be seen working without six tablets.
+// dev server's board, so the board can be seen working without thirty tablets.
 //
 //     npm run dev                                   (one terminal)
 //     node scripts/simulate-lesson.mjs --game warp-engine
@@ -11,11 +11,11 @@
 // The reports are real: built by the engine's own projector and toWire() from a
 // simulated saved state, so the board receives exactly what tablets would send.
 // The route, the tasks and the items come from the game's files; what a team
-// does with them is invented. Teams are pre-aged (the lesson is already ten
-// minutes in), and three have a part to play: one races to the end, one gets
-// stuck in a room, one drops off the network.
+// does with them is invented. Players are pre-aged (the lesson is already ten
+// minutes in), and a few have a part to play: two race to the end, two get
+// stuck in a room, two drop off the network. One pupil per tablet, as in class.
 //
-// Options: --game <id>  --session <s>  --url <dev server>  --games <dir>  --teams <n>  --interval <ms>
+// Options: --game <id>  --session <s>  --url <dev server>  --games <dir>  --players <n>  --interval <ms>
 
 import {readFileSync} from 'node:fs';
 import {join, resolve, dirname} from 'node:path';
@@ -25,7 +25,13 @@ import {project} from '../engine/dashboard/projector.js';
 import {toWire} from '../engine/dashboard/report.js';
 
 const MIN = 60_000;
-const TEAM_NAMES = ['Modří', 'Zelení', 'Červení', 'Žlutí', 'Fialoví', 'Oranžoví', 'Hnědí', 'Stříbrní'];
+const PLAYER_NAMES = [
+    'Adam', 'Anička', 'Barbora', 'Čeněk', 'David', 'Eliška', 'Filip', 'Gabriela', 'Hynek', 'Ivana',
+    'Jakub', 'Kateřina', 'Lukáš', 'Magdaléna', 'Matěj', 'Natálie', 'Ondřej', 'Petra', 'Radek', 'Šárka',
+    'Tomáš', 'Tereza', 'Vojtěch', 'Veronika', 'Zdeněk', 'Zuzana', 'Štěpán', 'Klára', 'Marek', 'Lucie',
+];
+/** Who plays which part: two race ahead, two get stuck, two lose the network. */
+const ROLES = {2: 'fast', 13: 'fast', 3: 'stuck', 18: 'stuck', 4: 'dropout', 22: 'dropout'};
 
 /** A small seeded random generator, so a run can be repeated. */
 export function seeded(seed = 7) {
@@ -77,21 +83,21 @@ export function planRoute(scenesDoc, catalogue) {
  * A simulated lesson. `step(now)` moves every team that is due and returns the
  * reports of every team still connected.
  */
-export function createLesson({scenesDoc, puzzles = null, dialogs = null, session = 'ukazka', teams = 6, now = Date.now(), rng = seeded()}) {
+export function createLesson({scenesDoc, puzzles = null, dialogs = null, session = 'ukazka', players = 30, now = Date.now(), rng = seeded()}) {
     const catalogue = buildCatalogue(scenesDoc, puzzles, {dialogsDoc: dialogs});
     const route = planRoute(scenesDoc, catalogue);
     const flagMilestones = catalogue.milestones.filter(m => m.type === 'flag');
     const game = catalogue.game;
 
     const makeTeam = (name, i) => {
-        const role = i === 2 ? 'fast' : i === 3 ? 'stuck' : i === 4 ? 'dropout' : 'normal';
+        const role = ROLES[i] || 'normal';
         const startedAt = now - (8 + Math.floor(rng() * 6)) * MIN;
         const t = {
             name, role,
             speedMs: role === 'fast' ? 3000 : 7000 + Math.floor(rng() * 6000),
             mistakeRate: role === 'stuck' ? 0.85 : 0.25 + rng() * 0.3,
             stepIdx: 0, taskIdx: 0, opened: false, nextAt: now,
-            offlineAt: role === 'dropout' ? now + 40_000 : Infinity,
+            offlineAt: role === 'dropout' ? now + 30_000 + Math.floor(rng() * 30_000) : Infinity,
             state: {inventory: [], solved: {}, flags: {}, visited: {}, scene: route[0].scene},
             progress: {
                 run: `sim-${name}-${startedAt}`, revision: 0, seq: 0, startedAt,
@@ -103,7 +109,7 @@ export function createLesson({scenesDoc, puzzles = null, dialogs = null, session
         t.state.visited[route[0].scene] = true;
         return t;
     };
-    const list = TEAM_NAMES.slice(0, teams).map(makeTeam);
+    const list = PLAYER_NAMES.slice(0, players).map(makeTeam);
 
     const enter = (t, idx, at) => {
         const leg = route[idx];
@@ -215,7 +221,7 @@ export function createLesson({scenesDoc, puzzles = null, dialogs = null, session
 }
 
 function parseArgs(argv) {
-    const o = {game: 'warp-engine', session: 'ukazka', url: 'http://127.0.0.1:5500', games: '../escape-games', teams: 6, interval: 2000};
+    const o = {game: 'warp-engine', session: 'ukazka', url: 'http://127.0.0.1:5500', games: '../escape-games', players: 30, interval: 2000};
     for (let i = 0; i < argv.length; i += 2) {
         const k = argv[i].replace(/^--/, '');
         if (!(k in o)) throw new Error(`unknown option ${argv[i]}`);
@@ -234,9 +240,9 @@ async function main() {
 
     const lesson = createLesson({
         scenesDoc: read('scenes.json'), puzzles: puzzleMap(read('puzzles.json')), dialogs: read('dialogs.json'),
-        session: o.session, teams: o.teams,
+        session: o.session, players: o.players,
     });
-    console.log(`Simulating ${lesson.teams.length} teams on ${o.game}, lesson "${o.session}", reporting to ${o.url}`);
+    console.log(`Simulating ${lesson.teams.length} players on ${o.game}, lesson "${o.session}", reporting to ${o.url}`);
     console.log(`Board: ${o.url}/board/?game=${o.game}&session=${encodeURIComponent(o.session)}&source=http`);
     console.log(`Play along: ${o.url}/?game=${o.game}&session=${encodeURIComponent(o.session)}&team=Ty&report=http\n`);
 
@@ -245,8 +251,8 @@ async function main() {
         const results = await Promise.all(reports.map(r => fetch(`${o.url}/api/report`, {
             method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify(r),
         }).then(res => res.status).catch(() => 'down')));
-        const line = lesson.teams.map(t => `${t.name}:${t.state.scene}${t.progress.completedAt ? '✓' : ''}`).join('  ');
-        process.stdout.write(`\r${results.every(s => s === 204) ? 'ok  ' : 'ERR '} ${line}`.slice(0, 200).padEnd(200));
+        const done = lesson.teams.filter(t => t.progress.completedAt != null).length;
+        process.stdout.write(`\r${results.every(s => s === 204) ? 'ok ' : 'ERR'} ${reports.length} reporting, ${done} finished   `);
     };
     await tick();
     setInterval(tick, o.interval);

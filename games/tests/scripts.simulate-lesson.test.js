@@ -32,9 +32,11 @@ describe('simulate-lesson', () => {
         }
         expect(invalid).toBe(0);
         expect(lesson.teams.some(t => t.progress.completedAt != null)).toBe(true);
-        expect(lastCount).toBe(lesson.teams.length - 1); // the dropout stopped reporting
-        const stuck = lesson.teams.find(t => t.role === 'stuck');
-        expect(stuck.progress.completedAt).toBeNull();
+        const dropouts = lesson.teams.filter(t => t.role === 'dropout').length;
+        expect(dropouts).toBeGreaterThan(0);
+        expect(lastCount).toBe(lesson.teams.length - dropouts); // the dropouts stopped reporting
+        expect(lesson.teams.filter(t => t.role === 'stuck').every(t => t.progress.completedAt == null)).toBe(true);
+        expect(lesson.teams).toHaveLength(30);
     });
 
     it('is repeatable with the same seed', () => {

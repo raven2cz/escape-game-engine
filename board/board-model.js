@@ -7,7 +7,7 @@
 // test of the API: if the board needs something the report does not carry, the
 // report is what gets extended, not this file.
 //
-// Judgements live here, not in the engine. The engine reports where a team is
+// Judgements live here, not in the engine. The engine reports where a player is
 // and since when; whether that is "stuck" is decided here, against the rest of
 // the class, and the thresholds are options.
 
@@ -20,7 +20,7 @@ export const BOARD_DEFAULTS = Object.freeze({
     staleMs: 60_000,
     /** No report for this long: treat it as disconnected. */
     offlineMs: 3 * 60_000,
-    /** Never call a team stuck before this long in one place. */
+    /** Never call a player stuck before this long in one place. */
     stuckMinMs: 4 * 60_000,
     /** ...and not before this many times the class's median stay. */
     stuckFactor: 2,
@@ -39,16 +39,16 @@ function positionOnly(report) {
     return wire;
 }
 
-/** Where a report is filed: one slot per lesson, game and team. */
+/** Where a report is filed: one slot per lesson, game and player (the report's `team`). */
 export function teamKey(report) {
     const part = (v) => encodeURIComponent(v ?? '');
     return `${part(report.session)}|${part(report.game)}|${part(report.team)}`;
 }
 
 /**
- * The latest report of every team. Reports can arrive twice, late, or out of
+ * The latest report of every player. Reports can arrive twice, late, or out of
  * order (a retry, a beacon, a slow request); the order key is (run, revision)
- * from the contract. A later run of the same team (a restart) replaces an
+ * from the contract. A later run of the same player (a restart) replaces an
  * earlier one; within a run the higher revision wins.
  */
 export class ReportStore {
@@ -105,7 +105,19 @@ const median = (values) => {
 };
 
 const collator = typeof Intl !== 'undefined' ? new Intl.Collator('cs', {numeric: true}) : null;
-const byTeam = (a, b) => (collator ? collator.compare(a, b) : (a < b ? -1 : a > b ? 1 : 0));
+const byName = (a, b) => (collator ? collator.compare(a, b) : (a < b ? -1 : a > b ? 1 : 0));
+
+/**
+ * A face for a player until players can choose an avatar: initials on a colour
+ * derived from the name, so the same child always looks the same on the board.
+ */
+export function avatarFor(name) {
+    const words = String(name || '?').trim().split(/\s+/).filter(Boolean);
+    const initials = (words.length > 1 ? words[0][0] + words[1][0] : (words[0] || '?').slice(0, 2)).toUpperCase();
+    let h = 0;
+    for (const ch of String(name || '')) h = (h * 31 + ch.codePointAt(0)) >>> 0;
+    return {initials, hue: h % 360};
+}
 
 /**
  * @typedef {'first'|'after'|'open'|'none'} CellState
@@ -114,7 +126,12 @@ const byTeam = (a, b) => (collator ? collator.compare(a, b) : (a < b ? -1 : a > 
  */
 
 /**
- * Everything the board shows, computed from the latest report of each team.
+ * Everything the board shows, computed from the latest report of each player.
+ *
+ * In a lesson that is usually one pupil per tablet, up to thirty or so at once,
+ * so everything here is per player and scales by rows: each player's row carries
+ * a strip with one cell per task, and the per-task view is a summary underneath.
+ * (The report's `team` field names whoever holds the tablet; here, a player.)
  *
  * @param {object|null} catalogue  from buildCatalogue(); may be null or not ready
  * @param {{report: object, receivedAt: number, newerApi?: boolean}[]} entries
@@ -129,7 +146,7 @@ export function summarize(catalogue, entries, options = {}) {
     const sceneLabel = new Map((cat?.scenes || []).map(s => [s.id, s.label]));
     const clamp = (ms) => Math.max(0, Math.min(ms, o.lessonMs));
 
-    // Tasks: the catalogue's, in game order. Without one, whatever teams reported.
+    // Tasks: the catalogue's, in game order. Without one, whatever players reported.
     let tasks = cat?.tasks ? cat.tasks.map(t => ({id: t.id, label: t.label})) : null;
     if (!tasks) {
         const seen = new Map();
@@ -139,16 +156,18 @@ export function summarize(catalogue, entries, options = {}) {
         tasks = [...seen.values()];
     }
 
-    const teams = entries.map(({report: r, receivedAt, newerApi}) => {
+    const players = entries.map(({report: r, receivedAt, newerApi}) => {
         const outcomes = new Map((r.puzzles || []).map(p => [p.ref, p]));
         const since = r.position?.since ?? now;
         const lastSeenMs = Math.max(0, now - receivedAt);
         const milestoneSet = new Set(r.milestones || []);
         const inventory = new Set(r.inventory || []);
         const used = new Set(r.itemsUsed || []);
+        const name = r.team || 'Bez jména';
         return {
             key: teamKey(r),
-            team: r.team || 'Bez názvu',
+            name,
+            avatar: avatarFor(name),
             session: r.session,
             newerApi: !!newerApi,
             scene: r.position?.scene ?? null,
@@ -162,6 +181,13 @@ export function summarize(catalogue, entries, options = {}) {
             scenesVisited: r.progress?.scenesVisited ?? 0,
             scenesTotal: r.progress?.scenesTotal ?? null,
             mistakes: (r.puzzles || []).reduce((sum, p) => sum + (p.mistakes || 0), 0),
+            /** One cell per task, in game order: the player's row strip. */
+            cells: tasks.map(task => {
+                const p = outcomes.get(task.id);
+                /** @type {CellState} */
+                const state = !p ? 'none' : p.solved ? (p.mistakes ? 'after' : 'first') : 'open';
+                return {task: task.id, label: task.label, state, mistakes: p?.mistakes ?? 0};
+            }),
             milestones: (cat?.milestones || []).map(m => ({id: m.id, label: m.label, reached: milestoneSet.has(m.id)})),
             items: (cat?.items || []).map(it => ({
                 id: it.id, label: it.label,
@@ -173,15 +199,14 @@ export function summarize(catalogue, entries, options = {}) {
             lastSeenMs,
             connection: lastSeenMs >= o.offlineMs ? 'offline' : lastSeenMs >= o.staleMs ? 'stale' : 'ok',
             stuck: false,
-            outcomes,
         };
-    }).sort((a, b) => byTeam(a.team, b.team));
+    }).sort((a, b) => byName(a.name, b.name));
 
     // Stuck: much longer in one place than the rest of the class, and long in
-    // absolute terms. A team that is disconnected is shown as that instead;
-    // "no news" is not the same as "no progress".
-    const playing = teams.filter(t => !t.completed);
-    // The class baseline is the teams we are actually hearing from; a
+    // absolute terms. A disconnected player is shown as that instead; "no news"
+    // is not the same as "no progress".
+    const playing = players.filter(t => !t.completed);
+    // The class baseline is the players we are actually hearing from; a
     // disconnected tablet's frozen clock says nothing about the room.
     const med = median(playing.filter(t => t.connection !== 'offline').map(t => t.sceneForMs));
     const threshold = Math.max(o.stuckMinMs, o.stuckFactor * med);
@@ -191,33 +216,44 @@ export function summarize(catalogue, entries, options = {}) {
         t.stuck = t.connection !== 'offline' && (longStay || longPuzzle);
     }
 
-    const grid = tasks.map(task => {
+    // Who the teacher should walk to first: stuck (longest first), then lost
+    // connection. With thirty rows these would otherwise drown.
+    const attention = [
+        ...players.filter(t => t.stuck).sort((a, b) => Math.max(b.sceneForMs, b.activity?.forMs ?? 0) - Math.max(a.sceneForMs, a.activity?.forMs ?? 0))
+            .map(t => ({key: t.key, name: t.name, avatar: t.avatar, reason: 'stuck',
+                place: t.activity?.label || t.sceneLabel, forMs: Math.max(t.sceneForMs, t.activity?.forMs ?? 0), mistakes: t.mistakes})),
+        ...players.filter(t => !t.completed && t.connection === 'offline')
+            .map(t => ({key: t.key, name: t.name, avatar: t.avatar, reason: 'offline', place: t.sceneLabel, forMs: t.lastSeenMs, mistakes: t.mistakes})),
+    ];
+
+    // Per task, across the class: which question is the class struggling with.
+    const taskSummary = tasks.map((task, i) => {
         let withMistakes = 0;
         let solvedBy = 0;
-        const cells = teams.map(t => {
-            const p = t.outcomes.get(task.id);
-            if (p?.mistakes) withMistakes++;
-            if (p?.solved) solvedBy++;
-            /** @type {CellState} */
-            const state = !p ? 'none' : p.solved ? (p.mistakes ? 'after' : 'first') : 'open';
-            return {team: t.key, state, mistakes: p?.mistakes ?? 0};
-        });
-        return {id: task.id, label: task.label, cells, withMistakes, solvedBy};
+        let touchedBy = 0;
+        for (const pl of players) {
+            const c = pl.cells[i];
+            if (c.state !== 'none') touchedBy++;
+            if (c.state === 'first' || c.state === 'after') solvedBy++;
+            if (c.mistakes) withMistakes++;
+        }
+        return {id: task.id, label: task.label, solvedBy, touchedBy, withMistakes,
+            hard: touchedBy > 0 && withMistakes >= Math.max(2, Math.ceil(touchedBy / 2))};
     });
-
-    for (const t of teams) delete t.outcomes;
 
     return {
         now,
         catalogueReady: !!cat?.ready,
         show: {items: !!cat?.show?.items, milestones: !!cat?.show?.milestones},
-        teams,
-        grid,
+        tasks,
+        players,
+        attention,
+        taskSummary,
         summary: {
-            teams: teams.length,
-            completed: teams.filter(t => t.completed).length,
-            stuck: teams.filter(t => t.stuck).length,
-            offline: teams.filter(t => t.connection === 'offline').length,
+            players: players.length,
+            completed: players.filter(t => t.completed).length,
+            stuck: players.filter(t => t.stuck).length,
+            offline: players.filter(t => t.connection === 'offline').length,
             medianStayMs: med,
         },
     };

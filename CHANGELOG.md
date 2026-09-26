@@ -19,7 +19,9 @@ repository; see `docs/RELEASING.md` for which version means what.
   `docs/DASHBOARD-API.md`. No `saveVersion` moves and no lesson ends. (EI-010)
 - **A teacher's board**, in `board/`, built only on that contract: a row per
   team, a task by team grid, items, and who may be stuck. With the dev server,
-  tablets on the network report to it with `&report=http`. (EI-010)
+  tablets on the network report to it with `&report=http`. Built for a class of
+  thirty playing one per tablet: one row per player with a task strip, who needs
+  attention on top, and the per-task picture underneath. (EI-010)
 - **Games can name things for the board** with `meta.dashboard` in scenes.json:
   labels for scenes, tasks and items, and milestones (a flag, a scene, a task or
   a dialog). It changes names, never what is measured. (EI-010)
