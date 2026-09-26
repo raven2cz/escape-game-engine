@@ -9,6 +9,40 @@ repository; see `docs/RELEASING.md` for which version means what.
 
 ## Unreleased
 
+- **The teacher can see the lesson.** The engine now keeps a private record of
+  each team's run (where it is and since when, attempts and mistakes per task,
+  items used, dialogs seen, when it finished) and reports it as a declared,
+  versioned `DashboardReport`, never as its internal state. Reports are built off
+  the game's transition path, one per burst of activity, and survive a reload.
+  Nothing is sent anywhere unless the host passes a transport (`boot({report})`).
+  `ENGINE_API_VERSION` is now 2, the first version that promises a contract; see
+  `docs/DASHBOARD-API.md`. No `saveVersion` moves and no lesson ends. (EI-010)
+- **A teacher's board**, in `board/`, built only on that contract: a row per
+  team, a task by team grid, items, and who may be stuck. With the dev server,
+  tablets on the network report to it with `&report=http`. Built for a class of
+  thirty playing one per tablet: one row per player with a task strip, who needs
+  attention on top, and the per-task picture underneath. (EI-010)
+- **Games can name things for the board** with `meta.dashboard` in scenes.json:
+  labels for scenes, tasks and items, and milestones (a flag, a scene, a task or
+  a dialog). It changes names, never what is measured. (EI-010)
+- **An unfinished answer is no longer a wrong one.** Pressing OK before every
+  part of a puzzle is answered (a gap left empty, a token not sorted, a pair not
+  made, nothing typed) keeps the puzzle open with the hint "Nejdřív dokonči
+  všechny odpovědi." instead of marking it wrong or failing it. (EI-010)
+- **"Kdo hraje?" before a game in a lesson.** A pupil writes a name or nickname
+  and picks one of 32 pictures (16 Fluent 3D animals, 16 Big Smile kids). The
+  name is the player: the slot the run is saved under and the name on the
+  teacher's board, where the picture replaces the initials. Remembered for the
+  lesson on the tablet, so a reload does not ask again; Restart forgets it for
+  the next child. Shown when the link has a `session` but no player; local play
+  is unchanged. The player gets a stable id, never shown; the name is only a
+  label, so two pupils called Anička stay two players. The report's `team`
+  field is now `playerId` (the identity) plus `player` (the name), and gains an
+  optional `avatar` id (API still 2, unreleased). Picture credits in
+  `engine/avatars/CREDITS.md` and on the screen. (EI-010)
+- `scripts/simulate-lesson.mjs` plays a lesson with simulated teams against the
+  dev server, to see the board working without tablets. (EI-010)
+
 - **A dropped puzzle file no longer breaks every puzzle for the rest of the
   run.** When the network dropped the request for a game's puzzle definitions,
   the engine cached the empty result as if it had loaded, so every puzzle became

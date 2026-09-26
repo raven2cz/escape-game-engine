@@ -18,6 +18,7 @@
 
 import {Game} from './engine.js';
 import {ENGINE_I18N} from './i18n.js';
+import {askWhoPlays, loadPlayer, savePlayer, forgetPlayer, cleanName, mintPlayerId} from './join.js';
 
 /** The nodes the engine takes by reference, and the chrome around them. */
 const SKELETON = `
@@ -70,13 +71,20 @@ function addStylesheet(href) {
 }
 
 /** Fetch JSON, or an empty object. A game need not have translations. */
-async function fetchJsonSafe(url) {
+async function fetchJsonSafe(url, timeoutMs = 8000) {
+    // Bounded: a request a school network drops (rather than refuses) would
+    // otherwise hold the start of the game forever, after the loading shell
+    // and its ten-second warning are already gone.
+    const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timer = ctrl ? setTimeout(() => ctrl.abort(), timeoutMs) : null;
     try {
-        const r = await fetch(url, {cache: 'no-cache'});
+        const r = await fetch(url, {cache: 'no-cache', ...(ctrl ? {signal: ctrl.signal} : {})});
         if (!r.ok) throw new Error(r.statusText);
         return await r.json();
     } catch {
         return {};
+    } finally {
+        if (timer) clearTimeout(timer);
     }
 }
 
@@ -107,6 +115,15 @@ function watchSceneAspect(game, sceneImage) {
     });
 }
 
+/** Whether a run is saved under a key, without trusting what is in it. */
+function hasStoredRun(key) {
+    try {
+        return !!globalThis.localStorage?.getItem(key);
+    } catch {
+        return false;
+    }
+}
+
 /**
  * Build the page and start the game.
  *
@@ -116,12 +133,23 @@ function watchSceneAspect(game, sceneImage) {
  * @param {string} [opts.baseUrl]  where that game's files are. Defaults to
  *                                 `./games/<gameId>/`; the runtime passes its own
  *                                 versioned prefix.
- * @param {object} [opts.storage]  {load, save, clear}. The runtime's, when hosted.
+ * @param {object} [opts.storage]  {load, save, clear}. Where a reload finds the run.
+ *        Local only: it may cache the state on the device and must never
+ *        transmit it. The saved state is the engine's private model.
+ * @param {object} [opts.report]   the DashboardReport transport,
+ *        `{enabled, send(wire, {terminal})}`. The only sanctioned way anything
+ *        about a run leaves the tablet, and it carries a DashboardReport, never
+ *        the state. Defaults to sending nothing. See docs/DASHBOARD-API.md.
  * @param {string} [opts.sessionId] which lesson this run belongs to
  * @param {string} [opts.teamId]    which team within it
  *        Both optional, and the engine never invents them. Without them one
  *        tablet has one slot per game, so the next class resumes the last
  *        class's progress unless somebody resets. See EI-002.
+ * @param {boolean} [opts.join]   ask "Kdo hraje?" (name + animal) before the game. Defaults
+ *        to on in a lesson (a session is given) when the link names no player,
+ *        off otherwise, so local play is unchanged. The answer is the player:
+ *        the slot the run is saved under and the name on the teacher's board.
+ * @param {string} [opts.avatar]   the player's animal, when the caller already knows it
  * @param {HTMLElement} [opts.root]   where to build. Defaults to document.body.
  * @param {boolean} [opts.editor]  offer the editor. Defaults to off; a tablet in
  *                                 a lesson should not fetch it or see the button.
@@ -140,7 +168,12 @@ export async function boot(opts = {}) {
     const lang = (opts.lang || 'cs').toLowerCase();
     const baseUrl = opts.baseUrl || `./games/${gameId}/`;
     const sessionId = opts.sessionId || null;
-    const teamId = opts.teamId || null;
+    // A player named in the link is an identity (the save slot, EI-002) and may
+    // be an opaque id from the runtime: kept whole. Only what the board shows is
+    // cleaned like a typed name.
+    let teamId = String(opts.teamId ?? '').trim() || null;
+    let playerName = cleanName(teamId) || null; // nothing showable is no name, never the raw id
+    let avatar = opts.avatar || null;
     const root = opts.root || document.body;
 
     STYLESHEETS.forEach(addStylesheet);
@@ -164,6 +197,24 @@ export async function boot(opts = {}) {
     el('modalCancel').textContent = t('engine.modal.cancel', 'Zavřít');
     el('modalOk').textContent = t('engine.modal.ok', 'OK');
 
+    // In a lesson, find out who is playing before anything is loaded under
+    // their name. A tablet that already knows its player for this lesson
+    // (a reload) is not asked again.
+    // Not when this tablet is already playing this lesson from before the
+    // screen existed (a session link, no player): an engine release must never
+    // end a lesson, and asking would move the pupil to a new, empty slot. The
+    // key is the one Game._storageKey() gives a session without a player.
+    const running = !!sessionId && !teamId && !opts.storage
+        && hasStoredRun(`state:${encodeURIComponent(sessionId)}:${gameId}:`);
+    const join = opts.join ?? (!!sessionId && !teamId && !running);
+    if (join) {
+        const player = loadPlayer(sessionId, gameId) || {id: mintPlayerId(), ...await askWhoPlays(root, t)};
+        savePlayer(sessionId, gameId, player);
+        teamId = player.id;          // the save slot and the identity: stable, never shown
+        playerName = player.name;    // only a label: two Aničkas stay two players
+        avatar = player.avatar;
+    }
+
     const game = new Game({
         baseUrl,
         scenesUrl: `${baseUrl}scenes.json`,
@@ -171,8 +222,11 @@ export async function boot(opts = {}) {
         lang,
         i18n: {engine: engineStrings, game: gameStrings || {}},
         ...(opts.storage ? {storage: opts.storage} : {}),
+        ...(opts.report ? {reportTransport: opts.report} : {}),
         sessionId,
         teamId,
+        playerName,
+        avatar,
 
         sceneImage: el('sceneImage'),
         hotspotLayer: el('hotspotLayer'),
@@ -191,7 +245,12 @@ export async function boot(opts = {}) {
     // pupil is reading it.
     opts.onGame?.(game);
 
-    restart.addEventListener('click', () => game.restart());
+    restart.addEventListener('click', () => {
+        // A restart on a shared tablet is usually the next child: forget who
+        // was playing, so they are asked their own name.
+        if (join) forgetPlayer(sessionId, gameId);
+        game.restart();
+    });
 
     if (opts.editor) {
         // Loaded only when asked for. It is 53 kB that a tablet in a lesson has

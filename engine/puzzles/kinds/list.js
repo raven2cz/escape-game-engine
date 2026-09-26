@@ -86,6 +86,9 @@ export default class ListPuzzle extends BasePuzzle {
 
         const runner = createPuzzleRunner({
             ref: step.ref,
+            // A step that names a puzzle is that puzzle; an inline step is
+            // `<list>#<index>`, the same id the dashboard catalogue derives.
+            taskId: step.ref || `${this.taskId || this.id}#${this._currentIdx}`,
             config: step.config,
             rect: puzzleRect,
             background: step.background || undefined,

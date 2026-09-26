@@ -139,10 +139,15 @@ export default class QuizPuzzle extends BasePuzzle {
     }
 
     onOk() {
-        if (this._locked) return {hold: true};
+        if (this._locked) return {hold: true, status: 'locked'};
 
         const sol = this._solutionIds();
         const sel = this.toIdSet(Array.from(this._selected));
+        // Nothing selected is not an answer, and not a mistake (see code.js),
+        // unless nothing *is* the answer: a quiz whose solution is empty is
+        // answered correctly by selecting nothing.
+        if (sel.size === 0 && sol.size > 0) return {hold: true, status: 'incomplete'};
+        const answer = [...sel].sort(); // what was submitted; see phrase.js
         const ok = (sel.size === sol.size) && [...sel].every(x => sol.has(x));
 
         const aggregateOnly = !!this.instanceOptions.aggregateOnly;
@@ -178,7 +183,7 @@ export default class QuizPuzzle extends BasePuzzle {
                     this._markCorrectness(false);
                 }, 300);
             }
-            return {hold: true};
+            return {hold: true, status: 'wrong', answer};
         }
 
         if (DBG()) {

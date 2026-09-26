@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="cs">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Přehled hodiny</title>
+    <link rel="stylesheet" href="./board.css">
+</head>
+<body>
+<header class="board-header">
+    <h1>Přehled hodiny <span id="boardGame" class="board-game"></span></h1>
+    <p id="boardSession" class="board-sub"></p>
+</header>
+<main id="board" class="board"></main>
+<script type="module">
+    // The teacher's board for one game and, optionally, one lesson.
+    //
+    //   board/?game=demo                       tablets in other tabs of this browser
+    //   board/?game=demo&source=http           tablets on the network, via the dev server
+    //   board/?game=demo&session=7A            only this lesson
+    //
+    // Everything here consumes the public dashboard API: the catalogue built
+    // from the game files, and DashboardReports. Nothing from inside the engine.
+    import {buildCatalogue} from '../engine/dashboard/catalogue.js';
+    import {ReportStore, summarize} from './board-model.js';
+    import {renderBoard} from './board-view.js';
+    import {localSource, httpSource} from './sources.js';
+
+    const params = new URLSearchParams(location.search);
+    const game = params.get('game');
+    const session = params.get('session');
+    const source = params.get('source') || 'local';
+    const root = document.getElementById('board');
+
+    if (!game || !/^[a-z0-9-]+$/.test(game)) {
+        root.textContent = 'Chybí hra. Otevřete přehled jako board/?game=<id hry>.';
+    } else {
+        document.getElementById('boardGame').textContent = game;
+        document.getElementById('boardSession').textContent = session ? `Hodina: ${session}` : 'Všechny hodiny';
+
+        const base = new URL(`../games/${game}/`, location.href);
+        const json = (file) => fetch(new URL(file, base), {cache: 'no-cache'}).then(r => (r.ok ? r.json() : null)).catch(() => null);
+        let catalogue = null;
+        Promise.all([json('scenes.json'), json('puzzles.json'), json('dialogs.json')]).then(([scenes, puzzles, dialogs]) => {
+            if (scenes) catalogue = buildCatalogue(scenes, puzzles, {dialogsDoc: dialogs});
+            draw();
+        });
+
+        const store = new ReportStore();
+        const draw = () => renderBoard(root, summarize(catalogue, store.list({game, session}), {now: Date.now()}));
+        const onReport = (report, receivedAt) => {
+            if (store.ingest(report, receivedAt) === 'accepted') draw();
+        };
+
+        if (source === 'http') {
+            const url = new URL('/api/reports', location.origin);
+            url.searchParams.set('game', game);
+            if (session) url.searchParams.set('session', session);
+            httpSource({url: url.href, onReport});
+        } else {
+            localSource({onReport});
+        }
+        draw();
+        setInterval(draw, 1000);
+    }
+</script>
+</body>
+</html>

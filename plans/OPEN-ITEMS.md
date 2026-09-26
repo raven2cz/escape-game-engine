@@ -30,7 +30,7 @@ pre-existing defect rather than a new one.
 | EI-007 | P2   | DONE   | Service worker precache is broken, and cache-first is unsafe    |
 | EI-008 | P2   | DONE   | Inventory items cannot be activated from the keyboard           |
 | EI-009 | P2   | DONE   | `runPuzzleList` is called but never defined                     |
-| EI-010 | P2   | OPEN   | Progress signal differs per game, no single source for a dashboard |
+| EI-010 | P2   | DONE   | Progress signal differs per game, no single source for a dashboard |
 | EI-011 | P3   | DONE   | Consumed item removal is not saved                              |
 | EI-012 | P3   | DONE   | Saved state has no schema, validation or migration              |
 | EI-013 | P3   | DONE   | A double tap can open two dialogs or two puzzles                |
@@ -51,6 +51,7 @@ pre-existing defect rather than a new one.
 | EI-028 | P1   | DONE   | Redrawing the match lines never terminates once a pair exists    |
 | EI-029 | P3   | DONE   | A list puzzle did not close the step it had started              |
 | EI-030 | P1   | DONE   | One dropped puzzles.json makes every puzzle unopenable           |
+| EI-031 | P3   | OPEN   | A gap used twice in one cloze text renders only once            |
 
 Where the fix lands is decided in [STABILIZATION.md](STABILIZATION.md).
 
@@ -521,6 +522,28 @@ than a `ReferenceError`, if the type is kept at all.
 ---
 
 ## EI-010: Progress signal differs per game, no single source for a dashboard
+
+**Status:** DONE (2026-09-26), on `feat/ei-010-system-state`. Built to
+`plans/EI-010-DESIGN-API.md` Revision 2; the contract of record is
+`docs/DASHBOARD-API.md`.
+
+**Resolution.** One emission point, as proposed below, and the owner's rule on
+top of it: the internal state is never shipped. The engine publishes signals at
+its existing choke points (`engine/dashboard/signals.js`); `ProgressModel` keeps a
+private record in `state.progress` (time per scene, attempts and mistakes per
+task, items used, dialogs seen, completion, run and revision), reload-safe and
+bounded; `DashboardReporter` turns each burst of signals into one deferred flush
+that reserves a revision, persists it, and sends a `DashboardReport` built by the
+projector and copied field by declared field by `toWire()`. The default transport
+sends nothing. Every kind now returns an explicit status, so a held wrong answer
+is counted, and an empty submission or a lock is not. Per-game labels and
+milestones live in `meta.dashboard`. The reference board is `board/`, built on
+the public API only. Tests: `games/tests/dashboard.*.test.js`, with the no-leak
+and non-blocking tests mutation-checked, each of the two walls on its own.
+
+The evidence counted 10 tasks for leeuwenhoek; it is 9. `list-lab-demo` is a
+container, not a task, and its five steps are hotspots already counted.
+`dashboard.catalogue.test.js` pins the demo's number.
 
 **Priority:** P2, and it is design input rather than a defect to patch.
 
@@ -1535,3 +1558,24 @@ forever; and the happy path still loads in one fetch. The two retry cases fail
 before the fix - verified by reverting the fix in a throwaway copy - with the map
 left empty and no second attempt. No prior test caught this because the suite's
 fetch stub always succeeds.
+
+---
+
+## EI-031: A gap used twice in one cloze text renders only once
+
+**Priority:** P3. Found by codex SOL while reviewing EI-010 (2026-09-26); not
+caused by it.
+
+**What happens.** `cloze.js` keeps one element per gap id (`_gapEls`), so when a
+text names the same gap twice (`{gap1} ... {gap1}`), only the last occurrence is
+wired up. The first stays visibly empty while one placement fills the id, so the
+puzzle can be solved with a gap still showing blank.
+
+**Reach.** Only `cloze-chemistry` and `cloze-math-quiz` in leeuwenhoek repeat a
+gap, and both are among the showcase puzzles no hotspot reaches. No pupil can
+open them today.
+
+**Fix.** Either mirror a placement into every occurrence of its gap, or require
+unique gap ids per occurrence and fix the two puzzles. A games-repo data test
+should refuse a repeated gap until then.
+

@@ -6,6 +6,14 @@ import {flagEntries} from './utils.js';
 import {ENGINE_VERSION, ENGINE_API_VERSION} from './version.js';
 import {DialogUI} from './dialogs.js';
 import {ContentPanel} from './content.js';
+import {GameSignals, SIGNALS} from './dashboard/signals.js';
+import {systemClock} from './dashboard/clock.js';
+import {ProgressModel, freshProgress, normalizeProgress} from './dashboard/progress-model.js';
+import {buildCatalogue} from './dashboard/catalogue.js';
+import {DashboardReporter} from './dashboard/reporter.js';
+import {NullTransport} from './dashboard/transports.js';
+import {avatarById} from './dashboard/avatars.js';
+import {cleanName} from './join.js';
 
 /**
  * Shape of the persisted state, versioned independently of the game.
@@ -66,10 +74,12 @@ export class Game {
         this.lang = (opts.lang || 'cs').toLowerCase();
         this.i18n = opts.i18n || {engine: {}, game: {}};
 
-        // Where the state is kept. localStorage by default; the hosted runtime
-        // will pass its own, with the authoritative copy in a Durable Object and
-        // localStorage as a local cache. This is the seam the runtime and the
-        // teacher's dashboard both need, which is why it exists before either.
+        // Where the state is kept, so that a reload resumes the run. localStorage
+        // by default. This is a *local* seam: an injected storage must keep the
+        // state on the device and must never transmit it. The saved state is
+        // the engine's private model, and the only thing that may leave the
+        // tablet is a DashboardReport, through `reportTransport` below. See
+        // docs/DASHBOARD-API.md "What never leaves the tablet".
         this._ownsLocalStorage = !opts.storage;
         this.storage = opts.storage || this._localStorage();
 
@@ -84,6 +94,13 @@ export class Game {
         // EI-002.
         this.sessionId = String(opts.sessionId ?? '').trim() || null;
         this.teamId = String(opts.teamId ?? '').trim() || null;
+        // The player's name and picture, from the "Kdo hraje?" screen or the
+        // link. Only for the teacher's board; nothing in the game depends on
+        // them. `teamId` stays the identity (and the save slot).
+        // Always cleaned here too, whoever constructs the Game; an id with
+        // nothing showable in it is no name rather than a raw label.
+        this.playerName = cleanName(opts.playerName) || cleanName(this.teamId) || null;
+        this.avatar = avatarById(opts.avatar)?.id ?? null;
 
         // How long to wait for a scene image before carrying on without it.
         // A school network drops requests, and a request that is dropped rather
@@ -115,6 +132,41 @@ export class Game {
 
         // Content Panel UI
         this.contentPanel = new ContentPanel(this);
+
+        // Dashboard layer (EI-010). The engine publishes signals at the
+        // transitions it already funnels through; the progress model keeps the
+        // private record in `state.progress`; the reporter turns bursts of
+        // signals into one public DashboardReport, off the transition stack.
+        // The default transport sends nothing: a tablet reports to nobody until
+        // whoever hosts the game says where. See docs/DASHBOARD-API.md.
+        this.clock = opts.clock || systemClock;
+        this.signals = new GameSignals();
+        this.progressModel = new ProgressModel({signals: this.signals, getState: () => this.state, clock: this.clock});
+        this._catalogue = null;
+        this._prefetchPuzzles = opts.prefetchPuzzles ?? true;
+        this.reporter = new DashboardReporter({
+            signals: this.signals,
+            transport: opts.reportTransport || new NullTransport(),
+            clock: this.clock,
+            options: opts.reporterOptions || {},
+            source: {
+                state: () => this.state,
+                progress: () => this.state?.progress || null,
+                activity: () => this.progressModel.activity(),
+                progressChanges: () => this.progressModel.changes,
+                catalogue: () => this.dashboardCatalogue(),
+                identity: () => ({
+                    game: this.meta?.id || 'unknown',
+                    gameVersion: this.meta?.version != null ? String(this.meta.version) : null,
+                    session: this.sessionId,
+                    playerId: this.teamId,
+                    player: this.playerName,
+                    avatar: this.avatar,
+                }),
+                persist: () => (this.state ? this._saveState() : false),
+            },
+        });
+        if (opts.reportLifecycle !== false) this.reporter.attachLifecycle();
 
         // Modal events
         this.modalCancel.addEventListener('click', () => this._closeModal(false));
@@ -217,6 +269,30 @@ export class Game {
         return this.baseUrl.replace(/\/+$/, '/') + s.replace(/^\/+/, '');
     }
 
+    // --- dashboard catalogue ------------------------------------------------------
+
+    /**
+     * What the dashboard knows about this game statically: scenes, reachable
+     * tasks, items, declared milestones, labels. Cached; rebuilt when the puzzle
+     * catalogue arrives. Until then `tasks` is null, which means "unknown" and
+     * never "none". See engine/dashboard/catalogue.js.
+     */
+    dashboardCatalogue() {
+        if (!this._catalogue) {
+            const puzzles = this.data?.puzzles && typeof this.data.puzzles === 'object' && !Array.isArray(this.data.puzzles)
+                ? this.data.puzzles
+                : null;
+            this._catalogue = buildCatalogue(this.data || {}, puzzles, {
+                text: (v) => this._text(v),
+                dialogsDoc: this._dialogsKnown ? this.dialogsData : null,
+            });
+            if (this._catalogue.errors.length) {
+                console.warn('[dashboard] meta.dashboard entries ignored:', this._catalogue.errors);
+            }
+        }
+        return this._catalogue;
+    }
+
     // --- lifecycle --------------------------------------------------------------
 
     async init() {
@@ -263,6 +339,8 @@ export class Game {
         }
 
         this.state = this._restoreState(saved);
+        this._catalogue = null;
+        this.signals.emit(SIGNALS.RUN_STARTED, {});
 
         if (adopted) {
             // Adoption removed the old entry, so until this write the progress
@@ -294,9 +372,29 @@ export class Game {
 
         await this.goto(this.state.scene, {noSave: true});
         this._renderInventory();
+
+        // Entering the first scene of a fresh run is recorded in the progress
+        // without a save (noSave). Store it now, while starting, rather than
+        // leaving a write for a timer to make on its own later. A reload into
+        // the same scene changes nothing and writes nothing.
+        if (this.reporter.hasUnsavedProgress()) this._saveState();
+
+        // The puzzle catalogue is what the dashboard's "solved of total" needs,
+        // and it used to arrive only when a pupil first opened a puzzle. Fetch it
+        // now, after the first scene is on screen and never in front of it. A
+        // failure leaves it retryable, exactly as a puzzle-open would (EI-030).
+        if (this._prefetchPuzzles) {
+            setTimeout(() => {
+                this._ensurePuzzlesLoaded().catch(() => {});
+            }, 0);
+        }
     }
 
     restart() {
+        // Stop reporting first. Otherwise the flush that pagehide triggers on
+        // the way out would save the old run straight back into the slot this
+        // just cleared, and the reload would resume it.
+        this.reporter.stop();
         this.storage.clear?.();
         this._discardLegacyState();
         location.reload();
@@ -328,9 +426,7 @@ export class Game {
             // and almost every scene in the shipped games has one. `state.scene`
             // is the resume point, so it stays on the last scene that worked.
             // Where the pupil actually is, is `currentScene`. See EI-003.
-            this.state.scene = sceneId;
-            this.state.visited[sceneId] = true;
-            if (!opts.noSave) this._saveState();
+            this._commitScene(scene, opts);
         } else {
             if (outcome === 'timeout') {
                 // A timeout means "not yet", not "never". Congested school
@@ -343,9 +439,7 @@ export class Game {
                 // to that one.
                 this.sceneImage.addEventListener('load', () => {
                     if (token !== this._navToken) return;
-                    this.state.scene = sceneId;
-                    this.state.visited[sceneId] = true;
-                    if (!opts.noSave) this._saveState();
+                    this._commitScene(scene, opts);
                 }, {once: true});
             }
 
@@ -376,6 +470,23 @@ export class Game {
         }
 
         if (scene.end) this._msg(this._t('engine.endCongrats', '🎉 Gratulujeme! Našel si cestu ven!'));
+    }
+
+    /**
+     * Record that a scene is where the team is. The one place that happens, so
+     * that both routes to it - the image loaded in time, or loaded late after a
+     * timeout - tell the dashboard the same thing, before the save.
+     *
+     * Completion is the first successful entry to an `end` scene, here, and
+     * deliberately not the `scene.end` message at the bottom of goto(), which
+     * also runs when the image failed and the team has not really arrived.
+     */
+    _commitScene(scene, opts = {}) {
+        this.state.scene = scene.id;
+        this.state.visited[scene.id] = true;
+        this.signals.emit(SIGNALS.SCENE_ENTERED, {scene: scene.id});
+        if (scene.end) this.signals.emit(SIGNALS.RUN_COMPLETED, {scene: scene.id});
+        if (!opts.noSave) this._saveState();
     }
 
     /**
@@ -527,6 +638,9 @@ export class Game {
         const i = this.state.inventory.indexOf(id);
         if (i >= 0) {
             this.state.inventory.splice(i, 1);
+            // Consumed, which the inventory alone cannot say: "never had it" and
+            // "had it and used it" look the same once it is gone.
+            this.signals.emit(SIGNALS.ITEM_USED, {id});
             // An item that no longer exists must not stay selected for use. The
             // save below would otherwise record a useItemId naming an item the
             // pupil no longer has, and _activateHotspot checks the held item
@@ -809,6 +923,7 @@ export class Game {
         if (h.type === 'pickup') {
             if (!this.state.inventory.includes(h.itemId)) {
                 this.state.inventory.push(h.itemId);
+                this.signals.emit(SIGNALS.ITEM_GIVEN, {id: h.itemId});
                 this._renderInventory();
                 this._msg(this._t('engine.pickedUp', 'Sebráno: {name}', {name: this._itemLabel(h.itemId)}));
                 await this._stateChanged();
@@ -877,12 +992,30 @@ export class Game {
 
     // --- puzzles 2.0 helpers ----------------------------------------------------
 
+    /**
+     * Make sure the puzzle catalogue is in `this.data.puzzles`.
+     *
+     * A small state machine: loaded (including legitimately empty), loading,
+     * or not loaded / failed and retryable. Concurrent callers share one
+     * request - the prefetch in init() and a pupil opening a puzzle at the same
+     * moment must not fetch twice. `catalogue:ready` is published only after a
+     * successful parse, so a dropped request never becomes an empty catalogue
+     * the dashboard would read as "no puzzles".
+     */
     async _ensurePuzzlesLoaded() {
         // pokud už jsou v this.data.puzzles ve formátu mapy, hotovo
         if (this.data?.puzzles && typeof this.data.puzzles === 'object' && !Array.isArray(this.data.puzzles)) {
             return;
         }
+        if (this._puzzlesLoading) return this._puzzlesLoading;
+        this._puzzlesLoading = this._loadPuzzles().finally(() => {
+            this._puzzlesLoading = null;
+        });
+        return this._puzzlesLoading;
+    }
 
+    /** One attempt at fetching puzzles.json. Only _ensurePuzzlesLoaded() calls this. */
+    async _loadPuzzles() {
         const url = this._resolveAsset('puzzles.json');
         let json;
         let loaded = false;
@@ -907,26 +1040,24 @@ export class Game {
         // drops requests and a drop is not an error anyone sees.
         if (!loaded) return;
 
-        // 1) { byId: { ... } }
         if (json && typeof json === 'object' && json.byId && typeof json.byId === 'object') {
+            // 1) { byId: { ... } }
             this.data.puzzles = json.byId;
-            return;
-        }
-        // 2) [ { id, kind, ... }, ... ]
-        if (Array.isArray(json)) {
+        } else if (Array.isArray(json)) {
+            // 2) [ { id, kind, ... }, ... ]
             this.data.puzzles = Object.fromEntries(json.filter(p => p?.id).map(p => [p.id, p]));
-            return;
-        }
-        // 3) { id1:{...}, id2:{...} }
-        if (json && typeof json === 'object') {
+        } else if (json && typeof json === 'object') {
+            // 3) { id1:{...}, id2:{...} }
             this.data.puzzles = json;
-            return;
+        } else {
+            // Fetch succeeded but the body was not a shape we understand (null,
+            // a number, a bare string). Cache an empty map: unlike a dropped
+            // request, this will not parse differently on a retry.
+            this.data.puzzles = {};
         }
 
-        // Fetch succeeded but the body was not a shape we understand (null, a
-        // number, a bare string). Cache an empty map: unlike a dropped request,
-        // this will not parse differently on a retry.
-        this.data.puzzles = {};
+        this._catalogue = null;
+        this.signals.emit(SIGNALS.CATALOGUE_READY, {});
     }
 
     async _openPuzzleByRef({ref, rect, options = {}, background = null}) {
@@ -943,6 +1074,7 @@ export class Game {
         return await new Promise((resolve) => {
             const runner = createPuzzleRunner({
                 ref,
+                taskId: ref,
                 rect,
                 background: background ? this._resolveAsset(background) : null,
                 instanceOptions: options,
@@ -1026,6 +1158,7 @@ export class Game {
             for (const id of give) {
                 if (!this.state.inventory.includes(id)) {
                     this.state.inventory.push(id);
+                    this.signals.emit(SIGNALS.ITEM_GIVEN, {id});
                     added++;
                     changed = true;
                 }
@@ -1977,10 +2110,19 @@ export class Game {
             const r = await fetch(this.dialogsUrl, {cache: 'no-cache'});
             const json = await r.json();
             this.dialogsData = json || {dialogs: [], characters: []};
+            this._dialogsKnown = !!r.ok && !!json;
             this._dbg('_ensureDialogsLoaded(): fetched OK', {dialogs: this.dialogsData.dialogs?.length ?? 0});
         } catch (err) {
             console.error('[GAME] _ensureDialogsLoaded() failed:', err);
             this.dialogsData = {dialogs: [], characters: []};
+        }
+        // Milestones naming a dialog, or a flag only a dialog sets, could not be
+        // checked before; the catalogue is rebuilt now that they can. Only after
+        // a real load: a failed fetch leaves the game with no dialogs, but that
+        // is not evidence that a milestone names nothing.
+        if (this._dialogsKnown) {
+            this._catalogue = null;
+            this.signals.emit(SIGNALS.CATALOGUE_READY, {});
         }
     }
 
@@ -2042,7 +2184,9 @@ export class Game {
             save: (state) => {
                 try {
                     localStorage.setItem(this._storageKey(), JSON.stringify(state));
+                    return true;
                 } catch { /* quota, private mode: losing a save beats throwing */
+                    return false;
                 }
             },
             clear: () => {
@@ -2065,7 +2209,11 @@ export class Game {
         this.state.engineVersion = ENGINE_VERSION;
         this.state.engineApiVersion = ENGINE_API_VERSION;
 
-        this.storage.save(this.state);
+        // `false` from a storage means the write did not happen; anything else,
+        // including an injected storage that returns nothing, is success.
+        const saved = this.storage.save(this.state) !== false;
+        this.signals?.emit(SIGNALS.STATE_SAVED, {ok: saved});
+        return saved;
     }
 
     _loadState() {
@@ -2088,6 +2236,7 @@ export class Game {
             puzzleResults: [], // aggregateOnly results bucket
             contentShown: {},  // tracks "once" content panels
             sceneImages: {},   // scene id -> image set by setSceneImage
+            progress: freshProgress(this.clock), // private dashboard record, EI-010
         };
     }
 
@@ -2154,6 +2303,9 @@ export class Game {
                 Object.entries(asMap(saved.sceneImages) ?? fresh.sceneImages)
                     .filter(([, image]) => typeof image === 'string'),
             ),
+            // Additive, so no schema bump: an older save gets a fresh record
+            // and keeps its run, and its times count from the upgrade.
+            progress: normalizeProgress(saved.progress, this.clock),
         };
 
         // Holding an item you do not have is not a state the engine can act on

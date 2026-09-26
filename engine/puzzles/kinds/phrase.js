@@ -82,6 +82,9 @@ export default class PhrasePuzzle extends BasePuzzle {
 
     onOk() {
         const v = this._els.input?.value || '';
+        // Nothing typed is not an answer, and not a mistake. See code.js.
+        if (!v.trim()) return {hold: true, status: 'incomplete'};
+        const answer = v; // what was submitted, so the runner can tell a repeat from a new attempt
         const ok = this._isCorrect(v);
 
         if (!ok && this.instanceOptions.blockUntilSolved) {
@@ -98,7 +101,7 @@ export default class PhrasePuzzle extends BasePuzzle {
                 this.engine.toast(msg, 2500);
             }
 
-            return {hold: true};
+            return {hold: true, status: 'wrong', answer};
         }
 
         return {ok, detail: {value: v}};

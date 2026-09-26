@@ -74,6 +74,14 @@ escape-game-engine/
 │   ├── i18n.js            # Engine internationalization strings
 │   ├── i18n-helpers.js    # @key@fallback resolution
 │   ├── utils.js           # Text normalization for answer checking
+│   ├── dashboard/         # EI-010: private progress, public DashboardReport (docs/DASHBOARD-API.md)
+│   │   ├── signals.js     # the observation seam the engine publishes to
+│   │   ├── progress-model.js # the private record in state.progress
+│   │   ├── catalogue.js   # tasks, labels and milestones, from the game files alone
+│   │   ├── projector.js   # the wall: internal state to DashboardReport
+│   │   ├── report.js      # the contract, as a schema; toWire()
+│   │   ├── reporter.js    # coalesced, deferred, retried sending
+│   │   └── transports.js  # NullTransport (default), HttpTransport, LocalBoardTransport
 │   └── puzzles/
 │       ├── index.js       # Puzzle runner factory and kind registry
 │       ├── base.js        # Shared puzzle infrastructure
@@ -88,9 +96,14 @@ escape-game-engine/
 │           ├── group.js   # Category sorting puzzle
 │           ├── cloze.js   # Fill-in-the-blank puzzle
 │           └── list.js    # Puzzle sequence manager
+├── board/                 # the teacher's board, on the public dashboard API only
+│   ├── index.html
+│   ├── board-model.js     # pure: latest report per team, stuck, the grid
+│   └── board-view.js
 ├── docs/
 │   ├── DEVELOPING.md      # running locally, adding a game, tests
-│   └── RELEASING.md       # the four versions, cutting a release, fixing production
+│   ├── RELEASING.md       # the four versions, cutting a release, fixing production
+│   └── DASHBOARD-API.md   # what a tablet tells the teacher, and what it never does
 ├── scripts/
 │   ├── dev-server.mjs     # npm run dev
 │   └── version-sync.mjs   # runs from npm version
@@ -618,6 +631,21 @@ over `reset=1`, which wipes on every load and so loses the lesson if a team
 reloads. A link with neither behaves as it always has - the engine cannot tell
 that a new class picked up the tablet, so reusing last week's QR code is the
 thing to watch for. See `docs/RELEASING.md`.
+
+### The teacher's board
+
+A tablet can report its team's progress to a board: where the team is and for
+how long, tasks solved and mistakes, the task open right now, milestones, items.
+It sends a declared `DashboardReport`, never the game's internal state, and
+nothing at all unless it is given somewhere to send to. With the dev server:
+
+    npm run dev -- --host 0.0.0.0
+    tablet  /?game=warp-engine&session=7A&team=modri&report=http
+    board   /board/?game=warp-engine&session=7A&source=http
+
+`report=local` and `source=local` do the same between tabs of one browser. The
+contract, the per-game `meta.dashboard` settings and what the hosted runtime has
+to do are in [`docs/DASHBOARD-API.md`](docs/DASHBOARD-API.md).
 
 ---
 

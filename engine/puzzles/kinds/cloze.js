@@ -369,6 +369,13 @@ export default class ClozePuzzle extends BasePuzzle {
 
     onOk() {
         const solution = this.config.solution || {};
+        // A gap left empty means the answer is not finished: not a mistake,
+        // no marks, the puzzle stays open (see choice.js).
+        if (!Object.keys(solution).every(gapId => this._placements.has(gapId))) {
+            return {hold: true, status: 'incomplete'};
+        }
+        // Taken now: a wrong placement is returned to the bank 800 ms later.
+        const answer = Object.fromEntries([...this._placements].sort()); // see phrase.js
         let allCorrect = true;
         const correctGaps = new Set();
 
@@ -411,7 +418,7 @@ export default class ClozePuzzle extends BasePuzzle {
                     // _returnTokenToArea už řeší smazání z _placements a update gap class
                 });
             }, 800);
-            return {hold: true};
+            return {hold: true, status: 'wrong', answer};
         }
 
         return { ok: allCorrect, detail: { placements: Object.fromEntries(this._placements) } };

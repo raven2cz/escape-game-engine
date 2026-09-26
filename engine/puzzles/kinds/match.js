@@ -758,7 +758,11 @@ export default class MatchPuzzle extends BasePuzzle {
     }
 
     _solutionPairs() {
-        const raw = this.config.pairs || this.config.solutionPairs || [];
+        // Three spellings: pairs / solutionPairs as [[a, b], ...], or solutions
+        // as {a: b}. All mean the same symmetric pairing.
+        const raw = this.config.pairs || this.config.solutionPairs
+            || (this.config.solutions && typeof this.config.solutions === 'object' && !Array.isArray(this.config.solutions)
+                ? Object.entries(this.config.solutions) : []);
         const pairMap = new Map();
         raw.forEach(([a, b]) => {
             pairMap.set(String(a), String(b));
@@ -769,6 +773,14 @@ export default class MatchPuzzle extends BasePuzzle {
 
     onOk() {
         const sol = this._solutionPairs();
+        // Every token that has a partner has to be paired before it is an
+        // answer (see choice.js). Tokens with no partner may stay unpaired.
+        if (![...sol.keys()].every(id => !this._tokenEls.has(id) || this._pairs.has(id))) {
+            return {hold: true, status: 'incomplete'};
+        }
+        // Taken now: wrong pairs are undone 800 ms later. Each pair once, either way round.
+        // Pairs as [a, b] arrays, not joined strings, so no id can make two pairings look alike.
+        const answer = [...new Set([...this._pairs].map(([a, b]) => JSON.stringify(a < b ? [a, b] : [b, a])))].sort();
         let allOk = true;
 
         const wrongTokens = [];
@@ -847,7 +859,7 @@ export default class MatchPuzzle extends BasePuzzle {
                     }
                 }, 800);
             }
-            return {hold: true};
+            return {hold: true, status: 'wrong', answer};
         }
 
         const detail = {};
