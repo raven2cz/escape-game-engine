@@ -12,6 +12,7 @@ import {ProgressModel, freshProgress, normalizeProgress} from './dashboard/progr
 import {buildCatalogue} from './dashboard/catalogue.js';
 import {DashboardReporter} from './dashboard/reporter.js';
 import {NullTransport} from './dashboard/transports.js';
+import {avatarById} from './dashboard/avatars.js';
 
 /**
  * Shape of the persisted state, versioned independently of the game.
@@ -92,6 +93,9 @@ export class Game {
         // EI-002.
         this.sessionId = String(opts.sessionId ?? '').trim() || null;
         this.teamId = String(opts.teamId ?? '').trim() || null;
+        // The player's animal, from the "Kdo hraje?" screen. Only for the
+        // teacher's board; nothing in the game depends on it.
+        this.avatar = avatarById(opts.avatar)?.id ?? null;
 
         // How long to wait for a scene image before carrying on without it.
         // A school network drops requests, and a request that is dropped rather
@@ -150,7 +154,8 @@ export class Game {
                     game: this.meta?.id || 'unknown',
                     gameVersion: this.meta?.version != null ? String(this.meta.version) : null,
                     session: this.sessionId,
-                    team: this.teamId,
+                    player: this.teamId,
+                    avatar: this.avatar,
                 }),
                 persist: () => (this.state ? this._saveState() : false),
             },

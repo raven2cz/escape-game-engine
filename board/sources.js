@@ -29,7 +29,7 @@ export function localSource({onReport, storage = globalThis.localStorage, channe
 
 /**
  * The dev server (or any server with the same GET): polls the latest report of
- * every team. The server's own receive time is used for "last seen".
+ * every player. The server's own receive time is used for "last seen".
  */
 export function httpSource({url, onReport, intervalMs = 2000, fetchImpl = globalThis.fetch?.bind(globalThis), setTimer = setTimeout, clearTimer = clearTimeout}) {
     let timer = null;

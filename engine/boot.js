@@ -18,6 +18,7 @@
 
 import {Game} from './engine.js';
 import {ENGINE_I18N} from './i18n.js';
+import {askWhoPlays, loadPlayer, savePlayer, forgetPlayer} from './join.js';
 
 /** The nodes the engine takes by reference, and the chrome around them. */
 const SKELETON = `
@@ -128,6 +129,11 @@ function watchSceneAspect(game, sceneImage) {
  *        Both optional, and the engine never invents them. Without them one
  *        tablet has one slot per game, so the next class resumes the last
  *        class's progress unless somebody resets. See EI-002.
+ * @param {boolean} [opts.join]   ask "Kdo hraje?" (name + animal) before the game. Defaults
+ *        to on in a lesson (a session is given) when the link names no player,
+ *        off otherwise, so local play is unchanged. The answer is the player:
+ *        the slot the run is saved under and the name on the teacher's board.
+ * @param {string} [opts.avatar]   the player's animal, when the caller already knows it
  * @param {HTMLElement} [opts.root]   where to build. Defaults to document.body.
  * @param {boolean} [opts.editor]  offer the editor. Defaults to off; a tablet in
  *                                 a lesson should not fetch it or see the button.
@@ -146,7 +152,8 @@ export async function boot(opts = {}) {
     const lang = (opts.lang || 'cs').toLowerCase();
     const baseUrl = opts.baseUrl || `./games/${gameId}/`;
     const sessionId = opts.sessionId || null;
-    const teamId = opts.teamId || null;
+    let teamId = opts.teamId || null;
+    let avatar = opts.avatar || null;
     const root = opts.root || document.body;
 
     STYLESHEETS.forEach(addStylesheet);
@@ -170,6 +177,17 @@ export async function boot(opts = {}) {
     el('modalCancel').textContent = t('engine.modal.cancel', 'Zavřít');
     el('modalOk').textContent = t('engine.modal.ok', 'OK');
 
+    // In a lesson, find out who is playing before anything is loaded under
+    // their name. A tablet that already knows its player for this lesson
+    // (a reload) is not asked again.
+    const join = opts.join ?? (!!sessionId && !teamId);
+    if (join) {
+        const player = loadPlayer(sessionId, gameId) || await askWhoPlays(root, t);
+        savePlayer(sessionId, gameId, player);
+        teamId = player.name;
+        avatar = player.avatar;
+    }
+
     const game = new Game({
         baseUrl,
         scenesUrl: `${baseUrl}scenes.json`,
@@ -180,6 +198,7 @@ export async function boot(opts = {}) {
         ...(opts.report ? {reportTransport: opts.report} : {}),
         sessionId,
         teamId,
+        avatar,
 
         sceneImage: el('sceneImage'),
         hotspotLayer: el('hotspotLayer'),
@@ -198,7 +217,12 @@ export async function boot(opts = {}) {
     // pupil is reading it.
     opts.onGame?.(game);
 
-    restart.addEventListener('click', () => game.restart());
+    restart.addEventListener('click', () => {
+        // A restart on a shared tablet is usually the next child: forget who
+        // was playing, so they are asked their own name.
+        if (join) forgetPlayer(sessionId, gameId);
+        game.restart();
+    });
 
     if (opts.editor) {
         // Loaded only when asked for. It is 53 kB that a tablet in a lesson has

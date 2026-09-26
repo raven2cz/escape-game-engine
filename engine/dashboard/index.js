@@ -16,3 +16,4 @@ export {
 } from './report.js';
 export {DashboardReporter} from './reporter.js';
 export {NullTransport, HttpTransport, LocalBoardTransport, localBoardKey} from './transports.js';
+export {AVATARS, avatarById} from './avatars.js';

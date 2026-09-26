@@ -45,7 +45,11 @@ body { margin: 0; }
     background: hsl(var(--hue) 65% 88%); color: hsl(var(--hue) 55% 28%);
     font-size: .75rem; font-weight: 700; letter-spacing: .02em;
     border: 2px solid hsl(var(--hue) 55% 62%);
+    vertical-align: middle;
 }
+
+.board-avatar--img { background: #fff7e6; border-color: #f0d9a8; overflow: hidden; padding: 0; }
+.board-avatar--img img { width: 100%; height: 100%; object-fit: contain; display: block; }
 
 table { border-collapse: collapse; background: #fff; width: 100%; }
 th, td { border-bottom: 1px solid var(--b-line); padding: .3rem .5rem; text-align: left; vertical-align: middle; }

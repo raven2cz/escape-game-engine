@@ -30,13 +30,13 @@ const catalogue = buildCatalogue({
 
 /** A real report for a team, built by the engine's own projector. */
 function report({team, run = `run-${team}`, revision = 1, scene = 'hall', since = NOW - MIN, puzzles = {}, solved = {},
-    flags = {}, inventory = [], itemsUsed = {}, completedAt = null, activity = null, startedAt = NOW - 10 * MIN, session = '7A'}) {
+    flags = {}, inventory = [], itemsUsed = {}, completedAt = null, activity = null, startedAt = NOW - 10 * MIN, session = '7A', avatar = null}) {
     return toWire(project({
         state: {inventory, solved, flags, visited: {[scene]: true}, scene},
         progress: {run, revision, startedAt, scene, sceneEnteredAt: since, completedAt, puzzles, itemsUsed, dialogsSeen: {}},
         activity,
         catalogue,
-        identity: {game: 'g', session, team},
+        identity: {game: 'g', session, player: team, avatar},
         now: NOW,
         revision,
     }));
@@ -88,7 +88,7 @@ describe('ReportStore', () => {
         expect(store.list({game: 'g'})).toHaveLength(2);
         expect(store.list({game: 'g', session: '7B'})).toHaveLength(1);
         expect(store.list({game: 'other'})).toHaveLength(0);
-        expect(teamKey({session: 'a|b', game: 'g', team: 'c'})).toBe('a%7Cb|g|c');
+        expect(teamKey({session: 'a|b', game: 'g', player: 'c'})).toBe('a%7Cb|g|c');
     });
 });
 
@@ -141,11 +141,23 @@ describe('summarize', () => {
         expect(m.players.map(t => [t.name, t.stuck])).toEqual([['a', false], ['b', false], ['c', true]]);
         expect(m.summary.stuck).toBe(1);
 
-        // Everyone slow together is a hard room, not a stuck player.
+        // Everyone slow together is a hard room, not a stuck player (below the
+        // ten minutes after which the teacher is told regardless).
         const allSlow = summarize(catalogue, entries(
-            report({team: 'a', since: NOW - 10 * MIN}), report({team: 'b', since: NOW - 11 * MIN}),
+            report({team: 'a', since: NOW - 7 * MIN}), report({team: 'b', since: NOW - 8 * MIN}),
         ), {now: NOW});
         expect(allSlow.players.every(t => !t.stuck)).toBe(true);
+    });
+
+    it('ten minutes in one place is too long even when most of the class has finished', () => {
+        // Found in the demo: with nearly everyone done, the median came from the
+        // two still playing and a pupil 43 minutes on one puzzle was not flagged.
+        const m = summarize(catalogue, entries(
+            report({team: 'done', scene: 'exit', completedAt: NOW - MIN}),
+            report({team: 'new', since: NOW - 5000}),
+            report({team: 'stuck', since: NOW - 43 * MIN}),
+        ), {now: NOW});
+        expect(m.players.find(t => t.name === 'stuck').stuck).toBe(true);
     });
 
     it('a long-open puzzle counts as stuck too; a disconnected player is shown as that instead', () => {
@@ -257,6 +269,14 @@ describe('renderBoard', () => {
         expect(root.querySelector('.board-item.is-has').title).toBe('Klíč: má');
     });
 
+    it('shows the animal a player picked, and initials for one who did not', () => {
+        const root = draw([report({team: 'Anička', avatar: 'unicorn'}), report({team: 'Bára'})]);
+        const [anicka, bara] = root.querySelectorAll('.board-players .board-avatar');
+        expect(anicka.querySelector('img').getAttribute('src')).toMatch(/\/engine\/avatars\/unicorn\.webp$/);
+        expect(anicka.title).toBe('Anička (Jednorožec)');
+        expect(bara.textContent).toBe('BÁ');
+    });
+
     it('shows who needs attention above the table', () => {
         const root = draw([report({team: 'a', since: NOW - MIN}), report({team: 'b', since: NOW - MIN}), report({team: 'c', since: NOW - 15 * MIN})]);
         const cards = [...root.querySelectorAll('.board-attention .board-card')];
@@ -296,7 +316,7 @@ describe('sources', () => {
         };
         try {
             const seen = [];
-            const src = localSource({onReport: (r) => seen.push(r.team), now: () => NOW});
+            const src = localSource({onReport: (r) => seen.push(r.player), now: () => NOW});
             listener({data: JSON.stringify(report({team: 'b'}))});
             listener({data: 'not json'});
             expect(seen).toEqual(['a', 'b']);
@@ -313,7 +333,7 @@ describe('sources', () => {
             const r = report({team: 'a'});
             const fetchImpl = vi.fn(async () => ({ok: true, json: async () => [{report: r, receivedAt: 123}]}));
             const seen = [];
-            const src = httpSource({url: '/api/reports', onReport: (rep, at) => seen.push([rep.team, at]), intervalMs: 1000, fetchImpl});
+            const src = httpSource({url: '/api/reports', onReport: (rep, at) => seen.push([rep.player, at]), intervalMs: 1000, fetchImpl});
             await vi.advanceTimersByTimeAsync(0);
             await vi.advanceTimersByTimeAsync(1000);
             expect(fetchImpl).toHaveBeenCalledTimes(2);
@@ -348,11 +368,11 @@ describe('the dev server dashboard endpoints', () => {
         expect((await post(JSON.stringify(report({team: 'a', revision: 1})))).status).toBe(204); // late: fine, ignored
         const list = await (await fetch(`${base}/api/reports?game=g&session=7A`)).json();
         expect(list).toHaveLength(1);
-        expect(list[0]).toMatchObject({receivedAt: 42, report: {team: 'a', revision: 2}});
+        expect(list[0]).toMatchObject({receivedAt: 42, report: {player: 'a', revision: 2}});
     });
 
     it('never hands on anything beyond the contract, even from a newer engine', async () => {
-        const res = await post(JSON.stringify({api: 99, game: 'g', run: 'r', session: 'x', team: 'z', state: {flags: {secret: true}}}));
+        const res = await post(JSON.stringify({api: 99, game: 'g', run: 'r', session: 'x', player: 'z', state: {flags: {secret: true}}}));
         expect(res.status).toBe(204);
         const body = await (await fetch(`${base}/api/reports?game=g&session=x`)).text();
         expect(body).not.toContain('secret');

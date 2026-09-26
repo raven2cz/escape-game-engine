@@ -78,15 +78,15 @@ export class HttpTransport {
     }
 }
 
-/** Storage key under which LocalBoardTransport keeps a team's latest report. */
+/** Storage key under which LocalBoardTransport keeps a player's latest report. */
 export function localBoardKey(wire) {
     const part = (v) => encodeURIComponent(v ?? '');
-    return `dashboard:report:${part(wire.game)}:${part(wire.session)}:${part(wire.team)}`;
+    return `dashboard:report:${part(wire.game)}:${part(wire.session)}:${part(wire.player)}`;
 }
 
 /**
  * For a board open in another tab of the same browser: the dev loop, and a
- * teacher testing a game on one machine. Writes the latest report per team to
+ * teacher testing a game on one machine. Writes the latest report per player to
  * localStorage (so a board opened later sees the current picture) and announces
  * it on a BroadcastChannel (so an open board updates at once).
  */

@@ -29,6 +29,15 @@ repository; see `docs/RELEASING.md` for which version means what.
   part of a puzzle is answered (a gap left empty, a token not sorted, a pair not
   made, nothing typed) keeps the puzzle open with the hint "Nejdřív dokonči
   všechny odpovědi." instead of marking it wrong or failing it. (EI-010)
+- **"Kdo hraje?" before a game in a lesson.** A pupil writes a name or nickname
+  and picks one of 32 pictures (16 Fluent 3D animals, 16 Big Smile kids). The
+  name is the player: the slot the run is saved under and the name on the
+  teacher's board, where the picture replaces the initials. Remembered for the
+  lesson on the tablet, so a reload does not ask again; Restart forgets it for
+  the next child. Shown when the link has a `session` but no player; local play
+  is unchanged. The report's `team` field is now `player`, and it gains an
+  optional `avatar` id (API still 2, unreleased). Picture credits in
+  `engine/avatars/CREDITS.md` and on the screen. (EI-010)
 - `scripts/simulate-lesson.mjs` plays a lesson with simulated teams against the
   dev server, to see the board working without tablets. (EI-010)
 

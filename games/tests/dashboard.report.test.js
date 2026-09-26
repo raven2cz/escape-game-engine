@@ -76,7 +76,7 @@ const build = (overrides = {}) => {
         progress: leakyProgress(state),
         activity: {ref: 'series#0', since: 6000},
         catalogue,
-        identity: {game: 'g', gameVersion: '1.2.0', session: '7A', team: 'modri'},
+        identity: {game: 'g', gameVersion: '1.2.0', session: '7A', player: 'Anička', avatar: 'unicorn'},
         now: 9000,
         revision: 3,
         ...overrides,
@@ -178,11 +178,18 @@ describe('projection: what the report says', () => {
     it('identity, position and the open task, labelled from the catalogue', () => {
         const r = build();
         expect(r).toMatchObject({
-            api: 2, game: 'g', gameVersion: '1.2.0', session: '7A', team: 'modri', run: 'run-1', revision: 3,
+            api: 2, game: 'g', gameVersion: '1.2.0', session: '7A', player: 'Anička', avatar: 'unicorn', run: 'run-1', revision: 3,
             startedAt: 1000, updatedAt: 9000, completedAt: null, completed: false,
             position: {scene: 'lab', label: 'Laboratoř', since: 5000},
             activity: {ref: 'series#0', label: 'Otázka 1', since: 6000},
         });
+    });
+
+    it('an avatar is an id from the shared catalogue, or nothing', () => {
+        expect(build({identity: {game: 'g', avatar: 'fox'}}).avatar).toBe('fox');
+        for (const avatar of ['dragon', '<img>', 42, null, undefined]) {
+            expect(build({identity: {game: 'g', avatar}}).avatar, String(avatar)).toBeNull();
+        }
     });
 
     it('counts only real tasks once the catalogue is known, and merges the engine own solved keys', () => {
@@ -276,7 +283,7 @@ describe('size', () => {
 
     it('the schema is the documented one (a change here is a contract change)', () => {
         expect(Object.keys(REPORT_SCHEMA.obj)).toEqual([
-            'api', 'game', 'gameVersion', 'session', 'team', 'run', 'revision', 'startedAt', 'updatedAt',
+            'api', 'game', 'gameVersion', 'session', 'player', 'avatar', 'run', 'revision', 'startedAt', 'updatedAt',
             'completedAt', 'completed', 'position', 'activity', 'progress', 'inventory', 'itemsUsed',
             'dialogsSeen', 'puzzles', 'milestones', 'truncated',
         ]);

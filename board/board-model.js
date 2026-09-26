@@ -12,6 +12,7 @@
 // the class, and the thresholds are options.
 
 import {checkReport, toWire, DASHBOARD_API_VERSION} from '../engine/dashboard/report.js';
+import {avatarById, avatarSrc} from '../engine/dashboard/avatars.js';
 
 export const BOARD_DEFAULTS = Object.freeze({
     /** A single stay is never shown longer than a lesson: a tablet that slept through a break. */
@@ -24,6 +25,8 @@ export const BOARD_DEFAULTS = Object.freeze({
     stuckMinMs: 4 * 60_000,
     /** ...and not before this many times the class's median stay. */
     stuckFactor: 2,
+    /** Past this, one place is too long whatever the rest of the class is doing (most may have finished). */
+    stuckAlwaysMs: 10 * 60_000,
 });
 
 /**
@@ -39,10 +42,10 @@ function positionOnly(report) {
     return wire;
 }
 
-/** Where a report is filed: one slot per lesson, game and player (the report's `team`). */
+/** Where a report is filed: one slot per lesson, game and player. */
 export function teamKey(report) {
     const part = (v) => encodeURIComponent(v ?? '');
-    return `${part(report.session)}|${part(report.game)}|${part(report.team)}`;
+    return `${part(report.session)}|${part(report.game)}|${part(report.player)}`;
 }
 
 /**
@@ -131,7 +134,6 @@ export function avatarFor(name) {
  * In a lesson that is usually one pupil per tablet, up to thirty or so at once,
  * so everything here is per player and scales by rows: each player's row carries
  * a strip with one cell per task, and the per-task view is a summary underneath.
- * (The report's `team` field names whoever holds the tablet; here, a player.)
  *
  * @param {object|null} catalogue  from buildCatalogue(); may be null or not ready
  * @param {{report: object, receivedAt: number, newerApi?: boolean}[]} entries
@@ -163,11 +165,13 @@ export function summarize(catalogue, entries, options = {}) {
         const milestoneSet = new Set(r.milestones || []);
         const inventory = new Set(r.inventory || []);
         const used = new Set(r.itemsUsed || []);
-        const name = r.team || 'Bez jména';
+        const name = r.player || 'Bez jména';
+        const picked = avatarById(r.avatar);
         return {
             key: teamKey(r),
             name,
-            avatar: avatarFor(name),
+            // The animal the player picked, or initials until they can pick one.
+            avatar: picked ? {src: avatarSrc(picked), label: picked.label} : avatarFor(name),
             session: r.session,
             newerApi: !!newerApi,
             scene: r.position?.scene ?? null,
@@ -209,7 +213,7 @@ export function summarize(catalogue, entries, options = {}) {
     // The class baseline is the players we are actually hearing from; a
     // disconnected tablet's frozen clock says nothing about the room.
     const med = median(playing.filter(t => t.connection !== 'offline').map(t => t.sceneForMs));
-    const threshold = Math.max(o.stuckMinMs, o.stuckFactor * med);
+    const threshold = Math.min(o.stuckAlwaysMs, Math.max(o.stuckMinMs, o.stuckFactor * med));
     for (const t of playing) {
         const longStay = t.sceneForMs >= threshold;
         const longPuzzle = !!t.activity && t.activity.forMs >= threshold;

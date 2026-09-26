@@ -1,7 +1,7 @@
 # The dashboard API
 
 The contract between a tablet running a game and whatever shows the teacher what
-the teams are doing: the hosted runtime, the teacher's board in the shop, and the
+the players are doing: the hosted runtime, the teacher's board in the shop, and the
 reference board in `board/`. It is the prose of `engine/dashboard/report.js`,
 which declares the same thing as a schema; where they disagree, the schema is
 the one the tests check, and this file is the bug.
@@ -47,7 +47,7 @@ page is the embedder's trust boundary.
 
 ## 2. `DashboardReport`
 
-One report is the complete current picture of one run of one team. Reports are
+One report is the complete current picture of one run of one player. Reports are
 snapshots, not events: the newest supersedes every earlier one, so a lost report
 costs nothing once the next arrives.
 
@@ -57,34 +57,35 @@ costs nothing once the next arrives.
 | `game` | string | `meta.id` of the game |
 | `gameVersion` | string \| null | `meta.version`, for matching a catalogue |
 | `session` | string \| null | the lesson, as the tablet was given it. A hint, see §6 |
-| `team` | string \| null | the team, as the tablet was given it. A hint, see §6 |
+| `player` | string \| null | the player's name, from "Kdo hraje?" or the link. A hint, see §6 |
+| `avatar` | string \| null | the picture the player picked: an id from `engine/dashboard/avatars.js`, or null |
 | `run` | string | this run. Kept across reloads, new after a reset |
 | `revision` | int | increases with every report of a run; never reused, even across a reload |
 | `startedAt` | epoch ms | when the run began (for an upgraded save: when it was upgraded) |
 | `updatedAt` | epoch ms | when this report was built, tablet clock |
 | `completedAt` | epoch ms \| null | first successful entry to the `end` scene |
 | `completed` | bool | `completedAt != null` |
-| `position` | `{scene, label, since}` | where the team is, the scene's label, and since when |
+| `position` | `{scene, label, since}` | where the player is, the scene's label, and since when |
 | `activity` | `{ref, label, since}` \| null | the puzzle open right now, or null |
 | `progress` | `{scenesVisited, scenesTotal, puzzlesSolved, puzzlesTotal}` | counts |
 | `inventory` | string[] | item ids held now, in the order they were got |
 | `itemsUsed` | string[] | item ids consumed, first use first |
 | `dialogsSeen` | string[] | dialog ids that ran to their end, first first |
-| `puzzles` | `{ref, attempts, mistakes, solved}[]` | every task the team has touched, first touch first |
+| `puzzles` | `{ref, attempts, mistakes, solved}[]` | every task the player has touched, first touch first |
 | `milestones` | string[] | ids of the game's declared milestones that are reached, in declaration order |
 | `truncated` | bool | true only if per-puzzle detail was shed to fit the size ceiling |
 
 ### What the fields mean, exactly
 
-- **Tasks.** A task is a leaf puzzle a team can reach: from a puzzle hotspot,
+- **Tasks.** A task is a leaf puzzle a player can reach: from a puzzle hotspot,
   from an event's `openPuzzle`, or as a step of a reachable `list`. A list is a
   container, never a task. Its identity is its `ref`; an inline list step with
   no ref is `<list>#<index>` (e.g. `series#1`), which cannot collide between two
   lists. A step that names a puzzle which is also a hotspot counts once.
   Puzzles defined but reachable from nothing are not tasks.
-- **`puzzlesTotal` / `scenesTotal`** come from the game files, not from the team.
+- **`puzzlesTotal` / `scenesTotal`** come from the game files, not from the player.
   `puzzlesTotal` is **`null` until the puzzle catalogue has loaded, never 0**; a
-  zero would read as "no puzzles" and make every team look finished. The engine
+  zero would read as "no puzzles" and make every player look finished. The engine
   prefetches the catalogue right after the first scene is on screen.
 - **`attempts`** counts every real evaluation, the solving one included.
   **`mistakes`** counts wrong ones. That is the whole error model: no captured
@@ -128,7 +129,7 @@ field does not move it. A board:
 
 - shows what it understands and ignores fields it does not know;
 - given a report whose `api` is newer than its own, shows position-only with a
-  note rather than dropping the team, and keeps only the fields it knows
+  note rather than dropping the player, and keeps only the fields it knows
   (rebuilt through `toWire()`, counts and lists emptied): a newer report is
   never stored or handed on verbatim.
 
@@ -183,7 +184,7 @@ derives, and a game that declares nothing works on day one.
 - **`milestones`**: an ordered list. Each has a plain `id` (letters, digits,
   `_ . -`, up to 64), a `label`, and **exactly one** source:
   - `flag`: reached while that flag is set,
-  - `scene`: reached once the team has visited that scene,
+  - `scene`: reached once the player has visited that scene,
   - `task`: reached once that task is solved,
   - `dialog`: reached once that dialog has run to its end.
 
@@ -246,12 +247,12 @@ What the engine guarantees:
 
 What the server (hosted runtime) must do, because the tablet cannot:
 
-- **Bind `session` and `team` from its own authenticated context.** The report's
+- **Bind `session` and `player` from its own authenticated context.** The report's
   fields are hints for correlation, not trust. URL and credentials live inside
   the transport, never in the engine.
-- **Order and deduplicate on `(session, game, team, run, revision)`**: keep the
+- **Order and deduplicate on `(session, game, player, run, revision)`**: keep the
   highest revision of a run; a repeated or late report is not an error.
-- **Decide which run is current** when two share `session/game/team` (a reset,
+- **Decide which run is current** when two share `session/game/player` (a reset,
   or two tabs): the engine cannot, since the storage key does not include the run.
 - Keep the sequence it receives if history is wanted: reports carry the current
   picture only.
@@ -274,12 +275,11 @@ dev server's `/api/report` and `/api/reports` are in memory and unauthenticated:
 a development convenience, not the runtime.
 
 What it shows, built for a class of up to thirty or so pupils playing one per
-tablet (the report's `team` is whoever holds the tablet: in class, a player):
-who needs attention on top (possibly stuck, longest first, then disconnected),
+tablet who needs attention on top (possibly stuck, longest first, then disconnected),
 then one compact row per player (initials avatar, room, time there, tasks solved
 of total, a strip with one cell per task, mistakes, the task open right now,
 milestones as dots, played or finished at), then the class per task (solved by,
 tried by, with mistakes, the hard ones marked) and items (has, used, never had).
 A player is shown as possibly stuck when they have been in one place at least
-4 minutes and at least twice the class's median; a disconnected player is
-shown as that instead.
+4 minutes and at least twice the class's median, or at least 10 minutes
+whatever the class is doing; a disconnected player is shown as that instead.

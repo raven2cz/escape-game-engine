@@ -30,6 +30,16 @@ function clock(ms) {
 }
 
 function avatar(av, name) {
+    if (av.src) {
+        const el = h('span', 'board-avatar board-avatar--img');
+        const img = document.createElement('img');
+        img.src = av.src;
+        img.alt = '';
+        el.append(img);
+        el.setAttribute('aria-hidden', 'true');
+        el.title = `${name} (${av.label})`;
+        return el;
+    }
     const el = h('span', 'board-avatar', av.initials);
     el.style.setProperty('--hue', String(av.hue));
     el.setAttribute('aria-hidden', 'true');

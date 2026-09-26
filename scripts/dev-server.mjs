@@ -193,11 +193,11 @@ export const MAX_REPORT_BYTES = 64 * 1024;
 /**
  * The dashboard's two endpoints, for trying the board with real tablets on the
  * same network. In memory only, no authentication: a development convenience,
- * not the hosted runtime, which must bind session and team from its own
+ * not the hosted runtime, which must bind session and player from its own
  * authenticated context (docs/DASHBOARD-API.md).
  *
  *   POST /api/report                 one DashboardReport; 204, or 400 if it is not one
- *   GET  /api/reports?game=&session= the latest report of every team, with receive times
+ *   GET  /api/reports?game=&session= the latest report of every player, with receive times
  *
  * Returns true when it answered the request.
  */

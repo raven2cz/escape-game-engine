@@ -397,7 +397,7 @@ describe('transports', () => {
         globalThis.BroadcastChannel = class { postMessage(m) { posted.push(m); } };
         try {
             const t = new LocalBoardTransport({storage: localStorage});
-            const wire = {game: 'g', session: '7A', team: 'modri', revision: 1};
+            const wire = {game: 'g', session: '7A', player: 'modri', revision: 1};
             t.send(wire);
             expect(JSON.parse(localStorage.getItem(localBoardKey(wire)))).toEqual(wire);
             expect(localBoardKey(wire)).toBe('dashboard:report:g:7A:modri');

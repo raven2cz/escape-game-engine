@@ -23,6 +23,7 @@ import {fileURLToPath} from 'node:url';
 import {buildCatalogue, puzzleMap} from '../engine/dashboard/catalogue.js';
 import {project} from '../engine/dashboard/projector.js';
 import {toWire} from '../engine/dashboard/report.js';
+import {AVATARS} from '../engine/dashboard/avatars.js';
 
 const MIN = 60_000;
 const PLAYER_NAMES = [
@@ -94,6 +95,8 @@ export function createLesson({scenesDoc, puzzles = null, dialogs = null, session
         const startedAt = now - (8 + Math.floor(rng() * 6)) * MIN;
         const t = {
             name, role,
+            // Most pick an animal; a few leave it to the board's initials (an older link, say).
+            avatar: i % 7 === 6 ? null : AVATARS[(i * 5) % AVATARS.length].id,
             speedMs: role === 'fast' ? 3000 : 7000 + Math.floor(rng() * 6000),
             mistakeRate: role === 'stuck' ? 0.85 : 0.25 + rng() * 0.3,
             stepIdx: 0, taskIdx: 0, opened: false, nextAt: now,
@@ -211,7 +214,7 @@ export function createLesson({scenesDoc, puzzles = null, dialogs = null, session
                 t.progress.revision++;
                 reports.push(toWire(project({
                     state: t.state, progress: t.progress, activity: t.activity, catalogue,
-                    identity: {game, gameVersion: catalogue.version, session, team: t.name},
+                    identity: {game, gameVersion: catalogue.version, session, player: t.name, avatar: t.avatar},
                     now: at, revision: t.progress.revision,
                 })));
             }
@@ -244,7 +247,7 @@ async function main() {
     });
     console.log(`Simulating ${lesson.teams.length} players on ${o.game}, lesson "${o.session}", reporting to ${o.url}`);
     console.log(`Board: ${o.url}/board/?game=${o.game}&session=${encodeURIComponent(o.session)}&source=http`);
-    console.log(`Play along: ${o.url}/?game=${o.game}&session=${encodeURIComponent(o.session)}&team=Ty&report=http\n`);
+    console.log(`Play along: ${o.url}/?game=${o.game}&session=${encodeURIComponent(o.session)}&report=http\n`);
 
     const tick = async () => {
         const reports = lesson.step(Date.now());
