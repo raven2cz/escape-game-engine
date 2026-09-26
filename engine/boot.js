@@ -163,7 +163,7 @@ export async function boot(opts = {}) {
     // be an opaque id from the runtime: kept whole. Only what the board shows is
     // cleaned like a typed name.
     let teamId = String(opts.teamId ?? '').trim() || null;
-    let playerName = cleanName(teamId) || teamId;
+    let playerName = cleanName(teamId) || null; // nothing showable is no name, never the raw id
     let avatar = opts.avatar || null;
     const root = opts.root || document.body;
 

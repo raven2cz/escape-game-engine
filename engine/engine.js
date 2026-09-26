@@ -13,6 +13,7 @@ import {buildCatalogue} from './dashboard/catalogue.js';
 import {DashboardReporter} from './dashboard/reporter.js';
 import {NullTransport} from './dashboard/transports.js';
 import {avatarById} from './dashboard/avatars.js';
+import {cleanName} from './join.js';
 
 /**
  * Shape of the persisted state, versioned independently of the game.
@@ -96,7 +97,9 @@ export class Game {
         // The player's name and picture, from the "Kdo hraje?" screen or the
         // link. Only for the teacher's board; nothing in the game depends on
         // them. `teamId` stays the identity (and the save slot).
-        this.playerName = String(opts.playerName ?? '').trim() || this.teamId;
+        // Always cleaned here too, whoever constructs the Game; an id with
+        // nothing showable in it is no name rather than a raw label.
+        this.playerName = cleanName(opts.playerName) || cleanName(this.teamId) || null;
         this.avatar = avatarById(opts.avatar)?.id ?? null;
 
         // How long to wait for a scene image before carrying on without it.

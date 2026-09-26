@@ -164,6 +164,16 @@ describe('boot() in a lesson', () => {
         expect(named.playerName).toBe('Petr');                           // only the label is cleaned
     });
 
+    it('an id from the link with nothing showable in it is no name, not a raw label', async () => {
+        const sent = [];
+        const game = await boot({gameId: 'join-test', sessionId: '7A', teamId: '\u200B\u202E\u2060',
+            report: {enabled: true, send: (w) => { sent.push(w); }}});
+        expect(game.playerName).toBeNull();
+        game.reporter.flush();
+        expect(sent.at(-1).player).toBeNull();
+        expect(sent.at(-1).playerId).toBe('\u200B\u202E\u2060');      // the identity is still whole
+    });
+
     it('a long opaque player id from the link is never shortened into another', async () => {
         const a = await boot({gameId: 'join-test', sessionId: '7A', teamId: `runtime-${'x'.repeat(40)}-1`});
         const b = await boot({gameId: 'join-test', sessionId: '7A', teamId: `runtime-${'x'.repeat(40)}-2`});
