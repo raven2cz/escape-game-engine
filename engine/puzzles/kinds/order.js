@@ -184,8 +184,11 @@ export default class OrderPuzzle extends BasePuzzle {
     }
 
     onOk() {
-        const answer = [...this._ordered]; // what was submitted; see phrase.js
         const want = this._solution();
+        // The sequence is built by placing tokens one by one; until every one
+        // is placed it is not an answer (see choice.js).
+        if (this._ordered.length < want.length) return {hold: true, status: 'incomplete'};
+        const answer = [...this._ordered]; // what was submitted; see phrase.js
         const ok = (want.length === this._ordered.length) &&
             want.every((id, i) => this._ordered[i] === id);
 

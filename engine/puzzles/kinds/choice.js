@@ -219,12 +219,16 @@ export default class ChoicePuzzle extends BasePuzzle {
     }
 
     onOk() {
-        // Nothing answered at all is not an answer, and not a mistake (see
-        // code.js). A partly answered set is still evaluated as before.
-        const touched = [...this._valueMap.values()].some(v => v != null && String(v).trim() !== '');
-        if (!touched) return {hold: true, status: 'incomplete'};
-        const answer = Object.fromEntries([...this._valueMap].sort()); // see phrase.js
+        // A set not answered in full is not an answer yet, and not a mistake:
+        // the puzzle stays open, with no right/wrong marks (owner, 2026-09-26).
         const sol = this._solutions();
+        const filled = (id) => {
+            const v = this._valueMap.get(id);
+            return v != null && String(v).trim() !== '';
+        };
+        const required = Object.keys(sol).length ? Object.keys(sol) : [...this._rows.keys()];
+        if (!required.every(filled)) return {hold: true, status: 'incomplete'};
+        const answer = Object.fromEntries([...this._valueMap].sort()); // see phrase.js
         let allOk = true;
         const wrongRows = [];
 

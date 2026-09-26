@@ -40,10 +40,15 @@ const flush = () => new Promise(r => setTimeout(r, 0));
 const counted = () => events.filter(([n]) => n === SIGNALS.PUZZLE_EVALUATED).map(([, ok]) => ok);
 const solved = () => events.filter(([n]) => n === SIGNALS.PUZZLE_SOLVED).length;
 
+const pairs = (p, list) => {
+    p._pairs.clear();
+    for (const [a, b] of list) { p._pairs.set(a, b); p._pairs.set(b, a); }
+};
+
 /**
  * For each kind: a config, and how to put the puzzle into each answer state.
- * `untouched: null` means the kind has no "nothing answered" state (order: the
- * starting arrangement is itself an answer).
+ * `partial` is an answer begun but not finished; kinds without one (phrase,
+ * code, a quiz that does not say how many to pick) have `partial` absent.
  */
 const KINDS = {
     phrase: {
@@ -71,40 +76,52 @@ const KINDS = {
         locked: (p) => { p._selected.add('a'); p._locked = true; },
     },
     choice: {
-        config: {kind: 'choice', tokens: [{id: 'q1', text: 'Otázka?', choices: [{value: 'Ano', label: 'Ano'}, {value: 'Ne', label: 'Ne'}, {value: 'Možná', label: 'Možná'}], solution: 'Ano'}]},
+        config: {kind: 'choice', tokens: [
+            {id: 'q1', text: 'Otázka?', choices: [{value: 'Ano', label: 'Ano'}, {value: 'Ne', label: 'Ne'}, {value: 'Možná', label: 'Možná'}], solution: 'Ano'},
+            {id: 'q2', text: 'Druhá?', choices: [{value: 'Ano', label: 'Ano'}, {value: 'Ne', label: 'Ne'}], solution: 'Ne'},
+        ]},
         untouched: (p) => { p._valueMap.clear(); },
-        wrong: (p) => { p._valueMap.set('q1', 'Ne'); },
-        wrong2: (p) => { p._valueMap.set('q1', 'Možná'); },
-        correct: (p) => { p._valueMap.set('q1', 'Ano'); },
+        partial: (p) => { p._valueMap.clear(); p._valueMap.set('q1', 'Ne'); },
+        wrong: (p) => { p._valueMap.set('q1', 'Ne'); p._valueMap.set('q2', 'Ne'); },
+        wrong2: (p) => { p._valueMap.set('q1', 'Možná'); p._valueMap.set('q2', 'Ne'); },
+        correct: (p) => { p._valueMap.set('q1', 'Ano'); p._valueMap.set('q2', 'Ne'); },
         locked: null,
     },
     cloze: {
-        config: {kind: 'cloze', text: 'Ahoj {gap1}', tokens: [{id: 't1', text: 'světe'}, {id: 't2', text: 'měsíci'}, {id: 't3', text: 'slunce'}], solution: {gap1: 't1'}},
+        config: {kind: 'cloze', text: 'Ahoj {gap1}, ty {gap2}', tokens: [{id: 't1', text: 'světe'}, {id: 't2', text: 'měsíci'}, {id: 't3', text: 'slunce'}, {id: 't4', text: 'krásný'}], solution: {gap1: 't1', gap2: 't4'}},
         untouched: (p) => { p._placements.clear(); },
-        wrong: (p) => { p._placements.set('gap1', 't2'); },
-        wrong2: (p) => { p._placements.set('gap1', 't3'); },
-        correct: (p) => { p._placements.set('gap1', 't1'); },
+        partial: (p) => { p._placements.clear(); p._placements.set('gap1', 't2'); },
+        wrong: (p) => { p._placements.set('gap1', 't2'); p._placements.set('gap2', 't4'); },
+        wrong2: (p) => { p._placements.set('gap1', 't3'); p._placements.set('gap2', 't4'); },
+        correct: (p) => { p._placements.set('gap1', 't1'); p._placements.set('gap2', 't4'); },
         locked: null,
     },
     group: {
         config: {kind: 'group', groups: [{id: 'a', label: 'A'}, {id: 'b', label: 'B'}], tokens: [{id: '1', text: 'Jedna'}, {id: '2', text: 'Dva'}], solutions: {1: 'a', 2: 'a'}},
         untouched: (p) => { p._inGroup.clear(); },
-        wrong: (p) => { p._inGroup.clear(); p._inGroup.set('1', 'b'); },
+        partial: (p) => { p._inGroup.clear(); p._inGroup.set('1', 'b'); },
+        wrong: (p) => { p._inGroup.clear(); p._inGroup.set('1', 'b'); p._inGroup.set('2', 'a'); },
         wrong2: (p) => { p._inGroup.clear(); p._inGroup.set('1', 'b'); p._inGroup.set('2', 'b'); },
         correct: (p) => { p._inGroup.clear(); p._inGroup.set('1', 'a'); p._inGroup.set('2', 'a'); },
         locked: null,
     },
     match: {
-        config: {kind: 'match', mode: 'columns', tokens: [{id: 'a', text: 'A', side: 'left'}, {id: 'b', text: 'B', side: 'right'}, {id: 'c', text: 'C', side: 'right'}, {id: 'd', text: 'D', side: 'right'}], pairs: [['a', 'b']]},
+        config: {kind: 'match', mode: 'columns', tokens: [
+            {id: 'a', text: 'A', side: 'left'}, {id: 'b', text: 'B', side: 'right'},
+            {id: 'c', text: 'C', side: 'left'}, {id: 'd', text: 'D', side: 'right'},
+            {id: 'e', text: 'E', side: 'left'}, {id: 'f', text: 'F', side: 'right'},
+        ], pairs: [['a', 'b'], ['c', 'd'], ['e', 'f']]},
         untouched: (p) => { p._pairs.clear(); },
-        wrong: (p) => { p._pairs.clear(); p._pairs.set('a', 'c'); p._pairs.set('c', 'a'); },
-        wrong2: (p) => { p._pairs.clear(); p._pairs.set('a', 'd'); p._pairs.set('d', 'a'); },
-        correct: (p) => { p._pairs.clear(); p._pairs.set('a', 'b'); p._pairs.set('b', 'a'); },
+        partial: (p) => { pairs(p, [['a', 'd']]); },
+        wrong: (p) => { pairs(p, [['a', 'd'], ['c', 'b'], ['e', 'f']]); },
+        wrong2: (p) => { pairs(p, [['a', 'f'], ['c', 'd'], ['e', 'b']]); },
+        correct: (p) => { pairs(p, [['a', 'b'], ['c', 'd'], ['e', 'f']]); },
         locked: null,
     },
     order: {
         config: {kind: 'order', tokens: [{id: 'x', text: 'X'}, {id: 'y', text: 'Y'}, {id: 'z', text: 'Z'}], solution: ['x', 'y', 'z']},
-        untouched: null,
+        untouched: (p) => { p._ordered = []; },
+        partial: (p) => { p._ordered = ['x', 'y']; },
         wrong: (p) => { p._ordered = ['y', 'x', 'z']; },
         wrong2: (p) => { p._ordered = ['z', 'y', 'x']; },
         correct: (p) => { p._ordered = ['x', 'y', 'z']; },
@@ -112,13 +129,13 @@ const KINDS = {
     },
 };
 
-function run(kind, {blockUntilSolved}) {
+function run(kind, {blockUntilSolved, showErrorToast = false}) {
     const resolved = [];
     const runner = createPuzzleRunner({
         ref: `pz-${kind}`,
         config: {id: `pz-${kind}`, ...KINDS[kind].config},
         engine,
-        instanceOptions: {blockUntilSolved, showErrorToast: false},
+        instanceOptions: {blockUntilSolved, showErrorToast},
         onResolve: (r) => resolved.push(r.ok),
     });
     runner.mountInto(engine.hotspotLayer);
@@ -134,6 +151,17 @@ function run(kind, {blockUntilSolved}) {
 
 describe.each(Object.keys(KINDS))('%s', (kind) => {
     const spec = KINDS[kind];
+
+    it.runIf(!!spec.partial)('a partly answered submission is not an answer yet: nothing counted, no marks, stays open', async () => {
+        const toasts = [];
+        engine.toast = (msg) => toasts.push(msg);
+        const {press, resolved} = run(kind, {blockUntilSolved: false, showErrorToast: true});
+        await press('partial');
+        expect(counted()).toEqual([]);
+        expect(resolved).toEqual([]);
+        expect(engine.hotspotLayer.querySelector('.is-wrong, .is-correct, .wrong, .correct')).toBeNull();
+        expect(toasts).toEqual(['Nejdřív dokonči všechny odpovědi.']);  // a hint, not a verdict
+    });
 
     it.runIf(!!spec.untouched)('an untouched submission is not an answer: nothing counted, puzzle stays open', async () => {
         const {press, resolved} = run(kind, {blockUntilSolved: false});
@@ -210,7 +238,8 @@ describe('match answers', () => {
             onResolve: () => {},
         });
         runner.mountInto(engine.hotspotLayer);
-        const pair = (a, b) => { runner.puzzle._pairs.clear(); runner.puzzle._pairs.set(a, b); runner.puzzle._pairs.set(b, a); };
+        // 'ok' has to be paired for the answer to be complete; the rest carry the tricky ids.
+        const pair = (a, b) => pairs(runner.puzzle, [['ok', 'x'], [a, b]]);
         pair('a|b', 'c');                               // joined with '|': "a|b|c"
         await runner.puzzle.onOk(); await flush();
         pair('a', 'b|c');                               // joined with '|': also "a|b|c"

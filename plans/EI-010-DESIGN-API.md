@@ -823,12 +823,13 @@ Built 2026-09-26. Where the code departs from Revision 2, and why.
 - **Empty quiz (§A).** Nothing selected is `incomplete` only when the solution is
   not empty; a quiz whose answer is "none" is answered by selecting nothing. An
   existing test (puzzles.v2, missing solutions) caught the first version.
-- **Untouched, in every kind but order.** After SOL's review, choice, cloze,
-  group and match also report `incomplete` when nothing at all was answered.
-  A *partly* answered puzzle is evaluated as before, with the same per-row
-  feedback, and counts if wrong: changing that changes what pupils see and is
-  the owner's call. Order has no untouched state; its starting arrangement is an
-  answer.
+- **Unfinished is not an answer, in every kind.** After SOL's review, and by the
+  owner's decision (2026-09-26): choice, cloze, group, match and order report
+  `incomplete` while anything that has an answer is left unanswered, not only
+  when nothing was touched. The pupil gets a neutral "finish first" hint and no
+  right/wrong marks until the answer is complete. (Order builds its sequence
+  one token at a time from empty; an earlier note here said otherwise.) A quiz
+  keeps "nothing selected" only, since how many to pick is not given away.
 - **`scenesTotal` at boot (§E).** Known from scenes.json, so it is never `null`;
   only `puzzlesTotal` waits for the catalogue.
 - **Persistence (§C).** The reporter's flush is the scheduled commit. It saves

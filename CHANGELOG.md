@@ -23,9 +23,12 @@ repository; see `docs/RELEASING.md` for which version means what.
 - **Games can name things for the board** with `meta.dashboard` in scenes.json:
   labels for scenes, tasks and items, and milestones (a flag, a scene, a task or
   a dialog). It changes names, never what is measured. (EI-010)
-- **An empty answer is no longer a wrong one.** Pressing OK with nothing typed or
-  nothing selected, placed, sorted or paired keeps the puzzle open instead of
-  failing it. (EI-010)
+- **An unfinished answer is no longer a wrong one.** Pressing OK before every
+  part of a puzzle is answered (a gap left empty, a token not sorted, a pair not
+  made, nothing typed) keeps the puzzle open with the hint "Nejdřív dokonči
+  všechny odpovědi." instead of marking it wrong or failing it. (EI-010)
+- `scripts/simulate-lesson.mjs` plays a lesson with simulated teams against the
+  dev server, to see the board working without tablets. (EI-010)
 
 - **A dropped puzzle file no longer breaks every puzzle for the rest of the
   run.** When the network dropped the request for a game's puzzle definitions,

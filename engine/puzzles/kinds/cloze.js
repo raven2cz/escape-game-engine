@@ -369,9 +369,9 @@ export default class ClozePuzzle extends BasePuzzle {
 
     onOk() {
         const solution = this.config.solution || {};
-        // Nothing placed is not an answer, and not a mistake (see code.js),
-        // unless there is nothing to place.
-        if (this._placements.size === 0 && Object.keys(solution).length > 0) {
+        // A gap left empty means the answer is not finished: not a mistake,
+        // no marks, the puzzle stays open (see choice.js).
+        if (!Object.keys(solution).every(gapId => this._placements.has(gapId))) {
             return {hold: true, status: 'incomplete'};
         }
         // Taken now: a wrong placement is returned to the bank 800 ms later.

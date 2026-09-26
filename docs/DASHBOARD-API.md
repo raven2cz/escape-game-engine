@@ -89,15 +89,17 @@ costs nothing once the next arrives.
 - **`attempts`** counts every real evaluation, the solving one included.
   **`mistakes`** counts wrong ones. That is the whole error model: no captured
   answers, no per-attempt rows.
-- **What is not an attempt:** an untouched submission (nothing typed, selected,
-  placed, sorted or paired; the puzzle stays open), a press refused by a
-  cooldown, and a wrong answer submitted again **unchanged** (a double tap, or
-  OK pressed twice while the feedback shows). The pupil still sees the feedback
-  every time; it is just not a second mistake. A different answer is a new
-  attempt, compared with the last wrong one (so A, B, A is three). This is
-  decided by the answer itself, not by a timer or by where the pupil tapped, so
-  a quick correction is never lost and tapping around changes nothing. A partly answered puzzle is evaluated as before and
-  a wrong one counts.
+- **What is not an attempt:** an unfinished submission. That is nothing typed
+  or selected, or, in choice, cloze, group, match and order, anything that has
+  an answer left unanswered. The puzzle stays open with no right/wrong marks,
+  only the neutral hint "Nejdřív dokonči všechny odpovědi." Also not an
+  attempt: a press refused by a cooldown, and a wrong answer submitted again
+  **unchanged** (a double tap, or OK pressed twice while the feedback shows).
+  The pupil still sees the feedback every time; it is just not a second
+  mistake. A different answer is a new attempt, compared with the last wrong
+  one (so A, B, A is three). This is decided by the answer itself, not by a
+  timer or by where the pupil tapped, so a quick correction is never lost and
+  tapping around changes nothing.
 - **`activity`** is the innermost open leaf. During a list it is the current
   step; on the list's summary screen it is `null`. A reload closes every puzzle,
   so after a reload it is `null` until a puzzle is opened again.

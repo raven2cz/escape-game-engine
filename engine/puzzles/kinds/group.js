@@ -276,11 +276,15 @@ export default class GroupPuzzle extends BasePuzzle {
     }
 
     onOk() {
-        // Nothing sorted is not an answer, and not a mistake (see code.js).
-        if (this._inGroup.size === 0 && this._tokenEls.size > 0) return {hold: true, status: 'incomplete'};
+        // Every token that belongs somewhere has to be sorted before it is an
+        // answer (see choice.js). A token with no group is a distractor that
+        // may stay out; with no solutions at all, anything sorted is an answer.
+        const sol = this._solutions();
+        const belongs = [...this._tokenEls.keys()].filter(id => sol[id] != null && String(sol[id]) !== '');
+        const done = belongs.length ? belongs.every(id => this._inGroup.has(id)) : this._inGroup.size > 0 || this._tokenEls.size === 0;
+        if (!done) return {hold: true, status: 'incomplete'};
         // Taken now: a wrongly sorted token is taken back out below.
         const answer = Object.fromEntries([...this._inGroup].sort()); // see phrase.js
-        const sol = this._solutions();
         let allOk = true;
 
         for (const [id, el] of this._tokenEls.entries()) {
