@@ -159,10 +159,11 @@ export async function boot(opts = {}) {
     const lang = (opts.lang || 'cs').toLowerCase();
     const baseUrl = opts.baseUrl || `./games/${gameId}/`;
     const sessionId = opts.sessionId || null;
-    // A player named in the link is cleaned like a typed one: it is shown on
-    // the teacher's board.
-    let teamId = cleanName(opts.teamId) || null;
-    let playerName = teamId;
+    // A player named in the link is an identity (the save slot, EI-002) and may
+    // be an opaque id from the runtime: kept whole. Only what the board shows is
+    // cleaned like a typed name.
+    let teamId = String(opts.teamId ?? '').trim() || null;
+    let playerName = cleanName(teamId) || teamId;
     let avatar = opts.avatar || null;
     const root = opts.root || document.body;
 

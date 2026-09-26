@@ -49,6 +49,7 @@ describe('cleanName', () => {
         expect(cleanName('\u2060')).toBe('');
         expect(cleanName('Ani\u061Cčka\u2060')).toBe('Anička');
         expect(cleanName('Anic\u030Cka')).toBe('Anička');              // combining háček, normalised
+        expect(cleanName('A\u200B\u030A')).toBe('Å');                   // normalised after removal, not before
         expect([...cleanName('🦊'.repeat(40))]).toHaveLength(NAME_MAX);
         expect(cleanName('   ')).toBe('');
         expect(cleanName(null)).toBe('');
@@ -159,8 +160,14 @@ describe('boot() in a lesson', () => {
         expect(document.querySelector('.join-overlay')).toBeNull();
         const named = await boot({gameId: 'join-test', sessionId: '7A', teamId: ' Pe‮tr '});
         expect(document.querySelector('.join-overlay')).toBeNull();
-        expect(named.teamId).toBe('Petr');                               // a name from the link is cleaned too
-        expect(named.playerName).toBe('Petr');
+        expect(named.teamId).toBe('Pe‮tr');                              // the identity is kept whole
+        expect(named.playerName).toBe('Petr');                           // only the label is cleaned
+    });
+
+    it('a long opaque player id from the link is never shortened into another', async () => {
+        const a = await boot({gameId: 'join-test', sessionId: '7A', teamId: `runtime-${'x'.repeat(40)}-1`});
+        const b = await boot({gameId: 'join-test', sessionId: '7A', teamId: `runtime-${'x'.repeat(40)}-2`});
+        expect(a.teamId).not.toBe(b.teamId);
     });
 
     it('Restart forgets the player, so the next child on the tablet is asked', async () => {

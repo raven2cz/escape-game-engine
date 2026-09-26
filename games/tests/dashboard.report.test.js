@@ -152,6 +152,16 @@ describe('no leak: the internal state never reaches the wire', () => {
         }
     });
 
+    it('checkReport works without Object.hasOwn (Safari before 15.4)', () => {
+        const original = Object.hasOwn;
+        try {
+            delete Object.hasOwn;
+            expect(checkReport(toWire(build()))).toEqual([]);
+        } finally {
+            Object.hasOwn = original;
+        }
+    });
+
     it('checkReport refuses an avatar that is not in the catalogue', () => {
         const wire = toWire(build());
         expect(checkReport({...wire, avatar: 'dragon'})).toContain('report.avatar is not in the avatar catalogue');

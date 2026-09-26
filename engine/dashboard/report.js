@@ -66,6 +66,9 @@ export const REPORT_SCHEMA = Object.freeze({
     },
 });
 
+// Object.hasOwn is Safari 15.4; the supported minimum is 15.0.
+const hasOwn = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key);
+
 const toInt = (v) => {
     const n = typeof v === 'string' && v.trim() !== '' ? Number(v) : v;
     return Number.isFinite(n) ? Math.max(0, Math.round(n)) : 0;
@@ -149,10 +152,10 @@ export function checkReport(value, node = REPORT_SCHEMA, path = 'report') {
         // Own keys only: `in` would accept `constructor`, `toString` or
         // `__proto__` as declared fields, and carry whatever is under them.
         for (const key of Object.keys(value)) {
-            if (!Object.hasOwn(fields, key)) problems.push(`${path}.${key} is not part of the contract`);
+            if (!hasOwn(fields, key)) problems.push(`${path}.${key} is not part of the contract`);
         }
         for (const [key, child] of Object.entries(fields)) {
-            if (!Object.hasOwn(value, key)) problems.push(`${path}.${key} is missing`);
+            if (!hasOwn(value, key)) problems.push(`${path}.${key} is missing`);
             else problems.push(...checkReport(value[key], child, `${path}.${key}`));
         }
         // Meaning, not only shape: an avatar is an id from the shared catalogue.

@@ -23,9 +23,11 @@ export const NAME_MAX = 24;
  * collapsed, at most NAME_MAX characters.
  */
 export function cleanName(raw) {
+    // Remove first, then normalise: taking a character out can bring a base
+    // letter and a combining mark together, and the result must still be NFC.
     const s = String(raw ?? '')
-        .normalize('NFC')
         .replace(/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}\p{Co}\p{Cn}]/gu, '')
+        .normalize('NFC')
         .replace(/\s+/g, ' ')
         .trim();
     return [...s].slice(0, NAME_MAX).join('').trim();
