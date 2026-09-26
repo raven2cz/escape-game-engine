@@ -30,7 +30,7 @@ pre-existing defect rather than a new one.
 | EI-007 | P2   | DONE   | Service worker precache is broken, and cache-first is unsafe    |
 | EI-008 | P2   | DONE   | Inventory items cannot be activated from the keyboard           |
 | EI-009 | P2   | DONE   | `runPuzzleList` is called but never defined                     |
-| EI-010 | P2   | OPEN   | Progress signal differs per game, no single source for a dashboard |
+| EI-010 | P2   | DONE   | Progress signal differs per game, no single source for a dashboard |
 | EI-011 | P3   | DONE   | Consumed item removal is not saved                              |
 | EI-012 | P3   | DONE   | Saved state has no schema, validation or migration              |
 | EI-013 | P3   | DONE   | A double tap can open two dialogs or two puzzles                |
@@ -521,6 +521,28 @@ than a `ReferenceError`, if the type is kept at all.
 ---
 
 ## EI-010: Progress signal differs per game, no single source for a dashboard
+
+**Status:** DONE (2026-09-26), on `feat/ei-010-system-state`. Built to
+`plans/EI-010-DESIGN-API.md` Revision 2; the contract of record is
+`docs/DASHBOARD-API.md`.
+
+**Resolution.** One emission point, as proposed below, and the owner's rule on
+top of it: the internal state is never shipped. The engine publishes signals at
+its existing choke points (`engine/dashboard/signals.js`); `ProgressModel` keeps a
+private record in `state.progress` (time per scene, attempts and mistakes per
+task, items used, dialogs seen, completion, run and revision), reload-safe and
+bounded; `DashboardReporter` turns each burst of signals into one deferred flush
+that reserves a revision, persists it, and sends a `DashboardReport` built by the
+projector and copied field by declared field by `toWire()`. The default transport
+sends nothing. Every kind now returns an explicit status, so a held wrong answer
+is counted, and an empty submission or a lock is not. Per-game labels and
+milestones live in `meta.dashboard`. The reference board is `board/`, built on
+the public API only. Tests: `games/tests/dashboard.*.test.js`, with the no-leak
+and non-blocking tests mutation-checked, each of the two walls on its own.
+
+The evidence counted 10 tasks for leeuwenhoek; it is 9. `list-lab-demo` is a
+container, not a task, and its five steps are hotspots already counted.
+`dashboard.catalogue.test.js` pins the demo's number.
 
 **Priority:** P2, and it is design input rather than a defect to patch.
 

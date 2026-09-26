@@ -1,7 +1,9 @@
 # EI-010: the dashboard API and services, designed
 
 **Author: Claude (Opus 4.8), 2026-09-06. Status: reviewed by codex SOL twice; revised twice.**
-Not implemented. Fable does the implementation review later, once this is built.
+**Implemented 2026-09-26** (Claude Opus 5.5) on `feat/ei-010-system-state`; the contract of
+record is [`docs/DASHBOARD-API.md`](../docs/DASHBOARD-API.md). Where the implementation departs
+from Revision 2, it is listed in [Implementation notes](#implementation-notes) at the end.
 
 > **Read the [Revision after SOL review](#revision-after-sol-review) at the end
 > first.** SOL ([EI-010-SOL-REVIEW.md](EI-010-SOL-REVIEW.md)) endorsed the
@@ -797,3 +799,46 @@ are server-side and belong to the runtime. Recommendation: this is enough to
 implement against — settle the last numeric specifics (exact budget ms, exact wire
 cap) with tests during implementation, and have the implementation reviewed rather
 than spending a third design-only pass.
+
+---
+
+## Implementation notes
+
+Built 2026-09-26. Where the code departs from Revision 2, and why.
+
+- **Status alongside hold (§A).** Kinds return `{hold: true, status}` for held
+  results and `{ok, detail}` otherwise; `evaluationStatus()` in the runner is the
+  one place that reads them. A kind that sets no status is read the old way (a
+  hold is no statement), so a third-party kind cannot be miscounted.
+- **Single flight plus change detection (§F).** Single flight alone does not stop
+  a double tap: a click is its own task, so the first evaluation has settled
+  before the second arrives. A wrong answer is counted only if it differs from
+  the last wrong one: every built-in kind returns an `answer` snapshot with a
+  held wrong result, taken before it undoes wrong placements, and the runner
+  compares them. The answer is still evaluated, so the feedback is unchanged.
+  A kind that returns no `answer` falls back to "the pupil interacted with the
+  puzzle since". Two earlier versions went after SOL's reviews: a 400 ms timer
+  (could swallow a quick correction, missed the 800 ms cloze and match reset),
+  then interaction events alone (a tap anywhere counted the same answer again).
+- **Empty quiz (§A).** Nothing selected is `incomplete` only when the solution is
+  not empty; a quiz whose answer is "none" is answered by selecting nothing. An
+  existing test (puzzles.v2, missing solutions) caught the first version.
+- **Untouched, in every kind but order.** After SOL's review, choice, cloze,
+  group and match also report `incomplete` when nothing at all was answered.
+  A *partly* answered puzzle is evaluated as before, with the same per-row
+  feedback, and counts if wrong: changing that changes what pupils see and is
+  the owner's call. Order has no untouched state; its starting arrangement is an
+  answer.
+- **`scenesTotal` at boot (§E).** Known from scenes.json, so it is never `null`;
+  only `puzzlesTotal` waits for the catalogue.
+- **Persistence (§C).** The reporter's flush is the scheduled commit. It saves
+  when progress changed (and, with a real transport, to reserve the revision).
+  An engine save alone produces a report but no extra save.
+- **Milestone reach (§G).** Derived at projection, not stored: a flag milestone
+  is reached while the flag is set, a scene one once visited, a task one once
+  solved, a dialog one once seen.
+- **Evidence correction.** leeuwenhoek has 9 tasks, not 10 (§7 counted the
+  `list-lab-demo` container).
+- **The board.** Out of scope in the design; the owner asked for it with the
+  engine work. It is `board/`, consumes the public API only, and is what the
+  shop's board can reuse.

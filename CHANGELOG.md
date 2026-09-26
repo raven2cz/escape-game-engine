@@ -9,6 +9,24 @@ repository; see `docs/RELEASING.md` for which version means what.
 
 ## Unreleased
 
+- **The teacher can see the lesson.** The engine now keeps a private record of
+  each team's run (where it is and since when, attempts and mistakes per task,
+  items used, dialogs seen, when it finished) and reports it as a declared,
+  versioned `DashboardReport`, never as its internal state. Reports are built off
+  the game's transition path, one per burst of activity, and survive a reload.
+  Nothing is sent anywhere unless the host passes a transport (`boot({report})`).
+  `ENGINE_API_VERSION` is now 2, the first version that promises a contract; see
+  `docs/DASHBOARD-API.md`. No `saveVersion` moves and no lesson ends. (EI-010)
+- **A teacher's board**, in `board/`, built only on that contract: a row per
+  team, a task by team grid, items, and who may be stuck. With the dev server,
+  tablets on the network report to it with `&report=http`. (EI-010)
+- **Games can name things for the board** with `meta.dashboard` in scenes.json:
+  labels for scenes, tasks and items, and milestones (a flag, a scene, a task or
+  a dialog). It changes names, never what is measured. (EI-010)
+- **An empty answer is no longer a wrong one.** Pressing OK with nothing typed or
+  nothing selected, placed, sorted or paired keeps the puzzle open instead of
+  failing it. (EI-010)
+
 - **A dropped puzzle file no longer breaks every puzzle for the rest of the
   run.** When the network dropped the request for a game's puzzle definitions,
   the engine cached the empty result as if it had loaded, so every puzzle became
