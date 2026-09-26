@@ -155,6 +155,17 @@ describe('boot() in a lesson', () => {
         expect(game.playerName).toBe('Anička');
     });
 
+    it('does not ask when this tablet is already playing the lesson from before (no lesson ends)', async () => {
+        // A session link with no player, saved by the engine before this screen existed.
+        const first = await boot({gameId: 'join-test', sessionId: '7A', join: false});
+        first.state.flags.halfway = true;
+        first._saveState();
+        const again = await boot({gameId: 'join-test', sessionId: '7A'});
+        expect(document.querySelector('.join-overlay')).toBeNull();
+        expect(again.teamId).toBeNull();
+        expect(again.state.flags.halfway).toBe(true);                    // the lesson goes on
+    });
+
     it('does not ask outside a lesson, or when the link already names the player', async () => {
         await boot({gameId: 'join-test'});
         expect(document.querySelector('.join-overlay')).toBeNull();

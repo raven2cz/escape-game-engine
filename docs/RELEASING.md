@@ -139,8 +139,8 @@ a guard against a hand-made tag, refuses a tag that disagrees with
     escape-game-engine-<version>.tar.gz
     escape-game-engine-<version>.tar.gz.sha256
 
-The tarball contains `engine/ styles/ index.html LICENSE README.md` and **no
-games**. Its file list comes from `package.json#files`, so there is one list
+The tarball contains `engine/ styles/ board/ index.html LICENSE README.md` and
+**no games**. `board/` is the teacher's board (docs/DASHBOARD-API.md). Its file list comes from `package.json#files`, so there is one list
 rather than two to keep in step. (It is not byte-identical to `npm pack`, which
 always adds `package.json` whatever the list says. Nothing consumes an npm pack
 of this project; the tarball is what a deployment takes.)
@@ -200,8 +200,13 @@ anything at the moment it matters:
     .../?game=warp-engine&reset=1                  start clean every time
 
 `session` is any string that differs between lessons - a date and a period does
-the job. Add `team` as well if one lesson ever runs on more than one tablet and
-they must not share. Both are opaque to the engine; it only keeps them apart.
+the job. With a `session` and no player named in the link, each pupil is asked
+"Kdo hraje?" (a name and a picture) before the game: from engine 1.1.0 that is
+what gives every pupil their own slot within the lesson, on one tablet or thirty.
+Put `team=<id>` in the link only if something else already knows who is playing
+(the hosted runtime will); it is kept whole as the identity. A tablet already
+playing a session-only lesson saved by an older engine carries on without being
+asked, so an upgrade does not end it.
 
 `reset=1` is the blunter one: it wipes on every load, so a team that reloads
 mid-lesson loses the lesson. Prefer `session`, and keep `reset=1` for the case

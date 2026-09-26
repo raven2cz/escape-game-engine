@@ -115,6 +115,15 @@ function watchSceneAspect(game, sceneImage) {
     });
 }
 
+/** Whether a run is saved under a key, without trusting what is in it. */
+function hasStoredRun(key) {
+    try {
+        return !!globalThis.localStorage?.getItem(key);
+    } catch {
+        return false;
+    }
+}
+
 /**
  * Build the page and start the game.
  *
@@ -191,7 +200,13 @@ export async function boot(opts = {}) {
     // In a lesson, find out who is playing before anything is loaded under
     // their name. A tablet that already knows its player for this lesson
     // (a reload) is not asked again.
-    const join = opts.join ?? (!!sessionId && !teamId);
+    // Not when this tablet is already playing this lesson from before the
+    // screen existed (a session link, no player): an engine release must never
+    // end a lesson, and asking would move the pupil to a new, empty slot. The
+    // key is the one Game._storageKey() gives a session without a player.
+    const running = !!sessionId && !teamId && !opts.storage
+        && hasStoredRun(`state:${encodeURIComponent(sessionId)}:${gameId}:`);
+    const join = opts.join ?? (!!sessionId && !teamId && !running);
     if (join) {
         const player = loadPlayer(sessionId, gameId) || {id: mintPlayerId(), ...await askWhoPlays(root, t)};
         savePlayer(sessionId, gameId, player);
