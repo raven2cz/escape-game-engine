@@ -13,7 +13,7 @@
  * engine must never end a lesson. A team reloads onto the new code and their
  * progress is still there. See docs/RELEASING.md.
  */
-export const ENGINE_VERSION = '1.1.1';
+export const ENGINE_VERSION = '1.2.0';
 
 /**
  * What the engine promises to whatever is reading it from outside: the hosted

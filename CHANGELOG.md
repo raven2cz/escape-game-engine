@@ -7,7 +7,7 @@ entry is written while the change is fresh, and nobody has to predict a number.
 Versions are the engine's own. Games are versioned separately, in their own
 repository; see `docs/RELEASING.md` for which version means what.
 
-## Unreleased
+## 1.2.0
 - **`videoBlob`: videos downloaded whole and played from memory.** For a host
   whose server cannot answer byte ranges cheaply: Safari streams a video by
   asking for pieces from the middle of the file, which cost the hosted runtime
