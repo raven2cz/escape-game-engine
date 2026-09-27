@@ -138,4 +138,35 @@ describe('videoBlob', () => {
         expect(URL.createObjectURL).not.toHaveBeenCalled();
         void other;
     });
+
+    it('two playbacks waiting on one download: the second waits on a copy of its own', async () => {
+        const game = await boot({gameId: 'vb', baseUrl: './g/', videoBlob: true});
+        const first = game._playVideo({src: 'assets/video/intro.mp4'});
+        const second = game._playVideo({src: 'assets/video/intro.mp4'});
+        const [v1, v2] = document.querySelectorAll('.video-overlay video');
+        release['intro.mp4']();
+        await vi.waitFor(() => expect(v1.getAttribute('src')).toBe('blob:vb/1'));
+        expect(v2.getAttribute('src')).toBeNull();                            // not the stream
+        await vi.waitFor(() => expect(requested.filter(n => n === 'intro.mp4')).toHaveLength(2));
+        release['intro.mp4']();
+        await vi.waitFor(() => expect(v2.getAttribute('src')).toMatch(/^blob:vb\/\d$/));
+        expect(v2.getAttribute('src')).not.toBe('blob:vb/1');
+        v1.dispatchEvent(new Event('ended'));
+        v2.dispatchEvent(new Event('ended'));
+        await Promise.all([first, second]);
+    });
+
+    it('a video played before its turn is not downloaded again by the background queue', async () => {
+        const game = await boot({gameId: 'vb', baseUrl: './g/', videoBlob: true});
+        const out = game._playVideo({src: 'assets/video/outro.mp4'});        // needed now, intro still downloading
+        await flush();
+        expect(requested).toEqual(['intro.mp4', 'outro.mp4']);
+        release['outro.mp4']();
+        await vi.waitFor(() => expect(video().getAttribute('src')).toBe('blob:vb/1'));
+        video().dispatchEvent(new Event('ended'));
+        await out;
+        release['intro.mp4']();
+        await flush(); await flush(); await flush();
+        expect(requested).toEqual(['intro.mp4', 'outro.mp4']);
+    });
 });

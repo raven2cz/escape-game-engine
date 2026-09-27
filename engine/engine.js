@@ -123,6 +123,7 @@ export class Game {
         this.videoBlob = !!opts.videoBlob;
         this._videoUrls = new Map();  // resolved src -> Promise<object URL | null>
         this._videoReady = new Map(); // the same, once settled, for a synchronous start
+        this._videoTaken = new Set(); // handed to a playback: the background download skips it
 
         // State
         this.data = null;
@@ -1961,11 +1962,14 @@ export class Game {
      * Hand a downloaded video over to one playback, which frees it when done.
      * Taken out of the cache, so a second playback of the same video (at once,
      * or later) downloads its own copy and nobody frees a URL still in use.
+     * Undefined when there is nothing to take, null when the download failed.
      */
     _takeVideo(src) {
-        const url = this._videoReady.get(src) ?? null;
+        if (!this._videoReady.has(src)) return undefined; // somebody else took it
+        const url = this._videoReady.get(src);
         this._videoReady.delete(src);
         this._videoUrls.delete(src);
+        this._videoTaken.add(src);
         return url;
     }
 
@@ -1987,7 +1991,9 @@ export class Game {
         };
         walk(this.data?.scenes);
         walk(this.data?.events);
-        for (const src of new Set(found)) await this._videoUrl(src);
+        for (const src of new Set(found)) {
+            if (!this._videoTaken.has(src)) await this._videoUrl(src);
+        }
     }
 
     /**
@@ -2182,9 +2188,16 @@ export class Game {
                     offerWayOut();
                 });
             };
+            // Waiting on a download another playback of the same video takes
+            // first: wait on a download of its own.
+            const whenDownloaded = () => this._videoUrl(src).then(() => {
+                const url = this._takeVideo(src);
+                if (url === undefined && !finished) whenDownloaded();
+                else start(url ?? null);
+            });
             if (!this.videoBlob) start(null);
             else if (this._videoReady.has(src)) start(this._takeVideo(src));
-            else this._videoUrl(src).then(() => start(this._takeVideo(src)));
+            else whenDownloaded();
         });
     }
 
