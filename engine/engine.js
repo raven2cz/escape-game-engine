@@ -114,6 +114,16 @@ export class Game {
         // way past it, even when the game asked for no skipping. See EI-022.
         this.videoStartTimeoutMs = opts.videoStartTimeoutMs ?? 6000;
 
+        // Download each video whole and play it from memory, instead of letting
+        // the browser stream it. For a host whose server cannot answer byte
+        // ranges cheaply: Safari streams a video by asking for pieces from the
+        // middle of the file, and on the hosted runtime every such piece costs
+        // the server more CPU than its plan allows. A whole file is a plain
+        // static download. Off by default; local play streams as before.
+        this.videoBlob = !!opts.videoBlob;
+        this._videoUrls = new Map();  // resolved src -> Promise<object URL | null>
+        this._videoReady = new Map(); // the same, once settled, for a synchronous start
+
         // State
         this.data = null;
         this.meta = {};
@@ -301,6 +311,7 @@ export class Game {
     async init() {
         this.data = await fetch(this.scenesUrl, {cache: 'no-cache'}).then(r => r.json());
         this.modalRoot.classList.add('hidden');
+        this._prefetchVideos();
 
         this.meta = this.data?.meta || {};
 
@@ -1928,6 +1939,45 @@ export class Game {
     // --- video ---------------------------------------------------------------
 
     /**
+     * The video as an object URL, downloading it if nobody has yet. Null when
+     * the download fails: the caller streams instead, as without `videoBlob`.
+     */
+    _videoUrl(src) {
+        if (!this._videoUrls.has(src)) {
+            this._videoUrls.set(src, fetch(src)
+                .then(r => (r.ok ? r.blob() : null))
+                .then(b => (b ? URL.createObjectURL(b) : null))
+                .catch(() => null)
+                .then(url => {
+                    this._videoReady.set(src, url);
+                    return url;
+                }));
+        }
+        return this._videoUrls.get(src);
+    }
+
+    /**
+     * With `videoBlob`, download the game's videos in the background, one at a
+     * time and in the order the game file lists them, so the first (usually the
+     * intro) is ready when it is played and a class of tablets does not ask for
+     * every video at once.
+     */
+    async _prefetchVideos() {
+        if (!this.videoBlob) return;
+        const found = [];
+        const walk = (o) => {
+            if (Array.isArray(o)) o.forEach(walk);
+            else if (o && typeof o === 'object') {
+                if (typeof o.playVideo?.src === 'string') found.push(this._resolveAsset(o.playVideo.src));
+                Object.values(o).forEach(walk);
+            }
+        };
+        walk(this.data?.scenes);
+        walk(this.data?.events);
+        for (const src of new Set(found)) await this._videoUrl(src);
+    }
+
+    /**
      * Plays a video overlay or embedded video.
      * Returns a Promise that resolves when the video ends or is skipped.
      *
@@ -1953,6 +2003,9 @@ export class Game {
      */
     async _playVideo(cfg) {
         const src = this._resolveAsset(cfg.src);
+        // With `videoBlob`, start the download now if the background one has
+        // not got to this video yet.
+        if (this.videoBlob) this._videoUrl(src);
 
         // 1. Delay logic (optional wait before showing video)
         if (cfg.delay && cfg.delay > 0) {
@@ -1979,7 +2032,7 @@ export class Game {
 
             // Video element
             const video = document.createElement('video');
-            video.src = src;
+            let blobUrl = null;
             video.autoplay = true;
             video.playsInline = true; // Critical for iOS/Tablets to prevent native fullscreen force
             video.controls = false;   // We handle interaction manually
@@ -1998,6 +2051,12 @@ export class Game {
                 clearTimeout(watchdog);
                 video.pause();
                 if (wrapper.parentNode) wrapper.parentNode.removeChild(wrapper);
+                if (blobUrl) {
+                    // Played once; give the memory back. A replay downloads again.
+                    this._videoUrls.delete(src);
+                    this._videoReady.delete(src);
+                    URL.revokeObjectURL(blobUrl);
+                }
 
                 // Execute follow-up actions (onEnd) if defined
                 // Note: We resolve first to unblock the engine, logic happens outside
@@ -2095,12 +2154,24 @@ export class Game {
 
             armWatchdog();
 
-            // Start playback with error handling (autoplay policy)
-            video.play().catch(err => {
-                console.warn('[VIDEO] Autoplay blocked or failed:', err);
-                playBtn.hidden = false;
-                offerWayOut();
-            });
+            // Start playback with error handling (autoplay policy). From memory
+            // when the host asked for it, the stream if that download failed.
+            // A downloaded video starts synchronously, as close to the pupil's
+            // tap as the stream would; one still downloading starts when it
+            // arrives, with the watchdog already offering a way out meanwhile.
+            const start = (url) => {
+                if (finished) return;
+                blobUrl = url;
+                video.src = url || src;
+                video.play().catch(err => {
+                    console.warn('[VIDEO] Autoplay blocked or failed:', err);
+                    playBtn.hidden = false;
+                    offerWayOut();
+                });
+            };
+            if (!this.videoBlob) start(null);
+            else if (this._videoReady.has(src)) start(this._videoReady.get(src));
+            else this._videoUrl(src).then(start);
         });
     }
 

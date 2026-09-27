@@ -196,6 +196,8 @@ async function whoPlays(root, t, host, key) {
  * @param {Storage} [opts.webStorage]  where the tablet remembers the player and
  *        the run: `localStorage` by default. A host that wants nothing to outlive
  *        the browser tab passes `sessionStorage`.
+ * @param {boolean} [opts.videoBlob]  download videos whole and play them from
+ *        memory (see Game). A host whose server cannot answer byte ranges sets it.
  * @param {boolean} [opts.restart]  offer the Restart button. Default on; a host
  *        running a lesson can turn it off so a pupil cannot wipe their own run.
  * @param {string} [opts.avatar]   the player's animal, when the caller already knows it
@@ -288,6 +290,7 @@ export async function boot(opts = {}) {
         ...(opts.storage ? {storage: opts.storage} : {}),
         webStorage,
         ...(opts.report ? {reportTransport: opts.report} : {}),
+        videoBlob: !!opts.videoBlob,
         sessionId,
         teamId,
         playerName,
