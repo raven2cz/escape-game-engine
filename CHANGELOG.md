@@ -10,12 +10,17 @@ repository; see `docs/RELEASING.md` for which version means what.
 ## Unreleased
 - **A host can hand out the player.** `boot({join: {register}})` asks "Kdo
   hraje?" and passes the answer to `register({name, avatar})`, which returns
-  `{playerId}` or `{error}`. A refusal or a network failure shows the message on
-  the same screen and keeps the name and picture, so the pupil only presses
-  Hrát again. A reload reuses the stored player and does not register twice.
+  `{playerId}` or `{error}`. A refusal, a network failure or no answer within
+  15 s shows the message on the same screen and keeps the name and picture, so
+  the pupil only presses Hrát again. A reload reuses the stored player; one in
+  the middle of a registration sends the same random `key`, so the host can
+  hand back the player it already made instead of taking a second place.
+- **A browser that refuses to hand out `localStorage` no longer stops the
+  game.** The engine treats it as "nothing remembered".
 - **`webStorage`** chooses where the tablet remembers the player and the run
   (default `localStorage`). A hosted lesson passes `sessionStorage`, so a
-  closed tab forgets both.
+  closed tab forgets both, and the old pre-1.0 entry in `localStorage` is left
+  alone.
 - **`restart: false`** leaves out the Restart button.
 - **"Kdo hraje?" recommends a nickname** ("např. Modrý tygr") and says what the
   teacher sees and that it is deleted after the lesson. `isPlayerId` is

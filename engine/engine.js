@@ -13,7 +13,7 @@ import {buildCatalogue} from './dashboard/catalogue.js';
 import {DashboardReporter} from './dashboard/reporter.js';
 import {NullTransport} from './dashboard/transports.js';
 import {avatarById} from './dashboard/avatars.js';
-import {cleanName} from './join.js';
+import {cleanName, browserStorage} from './join.js';
 
 /**
  * Shape of the persisted state, versioned independently of the game.
@@ -83,7 +83,7 @@ export class Game {
         this._ownsLocalStorage = !opts.storage;
         // Which Web Storage the default keeps the run in: localStorage, or a
         // host's sessionStorage when nothing should outlive the tab (boot()).
-        this._webStorage = opts.webStorage || globalThis.localStorage;
+        this._webStorage = opts.webStorage || browserStorage();
         this.storage = opts.storage || this._localStorage();
 
         // Which lesson, and which team within it. Both come from the caller and
@@ -2352,7 +2352,9 @@ export class Game {
      * comparison is on the prefix rather than the whole string.
      */
     _readLegacyState() {
-        if (!this._ownsLocalStorage) return null;
+        // Nor when the host keeps the run elsewhere (sessionStorage): the old
+        // entry is localStorage's, and so is leaving it alone.
+        if (!this._ownsLocalStorage || this._webStorage !== browserStorage()) return null;
 
         // A run with an identity is a new lesson by definition. Adopting the
         // device-wide leftover into it would import the previous class's

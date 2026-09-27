@@ -237,7 +237,7 @@ describe('a host that hands out the player (hosted runtime)', () => {
         const booting = boot({gameId: 'join-test', baseUrl: './g/', sessionId: 'L1', join: {register}});
         await answer('Modrý tygr', 'tiger');
         const game = await booting;
-        expect(register).toHaveBeenCalledWith({name: 'Modrý tygr', avatar: 'tiger'});
+        expect(register).toHaveBeenCalledWith({name: 'Modrý tygr', avatar: 'tiger', key: expect.stringMatching(/^p-/)});
         expect(game.teamId).toBe('p-host-0123456789');
         expect(loadPlayer('L1', 'join-test')).toEqual({id: 'p-host-0123456789', name: 'Modrý tygr', avatar: 'tiger'});
 
@@ -286,6 +286,7 @@ describe('a host that hands out the player (hosted runtime)', () => {
         const keys = (st) => Array.from({length: st.length}, (_, i) => st.key(i)).sort();
         expect(keys(localStorage)).toEqual([]);
         expect(keys(sessionStorage)).toEqual([
+            'join:player:L3:join-test',
             'player:L3:join-test',
             `state:L3:join-test:${encodeURIComponent('p-host-session-0001')}`,
         ]);
@@ -307,5 +308,60 @@ describe('a host that hands out the player (hosted runtime)', () => {
         expect(overlay.querySelector('.join-hint').textContent).toContain('Stačí přezdívka');
         await answer('Koala', 'koala');
         await booting;
+    });
+
+    it('a host that does not answer counts as a failure, and every attempt carries the same key', async () => {
+        const register = vi.fn()
+            .mockReturnValueOnce(new Promise(() => {}))                // hangs
+            .mockResolvedValueOnce({playerId: 'p-host-late-000001'});
+        const booting = boot({gameId: 'join-test', baseUrl: './g/', sessionId: 'L5', join: {register, timeoutMs: 30}});
+        await answer('Želva', 'turtle');
+        const error = await until(() => document.querySelector('.join-error'));
+        expect(error.textContent).toContain('nepovedlo');
+        document.querySelector('.join-play').click();
+        const game = await booting;
+        expect(game.teamId).toBe('p-host-late-000001');
+        const [first, second] = register.mock.calls.map(c => c[0].key);
+        expect(first).toMatch(/^p-/);
+        expect(second).toBe(first);
+    });
+
+    it('a reload during registration registers again with the same key', async () => {
+        const hanging = vi.fn(() => new Promise(() => {}));
+        boot({gameId: 'join-test', baseUrl: './g/', sessionId: 'L6', join: {register: hanging}});
+        await answer('Kočka', 'cat');
+        await until(() => hanging.mock.calls.length === 1);
+
+        document.body.innerHTML = '';                                   // the reload
+        const register = vi.fn(async () => ({playerId: 'p-host-same-000001'}));
+        const booting = boot({gameId: 'join-test', baseUrl: './g/', sessionId: 'L6', join: {register}});
+        await answer('Kočka', 'cat');
+        await booting;
+        expect(register.mock.calls[0][0].key).toBe(hanging.mock.calls[0][0].key);
+    });
+
+    it('a browser that refuses even to hand out localStorage still starts the game', async () => {
+        const real = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+        Object.defineProperty(globalThis, 'localStorage', {configurable: true, get() { throw new DOMException('blocked', 'SecurityError'); }});
+        try {
+            const local = await boot({gameId: 'join-test', baseUrl: './g/'});
+            expect(local.state.scene).toBe('room');
+            document.body.innerHTML = '';
+            const booting = boot({
+                gameId: 'join-test', baseUrl: './g/', sessionId: 'L7', webStorage: sessionStorage,
+                join: {register: async () => ({playerId: 'p-host-private-0001'})},
+            });
+            await answer('Tučňák', 'penguin');
+            expect((await booting).teamId).toBe('p-host-private-0001');
+        } finally {
+            Object.defineProperty(globalThis, 'localStorage', real);
+        }
+    });
+
+    it('a run kept in sessionStorage leaves the old localStorage entry alone', async () => {
+        localStorage.setItem('leeuwenhoek_escape_state', JSON.stringify({signature: 'join-test|1', scene: 'room'}));
+        sessionStorage.clear();
+        await boot({gameId: 'join-test', baseUrl: './g/', webStorage: sessionStorage});
+        expect(localStorage.getItem('leeuwenhoek_escape_state')).not.toBeNull();
     });
 });

@@ -34,6 +34,19 @@ export function cleanName(raw) {
     return [...s].slice(0, NAME_MAX).join('').trim();
 }
 
+/**
+ * The browser's localStorage, or null where even reaching it throws (a
+ * SecurityError with storage blocked). Callers already treat null as "nothing
+ * remembered".
+ */
+export function browserStorage() {
+    try {
+        return globalThis.localStorage ?? null;
+    } catch {
+        return null;
+    }
+}
+
 /** A player id: opaque, stable for as long as the tablet remembers the player. */
 export function mintPlayerId() {
     try {
@@ -54,7 +67,7 @@ export function isPlayerId(id) {
 const key = (sessionId, gameId) => `player:${encodeURIComponent(sessionId ?? '')}:${gameId}`;
 
 /** The player this tablet already is in this lesson, or null. */
-export function loadPlayer(sessionId, gameId, storage = globalThis.localStorage) {
+export function loadPlayer(sessionId, gameId, storage = browserStorage()) {
     try {
         const raw = JSON.parse(storage?.getItem(key(sessionId, gameId)) ?? 'null');
         const id = isPlayerId(raw?.id) ? raw.id : null;
@@ -66,18 +79,42 @@ export function loadPlayer(sessionId, gameId, storage = globalThis.localStorage)
     }
 }
 
-export function savePlayer(sessionId, gameId, player, storage = globalThis.localStorage) {
+export function savePlayer(sessionId, gameId, player, storage = browserStorage()) {
     try {
         storage?.setItem(key(sessionId, gameId), JSON.stringify({id: player.id, name: player.name, avatar: player.avatar}));
     } catch { /* private mode: the pupil is asked again after a reload, nothing worse */
     }
 }
 
-export function forgetPlayer(sessionId, gameId, storage = globalThis.localStorage) {
+export function forgetPlayer(sessionId, gameId, storage = browserStorage()) {
     try {
         storage?.removeItem(key(sessionId, gameId));
+        storage?.removeItem(joinKeyKey(sessionId, gameId));
     } catch { /* noop */
     }
+}
+
+const joinKeyKey = (sessionId, gameId) => `join:${key(sessionId, gameId)}`;
+
+/**
+ * The key this tablet registers with, the same for every attempt until a player
+ * is saved. A reload during a registration whose answer was lost sends the same
+ * key again, so a host can hand back the player it already made instead of
+ * taking a second place in the lesson.
+ */
+export function joinKey(sessionId, gameId, storage = browserStorage()) {
+    const k = joinKeyKey(sessionId, gameId);
+    try {
+        const kept = storage?.getItem(k);
+        if (isPlayerId(kept)) return kept;
+    } catch { /* fall through: a fresh key, only idempotence across a reload is lost */
+    }
+    const fresh = mintPlayerId();
+    try {
+        storage?.setItem(k, fresh);
+    } catch { /* noop */
+    }
+    return fresh;
 }
 
 /**

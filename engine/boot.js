@@ -18,7 +18,7 @@
 
 import {Game} from './engine.js';
 import {ENGINE_I18N} from './i18n.js';
-import {askWhoPlays, loadPlayer, savePlayer, forgetPlayer, cleanName, mintPlayerId, isPlayerId} from './join.js';
+import {askWhoPlays, loadPlayer, savePlayer, forgetPlayer, cleanName, mintPlayerId, isPlayerId, joinKey, browserStorage} from './join.js';
 
 /** The nodes the engine takes by reference, and the chrome around them. */
 const SKELETON = `
@@ -124,24 +124,36 @@ function hasStoredRun(key, webStorage) {
     }
 }
 
+/** How long a host may take to register a player before the pupil is told. */
+const REGISTER_TIMEOUT_MS = 15000;
+
 /**
  * "Kdo hraje?" until there is a player. Without a host the engine mints the id;
  * with one, the host does, and whatever it refuses with is shown on the screen
- * with the pupil's answer kept, so they only press Hrát again.
+ * with the pupil's answer kept, so they only press Hrát again. A host that does
+ * not answer in time counts as a failure; the same `key` goes with every
+ * attempt, so a late success followed by a retry is still one player.
  */
-async function whoPlays(root, t, host) {
+async function whoPlays(root, t, host, key) {
+    const failed = () => t('engine.join.failed', 'Připojení se nepovedlo. Zkus to prosím znovu.');
     let error = null;
     let last = null;
     for (;;) {
         const answer = await askWhoPlays(root, t, {error, last});
         if (!host) return {id: mintPlayerId(), ...answer};
         last = answer;
+        let timer;
         try {
-            const res = await host.register(answer);
+            const res = await Promise.race([
+                host.register({...answer, key}),
+                new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('timeout')), host.timeoutMs ?? REGISTER_TIMEOUT_MS); }),
+            ]);
             if (isPlayerId(res?.playerId)) return {id: res.playerId, ...answer};
-            error = typeof res?.error === 'string' && res.error ? res.error : t('engine.join.failed', 'Připojení se nepovedlo. Zkus to prosím znovu.');
+            error = typeof res?.error === 'string' && res.error ? res.error : failed();
         } catch {
-            error = t('engine.join.failed', 'Připojení se nepovedlo. Zkus to prosím znovu.');
+            error = failed();
+        } finally {
+            clearTimeout(timer);
         }
     }
 }
@@ -172,9 +184,13 @@ async function whoPlays(root, t, host) {
  *        player, off otherwise, so local play is unchanged. The answer is the
  *        player: the slot the run is saved under and the name on the teacher's
  *        board. A host that hands out the player itself passes
- *        `{register({name, avatar}) -> Promise<{playerId} | {error}>}`: the
- *        engine shows the screen, the host returns an id (`p-...`) or a message
- *        the pupil sees on the same screen (a full lesson, a finished one).
+ *        `{register({name, avatar, key}) -> Promise<{playerId} | {error}>, timeoutMs?}`:
+ *        the engine shows the screen, the host returns an id (`p-...`) or a
+ *        message the pupil sees on the same screen (a full lesson, a finished
+ *        one). `key` is random and the same for every attempt from this tablet
+ *        until a player is saved, reloads included: a host returns the player
+ *        it already made for a key rather than a second one. No answer within
+ *        `timeoutMs` (15 s) is shown as a failure.
  * @param {Storage} [opts.webStorage]  where the tablet remembers the player and
  *        the run: `localStorage` by default. A host that wants nothing to outlive
  *        the browser tab passes `sessionStorage`.
@@ -235,13 +251,13 @@ export async function boot(opts = {}) {
     // screen existed (a session link, no player): an engine release must never
     // end a lesson, and asking would move the pupil to a new, empty slot. The
     // key is the one Game._storageKey() gives a session without a player.
-    const webStorage = opts.webStorage || globalThis.localStorage;
+    const webStorage = opts.webStorage || browserStorage();
     const running = !!sessionId && !teamId && !opts.storage
         && hasStoredRun(`state:${encodeURIComponent(sessionId)}:${gameId}:`, webStorage);
     const host = opts.join && typeof opts.join === 'object' ? opts.join : null;
     const join = host ? true : (opts.join ?? (!!sessionId && !teamId && !running));
     if (join) {
-        const player = loadPlayer(sessionId, gameId, webStorage) || await whoPlays(root, t, host);
+        const player = loadPlayer(sessionId, gameId, webStorage) || await whoPlays(root, t, host, host ? joinKey(sessionId, gameId, webStorage) : null);
         savePlayer(sessionId, gameId, player, webStorage);
         teamId = player.id;          // the save slot and the identity: stable, never shown
         playerName = player.name;    // only a label: two Aničkas stay two players
