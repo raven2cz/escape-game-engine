@@ -29,7 +29,9 @@ beforeEach(() => {
         if (name.endsWith('.mp4')) {
             requested.push(name);
             return new Promise((resolve) => {
-                release[name] = (ok = true) => resolve({ok, blob: async () => new Blob([name])});
+                release[name] = (ok = true, body = name) => (ok === 'reject'
+                    ? resolve(Promise.reject(new TypeError('offline')))
+                    : resolve({ok, blob: async () => new Blob(body ? [body] : [])}));
             });
         }
         return Promise.resolve({ok: false, status: 404, json: async () => ({})});
@@ -90,5 +92,50 @@ describe('videoBlob', () => {
         await vi.waitFor(() => expect(video()).not.toBeNull());
         expect(video().getAttribute('src')).toMatch(/assets\/video\/intro\.mp4$/);
         expect(requested.filter(n => n === 'intro.mp4')).toEqual([]);
+    });
+
+    it('a video skipped while still downloading is freed when it arrives', async () => {
+        const game = await boot({gameId: 'vb', baseUrl: './g/', videoBlob: true});
+        const done = game._playVideo({src: 'assets/video/intro.mp4'});
+        await vi.waitFor(() => expect(video()).not.toBeNull());
+        document.querySelector('.video-skip').click();
+        await done;
+        release['intro.mp4']();
+        await vi.waitFor(() => expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:vb/1'));
+        const src = game._resolveAsset('assets/video/intro.mp4');
+        expect(game._videoReady.has(src) || game._videoUrls.has(src)).toBe(false);
+    });
+
+    it('two playbacks of the same video never share one URL, so neither frees the other\'s', async () => {
+        const game = await boot({gameId: 'vb', baseUrl: './g/', videoBlob: true});
+        release['intro.mp4']();
+        await flush(); await flush();
+        const first = game._playVideo({src: 'assets/video/intro.mp4'});
+        const second = game._playVideo({src: 'assets/video/intro.mp4'});
+        const [v1, v2] = document.querySelectorAll('.video-overlay video');
+        expect(v1.getAttribute('src')).toBe('blob:vb/1');
+        expect(requested.filter(n => n === 'intro.mp4')).toHaveLength(2);   // the second downloads its own
+        v1.dispatchEvent(new Event('ended'));
+        await first;
+        expect(URL.revokeObjectURL.mock.calls).toEqual([['blob:vb/1']]);
+        release['intro.mp4']();
+        await vi.waitFor(() => expect(v2.getAttribute('src')).toMatch(/^blob:vb\/\d$/));
+        expect(v2.getAttribute('src')).not.toBe('blob:vb/1');
+        v2.dispatchEvent(new Event('ended'));
+        await second;
+    });
+
+    it('an empty download or a network failure streams the video instead', async () => {
+        const game = await boot({gameId: 'vb', baseUrl: './g/', videoBlob: true});
+        release['intro.mp4'](true, '');                                        // empty
+        await flush(); await flush();
+        game._playVideo({src: 'assets/video/intro.mp4'});
+        expect(video().getAttribute('src')).toMatch(/assets\/video\/intro\.mp4$/);
+        document.querySelector('.video-overlay').remove();
+        const other = game._playVideo({src: 'assets/video/outro.mp4'});
+        release['outro.mp4']('reject');
+        await vi.waitFor(() => expect(document.querySelector('.video-overlay video').getAttribute('src')).toMatch(/outro\.mp4$/));
+        expect(URL.createObjectURL).not.toHaveBeenCalled();
+        void other;
     });
 });

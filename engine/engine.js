@@ -1940,20 +1940,33 @@ export class Game {
 
     /**
      * The video as an object URL, downloading it if nobody has yet. Null when
-     * the download fails: the caller streams instead, as without `videoBlob`.
+     * the download fails or is empty: the caller streams instead, as without
+     * `videoBlob`.
      */
     _videoUrl(src) {
         if (!this._videoUrls.has(src)) {
             this._videoUrls.set(src, fetch(src)
                 .then(r => (r.ok ? r.blob() : null))
-                .then(b => (b ? URL.createObjectURL(b) : null))
+                .then(b => (b?.size ? URL.createObjectURL(b) : null))
                 .catch(() => null)
                 .then(url => {
-                    this._videoReady.set(src, url);
+                    if (this._videoUrls.has(src)) this._videoReady.set(src, url);
                     return url;
                 }));
         }
         return this._videoUrls.get(src);
+    }
+
+    /**
+     * Hand a downloaded video over to one playback, which frees it when done.
+     * Taken out of the cache, so a second playback of the same video (at once,
+     * or later) downloads its own copy and nobody frees a URL still in use.
+     */
+    _takeVideo(src) {
+        const url = this._videoReady.get(src) ?? null;
+        this._videoReady.delete(src);
+        this._videoUrls.delete(src);
+        return url;
     }
 
     /**
@@ -2051,12 +2064,8 @@ export class Game {
                 clearTimeout(watchdog);
                 video.pause();
                 if (wrapper.parentNode) wrapper.parentNode.removeChild(wrapper);
-                if (blobUrl) {
-                    // Played once; give the memory back. A replay downloads again.
-                    this._videoUrls.delete(src);
-                    this._videoReady.delete(src);
-                    URL.revokeObjectURL(blobUrl);
-                }
+                // Played (or skipped): give the memory back. A replay downloads again.
+                if (blobUrl) URL.revokeObjectURL(blobUrl);
 
                 // Execute follow-up actions (onEnd) if defined
                 // Note: We resolve first to unblock the engine, logic happens outside
@@ -2160,8 +2169,12 @@ export class Game {
             // tap as the stream would; one still downloading starts when it
             // arrives, with the watchdog already offering a way out meanwhile.
             const start = (url) => {
-                if (finished) return;
                 blobUrl = url;
+                if (finished) {
+                    // Skipped while it was still downloading.
+                    if (url) URL.revokeObjectURL(url);
+                    return;
+                }
                 video.src = url || src;
                 video.play().catch(err => {
                     console.warn('[VIDEO] Autoplay blocked or failed:', err);
@@ -2170,8 +2183,8 @@ export class Game {
                 });
             };
             if (!this.videoBlob) start(null);
-            else if (this._videoReady.has(src)) start(this._videoReady.get(src));
-            else this._videoUrl(src).then(start);
+            else if (this._videoReady.has(src)) start(this._takeVideo(src));
+            else this._videoUrl(src).then(() => start(this._takeVideo(src)));
         });
     }
 
