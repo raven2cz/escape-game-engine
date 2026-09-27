@@ -14,7 +14,8 @@ repository; see `docs/RELEASING.md` for which version means what.
   pins its own input and button colours.
 - **The pupil sees who is playing.** After "Kdo hraje?" the picture and
   nickname stay in the top bar, on the right, in every game. Until now they
-  were only on the teacher's board.
+  were only on the teacher's board. Beside Restart and Edit it fits a tablet
+  with the longest nickname; on a phone only the picture is shown.
 - **A host can hand out the player.** `boot({join: {register}})` asks "Kdo
   hraje?" and passes the answer to `register({name, avatar})`, which returns
   `{playerId}` or `{error}`. A refusal, a network failure or no answer within

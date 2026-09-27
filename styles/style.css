@@ -49,6 +49,7 @@ html, body {
 /* Who is playing: picture and nickname, set by boot() after "Kdo hraje?". */
 .topbar .player {
     display: flex;
+    min-width: 0;
     align-items: center;
     gap: 8px;
     max-width: 40vw;
@@ -77,6 +78,16 @@ html, body {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+.topbar .controls button {
+    white-space: nowrap;
+}
+
+/* A phone: only the picture, so Restart and Edit still fit beside it. */
+@media (max-width: 34rem) {
+    .topbar .player { padding: 3px; }
+    .topbar .player span { display: none; }
 }
 
 .topbar .controls button:hover {
