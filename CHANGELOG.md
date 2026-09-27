@@ -8,6 +8,14 @@ Versions are the engine's own. Games are versioned separately, in their own
 repository; see `docs/RELEASING.md` for which version means what.
 
 ## Unreleased
+- **`videoBlob`: videos downloaded whole and played from memory.** For a host
+  whose server cannot answer byte ranges cheaply: Safari streams a video by
+  asking for pieces from the middle of the file, which cost the hosted runtime
+  up to 167 ms of CPU a piece against a 10 ms limit. The engine downloads the
+  game's videos in the background, one at a time in the order the game lists
+  them, starts a downloaded one as close to the pupil's tap as a stream would,
+  frees it after playing, and streams as before if a download fails. Off by
+  default.
 - **The name on "Kdo hraje?" is always readable.** A game's stylesheet loads
   while the screen is open, and Reaktor styles every text input light with
   `!important`: now and then the typed name turned light on white. The screen
