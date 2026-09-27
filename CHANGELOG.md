@@ -8,6 +8,10 @@ Versions are the engine's own. Games are versioned separately, in their own
 repository; see `docs/RELEASING.md` for which version means what.
 
 ## Unreleased
+- **The name on "Kdo hraje?" is always readable.** A game's stylesheet loads
+  while the screen is open, and Reaktor styles every text input light with
+  `!important`: now and then the typed name turned light on white. The screen
+  pins its own input and button colours.
 - **The pupil sees who is playing.** After "Kdo hraje?" the picture and
   nickname stay in the top bar, on the right, in every game. Until now they
   were only on the teacher's board.
