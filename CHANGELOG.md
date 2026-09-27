@@ -8,6 +8,9 @@ Versions are the engine's own. Games are versioned separately, in their own
 repository; see `docs/RELEASING.md` for which version means what.
 
 ## Unreleased
+- **The pupil sees who is playing.** After "Kdo hraje?" the picture and
+  nickname stay in the top bar, on the right, in every game. Until now they
+  were only on the teacher's board.
 - **A host can hand out the player.** `boot({join: {register}})` asks "Kdo
   hraje?" and passes the answer to `register({name, avatar})`, which returns
   `{playerId}` or `{error}`. A refusal, a network failure or no answer within

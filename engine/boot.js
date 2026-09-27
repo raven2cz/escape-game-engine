@@ -18,6 +18,7 @@
 
 import {Game} from './engine.js';
 import {ENGINE_I18N} from './i18n.js';
+import {avatarById, avatarSrc} from './dashboard/avatars.js';
 import {askWhoPlays, loadPlayer, savePlayer, forgetPlayer, cleanName, mintPlayerId, isPlayerId, joinKey, browserStorage} from './join.js';
 
 /** The nodes the engine takes by reference, and the chrome around them. */
@@ -25,6 +26,7 @@ const SKELETON = `
 <header class="topbar">
     <div class="title" data-boot="title"></div>
     <div class="controls">
+        <div class="player hidden" data-boot="player"><img alt=""><span></span></div>
         <button id="btnRestart" data-boot="restart"></button>
         <button id="btnEditor" class="hidden" data-boot="editor"></button>
     </div>
@@ -262,6 +264,19 @@ export async function boot(opts = {}) {
         teamId = player.id;          // the save slot and the identity: stable, never shown
         playerName = player.name;    // only a label: two Aničkas stay two players
         avatar = player.avatar;
+    }
+
+    // Who is playing, in the corner, for the pupil: after "Kdo hraje?" the
+    // name and picture were otherwise only ever on the teacher's board.
+    if (playerName) {
+        const badge = root.querySelector('[data-boot="player"]');
+        const pic = avatarById(avatar);
+        const img = badge.querySelector('img');
+        if (pic) img.src = avatarSrc(pic);
+        else img.remove();
+        badge.querySelector('span').textContent = playerName;
+        badge.title = playerName;
+        badge.classList.remove('hidden');
     }
 
     const game = new Game({

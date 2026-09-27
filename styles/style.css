@@ -41,6 +41,44 @@ html, body {
     cursor: pointer;
 }
 
+.topbar .controls {
+    display: flex;
+    align-items: center;
+}
+
+/* Who is playing: picture and nickname, set by boot() after "Kdo hraje?". */
+.topbar .player {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    max-width: 40vw;
+    padding: 3px 12px 3px 3px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .08);
+    border: 1px solid rgba(255, 255, 255, .16);
+    font-weight: 600;
+    line-height: 1;
+}
+
+.topbar .player.hidden {
+    display: none;
+}
+
+.topbar .player img {
+    width: 30px;
+    height: 30px;
+    flex: none;
+    border-radius: 50%;
+    object-fit: contain;
+    background: rgba(255, 255, 255, .9);
+}
+
+.topbar .player span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .topbar .controls button:hover {
     background: #3a3a47;
 }

@@ -364,4 +364,18 @@ describe('a host that hands out the player (hosted runtime)', () => {
         await boot({gameId: 'join-test', baseUrl: './g/', webStorage: sessionStorage});
         expect(localStorage.getItem('leeuwenhoek_escape_state')).not.toBeNull();
     });
+
+    it('the pupil sees who is playing in the top bar; a game without a player shows nothing there', async () => {
+        const booting = boot({gameId: 'join-test', baseUrl: './g/', sessionId: 'L8', join: {register: async () => ({playerId: 'p-host-badge-00001'})}});
+        await answer('Modrý tygr', 'tiger');
+        await booting;
+        const badge = document.querySelector('.topbar [data-boot="player"]');
+        expect(badge.classList.contains('hidden')).toBe(false);
+        expect(badge.textContent).toBe('Modrý tygr');
+        expect(badge.querySelector('img').getAttribute('src')).toContain('tiger');
+
+        document.body.innerHTML = '';
+        await boot({gameId: 'join-test', baseUrl: './g/'});
+        expect(document.querySelector('.topbar [data-boot="player"]').classList.contains('hidden')).toBe(true);
+    });
 });
