@@ -7,6 +7,42 @@ entry is written while the change is fresh, and nobody has to predict a number.
 Versions are the engine's own. Games are versioned separately, in their own
 repository; see `docs/RELEASING.md` for which version means what.
 
+## Unreleased
+- **`videoBlob`: videos downloaded whole and played from memory.** For a host
+  whose server cannot answer byte ranges cheaply: Safari streams a video by
+  asking for pieces from the middle of the file, which cost the hosted runtime
+  up to 167 ms of CPU a piece against a 10 ms limit. The engine downloads the
+  game's videos in the background, one at a time in the order the game lists
+  them (a video needed before its turn is fetched at once), starts a downloaded
+  one as close to the pupil's tap as a stream would, frees it after playing or
+  skipping, and streams as before if a download fails or is empty. Two
+  playbacks of one video each get their own copy. Off by default.
+- **The name on "Kdo hraje?" is always readable.** A game's stylesheet loads
+  while the screen is open, and Reaktor styles every text input light with
+  `!important`: now and then the typed name turned light on white. The screen
+  pins its own input and button colours.
+- **The pupil sees who is playing.** After "Kdo hraje?" the picture and
+  nickname stay in the top bar, on the right, in every game. Until now they
+  were only on the teacher's board. Beside Restart and Edit it fits a tablet
+  with the longest nickname; on a phone only the picture is shown.
+- **A host can hand out the player.** `boot({join: {register}})` asks "Kdo
+  hraje?" and passes the answer to `register({name, avatar})`, which returns
+  `{playerId}` or `{error}`. A refusal, a network failure or no answer within
+  15 s shows the message on the same screen and keeps the name and picture, so
+  the pupil only presses Hrát again. A reload reuses the stored player; one in
+  the middle of a registration sends the same random `key`, so the host can
+  hand back the player it already made instead of taking a second place.
+- **A browser that refuses to hand out `localStorage` no longer stops the
+  game.** The engine treats it as "nothing remembered".
+- **`webStorage`** chooses where the tablet remembers the player and the run
+  (default `localStorage`). A hosted lesson passes `sessionStorage`, so a
+  closed tab forgets both, and the old pre-1.0 entry in `localStorage` is left
+  alone.
+- **`restart: false`** leaves out the Restart button.
+- **"Kdo hraje?" recommends a nickname** ("např. Modrý tygr") and says what the
+  teacher sees and that it is deleted after the lesson. `isPlayerId` is
+  exported from `join.js`.
+
 ## 1.1.1
 - **"Stuck" means no progress, not a long stay.** The report carries
   `position.progressAt`, the last progress in the scene (entered, a task solved,

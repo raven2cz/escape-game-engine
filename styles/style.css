@@ -41,6 +41,55 @@ html, body {
     cursor: pointer;
 }
 
+.topbar .controls {
+    display: flex;
+    align-items: center;
+}
+
+/* Who is playing: picture and nickname, set by boot() after "Kdo hraje?". */
+.topbar .player {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 8px;
+    max-width: 40vw;
+    padding: 3px 12px 3px 3px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .08);
+    border: 1px solid rgba(255, 255, 255, .16);
+    font-weight: 600;
+    line-height: 1;
+}
+
+.topbar .player.hidden {
+    display: none;
+}
+
+.topbar .player img {
+    width: 30px;
+    height: 30px;
+    flex: none;
+    border-radius: 50%;
+    object-fit: contain;
+    background: rgba(255, 255, 255, .9);
+}
+
+.topbar .player span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.topbar .controls button {
+    white-space: nowrap;
+}
+
+/* A phone: only the picture, so Restart and Edit still fit beside it. */
+@media (max-width: 34rem) {
+    .topbar .player { padding: 3px; }
+    .topbar .player span { display: none; }
+}
+
 .topbar .controls button:hover {
     background: #3a3a47;
 }
@@ -1055,4 +1104,25 @@ body.item-dragging * {
     background: #1f8a4c; color: #fff; cursor: pointer;
 }
 .join-play:disabled { background: #b9c1bc; cursor: not-allowed; }
+/* The screen is the engine's and sits over any game, but a game's stylesheet
+   loads while it is open, and some style every input and button with
+   !important (Reaktor: light text for its dark rooms). Pinned here, scoped to
+   the card, so the name the pupil types is never light on white. */
+.join-card .join-name {
+    background: #fff !important; color: #1d2327 !important; -webkit-text-fill-color: #1d2327;
+    border: 2px solid #c9ced3 !important; backdrop-filter: none;
+    padding: .7rem .9rem; border-radius: .8rem; box-shadow: none;
+}
+.join-card .join-name:focus { background: #fff !important; border-color: #3b6ea8 !important; box-shadow: 0 0 0 3px rgba(59, 110, 168, .2); }
+.join-card .join-name::placeholder { color: #8a9096; -webkit-text-fill-color: #8a9096; opacity: 1; }
+.join-card .join-avatar, .join-card .join-play { backdrop-filter: none; box-shadow: none; }
+.join-card .join-avatar:hover { background: #e9e5d8 !important; border-color: transparent !important; box-shadow: none; }
+.join-card .join-avatar[aria-checked="true"], .join-card .join-avatar[aria-checked="true"]:hover { background: #e3f4e9 !important; border-color: #1f8a4c !important; }
+.join-card .join-play:hover { background: #1f8a4c !important; color: #fff; border-color: transparent !important; box-shadow: none; transform: none; }
+.join-card .join-play:disabled, .join-card .join-play:disabled:hover { background: #b9c1bc !important; }
 .join-credits { margin: 0; text-align: center; font-size: .72rem; color: #8a9096; }
+.join-hint { margin: -4px 0 0; font-size: .8rem; line-height: 1.35; color: #5b6168; }
+.join-error {
+    margin: 0; padding: 8px 12px; border-radius: 10px; font-weight: 600; font-size: .9rem;
+    color: #8a1f14; background: #fbe3e0; border: 1px solid #efb3aa;
+}

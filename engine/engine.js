@@ -13,7 +13,7 @@ import {buildCatalogue} from './dashboard/catalogue.js';
 import {DashboardReporter} from './dashboard/reporter.js';
 import {NullTransport} from './dashboard/transports.js';
 import {avatarById} from './dashboard/avatars.js';
-import {cleanName} from './join.js';
+import {cleanName, browserStorage} from './join.js';
 
 /**
  * Shape of the persisted state, versioned independently of the game.
@@ -81,6 +81,9 @@ export class Game {
         // tablet is a DashboardReport, through `reportTransport` below. See
         // docs/DASHBOARD-API.md "What never leaves the tablet".
         this._ownsLocalStorage = !opts.storage;
+        // Which Web Storage the default keeps the run in: localStorage, or a
+        // host's sessionStorage when nothing should outlive the tab (boot()).
+        this._webStorage = opts.webStorage || browserStorage();
         this.storage = opts.storage || this._localStorage();
 
         // Which lesson, and which team within it. Both come from the caller and
@@ -110,6 +113,17 @@ export class Game {
         // How long a video gets to start playing before the pupil is offered a
         // way past it, even when the game asked for no skipping. See EI-022.
         this.videoStartTimeoutMs = opts.videoStartTimeoutMs ?? 6000;
+
+        // Download each video whole and play it from memory, instead of letting
+        // the browser stream it. For a host whose server cannot answer byte
+        // ranges cheaply: Safari streams a video by asking for pieces from the
+        // middle of the file, and on the hosted runtime every such piece costs
+        // the server more CPU than its plan allows. A whole file is a plain
+        // static download. Off by default; local play streams as before.
+        this.videoBlob = !!opts.videoBlob;
+        this._videoUrls = new Map();  // resolved src -> Promise<object URL | null>
+        this._videoReady = new Map(); // the same, once settled, for a synchronous start
+        this._videoTaken = new Set(); // handed to a playback: the background download skips it
 
         // State
         this.data = null;
@@ -298,6 +312,7 @@ export class Game {
     async init() {
         this.data = await fetch(this.scenesUrl, {cache: 'no-cache'}).then(r => r.json());
         this.modalRoot.classList.add('hidden');
+        this._prefetchVideos();
 
         this.meta = this.data?.meta || {};
 
@@ -1925,6 +1940,63 @@ export class Game {
     // --- video ---------------------------------------------------------------
 
     /**
+     * The video as an object URL, downloading it if nobody has yet. Null when
+     * the download fails or is empty: the caller streams instead, as without
+     * `videoBlob`.
+     */
+    _videoUrl(src) {
+        if (!this._videoUrls.has(src)) {
+            this._videoUrls.set(src, fetch(src)
+                .then(r => (r.ok ? r.blob() : null))
+                .then(b => (b?.size ? URL.createObjectURL(b) : null))
+                .catch(() => null)
+                .then(url => {
+                    if (this._videoUrls.has(src)) this._videoReady.set(src, url);
+                    return url;
+                }));
+        }
+        return this._videoUrls.get(src);
+    }
+
+    /**
+     * Hand a downloaded video over to one playback, which frees it when done.
+     * Taken out of the cache, so a second playback of the same video (at once,
+     * or later) downloads its own copy and nobody frees a URL still in use.
+     * Undefined when there is nothing to take, null when the download failed.
+     */
+    _takeVideo(src) {
+        if (!this._videoReady.has(src)) return undefined; // somebody else took it
+        const url = this._videoReady.get(src);
+        this._videoReady.delete(src);
+        this._videoUrls.delete(src);
+        this._videoTaken.add(src);
+        return url;
+    }
+
+    /**
+     * With `videoBlob`, download the game's videos in the background, one at a
+     * time and in the order the game file lists them, so the first (usually the
+     * intro) is ready when it is played and a class of tablets does not ask for
+     * every video at once.
+     */
+    async _prefetchVideos() {
+        if (!this.videoBlob) return;
+        const found = [];
+        const walk = (o) => {
+            if (Array.isArray(o)) o.forEach(walk);
+            else if (o && typeof o === 'object') {
+                if (typeof o.playVideo?.src === 'string') found.push(this._resolveAsset(o.playVideo.src));
+                Object.values(o).forEach(walk);
+            }
+        };
+        walk(this.data?.scenes);
+        walk(this.data?.events);
+        for (const src of new Set(found)) {
+            if (!this._videoTaken.has(src)) await this._videoUrl(src);
+        }
+    }
+
+    /**
      * Plays a video overlay or embedded video.
      * Returns a Promise that resolves when the video ends or is skipped.
      *
@@ -1950,6 +2022,9 @@ export class Game {
      */
     async _playVideo(cfg) {
         const src = this._resolveAsset(cfg.src);
+        // With `videoBlob`, start the download now if the background one has
+        // not got to this video yet.
+        if (this.videoBlob) this._videoUrl(src);
 
         // 1. Delay logic (optional wait before showing video)
         if (cfg.delay && cfg.delay > 0) {
@@ -1976,7 +2051,7 @@ export class Game {
 
             // Video element
             const video = document.createElement('video');
-            video.src = src;
+            let blobUrl = null;
             video.autoplay = true;
             video.playsInline = true; // Critical for iOS/Tablets to prevent native fullscreen force
             video.controls = false;   // We handle interaction manually
@@ -1995,6 +2070,8 @@ export class Game {
                 clearTimeout(watchdog);
                 video.pause();
                 if (wrapper.parentNode) wrapper.parentNode.removeChild(wrapper);
+                // Played (or skipped): give the memory back. A replay downloads again.
+                if (blobUrl) URL.revokeObjectURL(blobUrl);
 
                 // Execute follow-up actions (onEnd) if defined
                 // Note: We resolve first to unblock the engine, logic happens outside
@@ -2092,12 +2169,35 @@ export class Game {
 
             armWatchdog();
 
-            // Start playback with error handling (autoplay policy)
-            video.play().catch(err => {
-                console.warn('[VIDEO] Autoplay blocked or failed:', err);
-                playBtn.hidden = false;
-                offerWayOut();
+            // Start playback with error handling (autoplay policy). From memory
+            // when the host asked for it, the stream if that download failed.
+            // A downloaded video starts synchronously, as close to the pupil's
+            // tap as the stream would; one still downloading starts when it
+            // arrives, with the watchdog already offering a way out meanwhile.
+            const start = (url) => {
+                blobUrl = url;
+                if (finished) {
+                    // Skipped while it was still downloading.
+                    if (url) URL.revokeObjectURL(url);
+                    return;
+                }
+                video.src = url || src;
+                video.play().catch(err => {
+                    console.warn('[VIDEO] Autoplay blocked or failed:', err);
+                    playBtn.hidden = false;
+                    offerWayOut();
+                });
+            };
+            // Waiting on a download another playback of the same video takes
+            // first: wait on a download of its own.
+            const whenDownloaded = () => this._videoUrl(src).then(() => {
+                const url = this._takeVideo(src);
+                if (url === undefined && !finished) whenDownloaded();
+                else start(url ?? null);
             });
+            if (!this.videoBlob) start(null);
+            else if (this._videoReady.has(src)) start(this._takeVideo(src));
+            else whenDownloaded();
         });
     }
 
@@ -2175,7 +2275,7 @@ export class Game {
         return {
             load: () => {
                 try {
-                    const raw = localStorage.getItem(this._storageKey());
+                    const raw = this._webStorage.getItem(this._storageKey());
                     return raw ? JSON.parse(raw) : null;
                 } catch {
                     return null;
@@ -2183,7 +2283,7 @@ export class Game {
             },
             save: (state) => {
                 try {
-                    localStorage.setItem(this._storageKey(), JSON.stringify(state));
+                    this._webStorage.setItem(this._storageKey(), JSON.stringify(state));
                     return true;
                 } catch { /* quota, private mode: losing a save beats throwing */
                     return false;
@@ -2191,7 +2291,7 @@ export class Game {
             },
             clear: () => {
                 try {
-                    localStorage.removeItem(this._storageKey());
+                    this._webStorage.removeItem(this._storageKey());
                 } catch { /* noop */
                 }
             },
@@ -2349,7 +2449,9 @@ export class Game {
      * comparison is on the prefix rather than the whole string.
      */
     _readLegacyState() {
-        if (!this._ownsLocalStorage) return null;
+        // Nor when the host keeps the run elsewhere (sessionStorage): the old
+        // entry is localStorage's, and so is leaving it alone.
+        if (!this._ownsLocalStorage || this._webStorage !== browserStorage()) return null;
 
         // A run with an identity is a new lesson by definition. Adopting the
         // device-wide leftover into it would import the previous class's

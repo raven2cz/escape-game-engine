@@ -224,3 +224,158 @@ describe('boot() in a lesson', () => {
         expect(first.teamId).not.toBe(second.teamId);
     });
 });
+
+describe('a host that hands out the player (hosted runtime)', () => {
+    const until = (fn) => vi.waitFor(() => {
+        const v = fn();
+        if (!v) throw new Error('not yet');
+        return v;
+    });
+
+    it('the engine asks, the host registers and its id is the player; a reload does not register again', async () => {
+        const register = vi.fn(async () => ({playerId: 'p-host-0123456789'}));
+        const booting = boot({gameId: 'join-test', baseUrl: './g/', sessionId: 'L1', join: {register}});
+        await answer('Modrý tygr', 'tiger');
+        const game = await booting;
+        expect(register).toHaveBeenCalledWith({name: 'Modrý tygr', avatar: 'tiger', key: expect.stringMatching(/^p-/)});
+        expect(game.teamId).toBe('p-host-0123456789');
+        expect(loadPlayer('L1', 'join-test')).toEqual({id: 'p-host-0123456789', name: 'Modrý tygr', avatar: 'tiger'});
+
+        document.body.innerHTML = '';
+        const again = vi.fn();
+        const reloaded = await boot({gameId: 'join-test', baseUrl: './g/', sessionId: 'L1', join: {register: again}});
+        expect(again).not.toHaveBeenCalled();
+        expect(reloaded.teamId).toBe('p-host-0123456789');
+    });
+
+    it('a refusal is shown on the same screen with the answer kept; the next try can succeed', async () => {
+        const register = vi.fn()
+            .mockResolvedValueOnce({error: 'Hodina je plná. Řekni to učiteli.'})
+            .mockRejectedValueOnce(new Error('offline'))
+            .mockResolvedValueOnce({playerId: 'not-an-engine-id'})
+            .mockResolvedValueOnce({playerId: 'p-host-9876543210'});
+        const booting = boot({gameId: 'join-test', baseUrl: './g/', sessionId: 'L2', join: {register}});
+        await answer('Liška', 'fox');
+        const error1 = await until(() => document.querySelector('.join-error'));
+        expect(error1.textContent).toBe('Hodina je plná. Řekni to učiteli.');
+        expect(error1.getAttribute('role')).toBe('alert');
+        // Kept: the pupil only presses Hrát again.
+        expect(document.querySelector('.join-name').value).toBe('Liška');
+        expect(document.querySelector('.join-avatar[data-avatar="fox"]').getAttribute('aria-checked')).toBe('true');
+        expect(document.querySelector('.join-play').disabled).toBe(false);
+
+        document.querySelector('.join-play').click();                                     // offline
+        await until(() => register.mock.calls.length === 2 && document.querySelector('.join-error')?.textContent.includes('nepovedlo'));
+        document.querySelector('.join-play').click();                                     // bad id
+        await until(() => register.mock.calls.length === 3 && document.querySelector('.join-error'));
+        document.querySelector('.join-play').click();                                     // ok
+        const game = await booting;
+        expect(game.teamId).toBe('p-host-9876543210');
+        expect(document.querySelector('.join-overlay')).toBeNull();
+    });
+
+    it('a host can keep everything in sessionStorage, so nothing outlives the tab', async () => {
+        sessionStorage.clear();
+        const booting = boot({
+            gameId: 'join-test', baseUrl: './g/', sessionId: 'L3', webStorage: sessionStorage,
+            join: {register: async () => ({playerId: 'p-host-session-0001'})},
+        });
+        await answer('Sova', 'owl');
+        const game = await booting;
+        game._saveState();
+        const keys = (st) => Array.from({length: st.length}, (_, i) => st.key(i)).sort();
+        expect(keys(localStorage)).toEqual([]);
+        expect(keys(sessionStorage)).toEqual([
+            'join:player:L3:join-test',
+            'player:L3:join-test',
+            `state:L3:join-test:${encodeURIComponent('p-host-session-0001')}`,
+        ]);
+        expect(loadPlayer('L3', 'join-test', sessionStorage)?.id).toBe('p-host-session-0001');
+    });
+
+    it('restart: false leaves no Restart button for a pupil in a lesson', async () => {
+        await boot({gameId: 'join-test', baseUrl: './g/', restart: false});
+        expect(document.querySelector('[data-boot="restart"]')).toBeNull();
+        document.body.innerHTML = '';
+        await boot({gameId: 'join-test', baseUrl: './g/'});
+        expect(document.querySelector('[data-boot="restart"]')).not.toBeNull();
+    });
+
+    it('the screen suggests a nickname and says what the teacher sees', async () => {
+        const booting = boot({gameId: 'join-test', baseUrl: './g/', sessionId: 'L4'});
+        const overlay = await until(() => document.querySelector('.join-overlay'));
+        expect(overlay.querySelector('.join-name').placeholder).toBe('např. Modrý tygr');
+        expect(overlay.querySelector('.join-hint').textContent).toContain('Stačí přezdívka');
+        await answer('Koala', 'koala');
+        await booting;
+    });
+
+    it('a host that does not answer counts as a failure, and every attempt carries the same key', async () => {
+        const register = vi.fn()
+            .mockReturnValueOnce(new Promise(() => {}))                // hangs
+            .mockResolvedValueOnce({playerId: 'p-host-late-000001'});
+        const booting = boot({gameId: 'join-test', baseUrl: './g/', sessionId: 'L5', join: {register, timeoutMs: 30}});
+        await answer('Želva', 'turtle');
+        const error = await until(() => document.querySelector('.join-error'));
+        expect(error.textContent).toContain('nepovedlo');
+        document.querySelector('.join-play').click();
+        const game = await booting;
+        expect(game.teamId).toBe('p-host-late-000001');
+        const [first, second] = register.mock.calls.map(c => c[0].key);
+        expect(first).toMatch(/^p-/);
+        expect(second).toBe(first);
+    });
+
+    it('a reload during registration registers again with the same key', async () => {
+        const hanging = vi.fn(() => new Promise(() => {}));
+        boot({gameId: 'join-test', baseUrl: './g/', sessionId: 'L6', join: {register: hanging}});
+        await answer('Kočka', 'cat');
+        await until(() => hanging.mock.calls.length === 1);
+
+        document.body.innerHTML = '';                                   // the reload
+        const register = vi.fn(async () => ({playerId: 'p-host-same-000001'}));
+        const booting = boot({gameId: 'join-test', baseUrl: './g/', sessionId: 'L6', join: {register}});
+        await answer('Kočka', 'cat');
+        await booting;
+        expect(register.mock.calls[0][0].key).toBe(hanging.mock.calls[0][0].key);
+    });
+
+    it('a browser that refuses even to hand out localStorage still starts the game', async () => {
+        const real = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+        Object.defineProperty(globalThis, 'localStorage', {configurable: true, get() { throw new DOMException('blocked', 'SecurityError'); }});
+        try {
+            const local = await boot({gameId: 'join-test', baseUrl: './g/'});
+            expect(local.state.scene).toBe('room');
+            document.body.innerHTML = '';
+            const booting = boot({
+                gameId: 'join-test', baseUrl: './g/', sessionId: 'L7', webStorage: sessionStorage,
+                join: {register: async () => ({playerId: 'p-host-private-0001'})},
+            });
+            await answer('Tučňák', 'penguin');
+            expect((await booting).teamId).toBe('p-host-private-0001');
+        } finally {
+            Object.defineProperty(globalThis, 'localStorage', real);
+        }
+    });
+
+    it('a run kept in sessionStorage leaves the old localStorage entry alone', async () => {
+        localStorage.setItem('leeuwenhoek_escape_state', JSON.stringify({signature: 'join-test|1', scene: 'room'}));
+        sessionStorage.clear();
+        await boot({gameId: 'join-test', baseUrl: './g/', webStorage: sessionStorage});
+        expect(localStorage.getItem('leeuwenhoek_escape_state')).not.toBeNull();
+    });
+
+    it('the pupil sees who is playing in the top bar; a game without a player shows nothing there', async () => {
+        const booting = boot({gameId: 'join-test', baseUrl: './g/', sessionId: 'L8', join: {register: async () => ({playerId: 'p-host-badge-00001'})}});
+        await answer('Modrý tygr', 'tiger');
+        await booting;
+        const badge = document.querySelector('.topbar [data-boot="player"]');
+        expect(badge.classList.contains('hidden')).toBe(false);
+        expect(badge.textContent).toBe('Modrý tygr');
+        expect(badge.querySelector('img').getAttribute('src')).toContain('tiger');
+
+        document.body.innerHTML = '';
+        await boot({gameId: 'join-test', baseUrl: './g/'});
+        expect(document.querySelector('.topbar [data-boot="player"]').classList.contains('hidden')).toBe(true);
+    });
+});

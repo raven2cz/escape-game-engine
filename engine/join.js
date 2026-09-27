@@ -9,9 +9,10 @@
 // Remembered per lesson and game on the tablet, so a reload does not ask again.
 // Restart forgets it, so the next child on a shared tablet enters their own.
 //
-// When the hosted runtime exists, it will take over what only a server can do:
-// check the name against the class (two Aničkas), and hand the player a token.
-// This screen is the part a pupil sees, and stays.
+// A host (the hosted runtime) can take over what only a server can do: hand out
+// the player id, count seats, refuse a full or finished lesson. It passes
+// `boot({join: {register}})`; this screen stays the part a pupil sees and shows
+// the host's answer. The engine knows nothing about who the host is.
 
 import {AVATARS, AVATAR_CREDITS, avatarById, avatarSrc} from './dashboard/avatars.js';
 
@@ -33,6 +34,19 @@ export function cleanName(raw) {
     return [...s].slice(0, NAME_MAX).join('').trim();
 }
 
+/**
+ * The browser's localStorage, or null where even reaching it throws (a
+ * SecurityError with storage blocked). Callers already treat null as "nothing
+ * remembered".
+ */
+export function browserStorage() {
+    try {
+        return globalThis.localStorage ?? null;
+    } catch {
+        return null;
+    }
+}
+
 /** A player id: opaque, stable for as long as the tablet remembers the player. */
 export function mintPlayerId() {
     try {
@@ -45,13 +59,18 @@ export function mintPlayerId() {
 
 const ID = /^p-[A-Za-z0-9-]{8,80}$/;
 
+/** A player id as the engine accepts it, from itself or from a host. */
+export function isPlayerId(id) {
+    return typeof id === 'string' && ID.test(id);
+}
+
 const key = (sessionId, gameId) => `player:${encodeURIComponent(sessionId ?? '')}:${gameId}`;
 
 /** The player this tablet already is in this lesson, or null. */
-export function loadPlayer(sessionId, gameId, storage = globalThis.localStorage) {
+export function loadPlayer(sessionId, gameId, storage = browserStorage()) {
     try {
         const raw = JSON.parse(storage?.getItem(key(sessionId, gameId)) ?? 'null');
-        const id = typeof raw?.id === 'string' && ID.test(raw.id) ? raw.id : null;
+        const id = isPlayerId(raw?.id) ? raw.id : null;
         const name = cleanName(raw?.name);
         const avatar = avatarById(raw?.avatar)?.id ?? null;
         return id && name && avatar ? {id, name, avatar} : null;
@@ -60,18 +79,42 @@ export function loadPlayer(sessionId, gameId, storage = globalThis.localStorage)
     }
 }
 
-export function savePlayer(sessionId, gameId, player, storage = globalThis.localStorage) {
+export function savePlayer(sessionId, gameId, player, storage = browserStorage()) {
     try {
         storage?.setItem(key(sessionId, gameId), JSON.stringify({id: player.id, name: player.name, avatar: player.avatar}));
     } catch { /* private mode: the pupil is asked again after a reload, nothing worse */
     }
 }
 
-export function forgetPlayer(sessionId, gameId, storage = globalThis.localStorage) {
+export function forgetPlayer(sessionId, gameId, storage = browserStorage()) {
     try {
         storage?.removeItem(key(sessionId, gameId));
+        storage?.removeItem(joinKeyKey(sessionId, gameId));
     } catch { /* noop */
     }
+}
+
+const joinKeyKey = (sessionId, gameId) => `join:${key(sessionId, gameId)}`;
+
+/**
+ * The key this tablet registers with, the same for every attempt until a player
+ * is saved. A reload during a registration whose answer was lost sends the same
+ * key again, so a host can hand back the player it already made instead of
+ * taking a second place in the lesson.
+ */
+export function joinKey(sessionId, gameId, storage = browserStorage()) {
+    const k = joinKeyKey(sessionId, gameId);
+    try {
+        const kept = storage?.getItem(k);
+        if (isPlayerId(kept)) return kept;
+    } catch { /* fall through: a fresh key, only idempotence across a reload is lost */
+    }
+    const fresh = mintPlayerId();
+    try {
+        storage?.setItem(k, fresh);
+    } catch { /* noop */
+    }
+    return fresh;
 }
 
 /**
@@ -80,8 +123,11 @@ export function forgetPlayer(sessionId, gameId, storage = globalThis.localStorag
  *
  * @param {HTMLElement} root  where to draw it (over the game shell)
  * @param {(key: string, fallback: string) => string} t  the engine's strings
+ * @param {object} [opts]
+ * @param {string} [opts.error]  why the last attempt failed (from a host), shown on the screen
+ * @param {{name: string, avatar: string}} [opts.last]  what the pupil entered last time, kept
  */
-export function askWhoPlays(root, t = (_k, fallback) => fallback) {
+export function askWhoPlays(root, t = (_k, fallback) => fallback, {error = null, last = null} = {}) {
     return new Promise((resolve) => {
         const el = (tag, cls, text) => {
             const node = document.createElement(tag);
@@ -107,8 +153,11 @@ export function askWhoPlays(root, t = (_k, fallback) => fallback) {
         input.autocomplete = 'off';
         input.autocapitalize = 'words';
         input.spellcheck = false;
-        input.placeholder = t('engine.join.placeholder', 'např. Anička');
+        input.placeholder = t('engine.join.placeholder', 'např. Modrý tygr');
+        if (last?.name) input.value = last.name;
         nameLabel.append(input);
+        const hint = el('p', 'join-hint', t('engine.join.hint',
+            'Stačí přezdívka, celé jméno psát nemusíš. Učitel během hodiny uvidí tvůj postup, přezdívku a obrázek; po hodině se všechno smaže.'));
 
         const pickLabel = el('div', 'join-label', t('engine.join.avatar', 'Vyber si obrázek'));
         const grid = el('div', 'join-avatars');
@@ -145,6 +194,7 @@ export function askWhoPlays(root, t = (_k, fallback) => fallback) {
             return b;
         });
         buttons[0].tabIndex = 0;
+        const again = last?.avatar && buttons.find(b => b.dataset.avatar === last.avatar);
         grid.addEventListener('keydown', (e) => {
             const i = buttons.indexOf(document.activeElement);
             if (i < 0) return;
@@ -172,9 +222,16 @@ export function askWhoPlays(root, t = (_k, fallback) => fallback) {
         });
 
         // CC BY 4.0 asks for the author to be named; here, where the pictures are.
-        form.append(title, nameLabel, pickLabel, grid, play, el('p', 'join-credits', AVATAR_CREDITS));
+        const parts = [title, nameLabel, hint, pickLabel, grid];
+        if (error) {
+            const note = el('p', 'join-error', error);
+            note.setAttribute('role', 'alert');
+            parts.push(note);
+        }
+        form.append(...parts, play, el('p', 'join-credits', AVATAR_CREDITS));
         overlay.append(form);
         root.append(overlay);
+        if (again) choose(again);
         update();
         try {
             input.focus();

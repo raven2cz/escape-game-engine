@@ -18,13 +18,15 @@
 
 import {Game} from './engine.js';
 import {ENGINE_I18N} from './i18n.js';
-import {askWhoPlays, loadPlayer, savePlayer, forgetPlayer, cleanName, mintPlayerId} from './join.js';
+import {avatarById, avatarSrc} from './dashboard/avatars.js';
+import {askWhoPlays, loadPlayer, savePlayer, forgetPlayer, cleanName, mintPlayerId, isPlayerId, joinKey, browserStorage} from './join.js';
 
 /** The nodes the engine takes by reference, and the chrome around them. */
 const SKELETON = `
 <header class="topbar">
     <div class="title" data-boot="title"></div>
     <div class="controls">
+        <div class="player hidden" data-boot="player"><img alt=""><span></span></div>
         <button id="btnRestart" data-boot="restart"></button>
         <button id="btnEditor" class="hidden" data-boot="editor"></button>
     </div>
@@ -116,11 +118,45 @@ function watchSceneAspect(game, sceneImage) {
 }
 
 /** Whether a run is saved under a key, without trusting what is in it. */
-function hasStoredRun(key) {
+function hasStoredRun(key, webStorage) {
     try {
-        return !!globalThis.localStorage?.getItem(key);
+        return !!webStorage?.getItem(key);
     } catch {
         return false;
+    }
+}
+
+/** How long a host may take to register a player before the pupil is told. */
+const REGISTER_TIMEOUT_MS = 15000;
+
+/**
+ * "Kdo hraje?" until there is a player. Without a host the engine mints the id;
+ * with one, the host does, and whatever it refuses with is shown on the screen
+ * with the pupil's answer kept, so they only press Hrát again. A host that does
+ * not answer in time counts as a failure; the same `key` goes with every
+ * attempt, so a late success followed by a retry is still one player.
+ */
+async function whoPlays(root, t, host, key) {
+    const failed = () => t('engine.join.failed', 'Připojení se nepovedlo. Zkus to prosím znovu.');
+    let error = null;
+    let last = null;
+    for (;;) {
+        const answer = await askWhoPlays(root, t, {error, last});
+        if (!host) return {id: mintPlayerId(), ...answer};
+        last = answer;
+        let timer;
+        try {
+            const res = await Promise.race([
+                host.register({...answer, key}),
+                new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('timeout')), host.timeoutMs ?? REGISTER_TIMEOUT_MS); }),
+            ]);
+            if (isPlayerId(res?.playerId)) return {id: res.playerId, ...answer};
+            error = typeof res?.error === 'string' && res.error ? res.error : failed();
+        } catch {
+            error = failed();
+        } finally {
+            clearTimeout(timer);
+        }
     }
 }
 
@@ -145,10 +181,25 @@ function hasStoredRun(key) {
  *        Both optional, and the engine never invents them. Without them one
  *        tablet has one slot per game, so the next class resumes the last
  *        class's progress unless somebody resets. See EI-002.
- * @param {boolean} [opts.join]   ask "Kdo hraje?" (name + animal) before the game. Defaults
- *        to on in a lesson (a session is given) when the link names no player,
- *        off otherwise, so local play is unchanged. The answer is the player:
- *        the slot the run is saved under and the name on the teacher's board.
+ * @param {boolean|object} [opts.join]   ask "Kdo hraje?" (name + animal) before the game.
+ *        Defaults to on in a lesson (a session is given) when the link names no
+ *        player, off otherwise, so local play is unchanged. The answer is the
+ *        player: the slot the run is saved under and the name on the teacher's
+ *        board. A host that hands out the player itself passes
+ *        `{register({name, avatar, key}) -> Promise<{playerId} | {error}>, timeoutMs?}`:
+ *        the engine shows the screen, the host returns an id (`p-...`) or a
+ *        message the pupil sees on the same screen (a full lesson, a finished
+ *        one). `key` is random and the same for every attempt from this tablet
+ *        until a player is saved, reloads included: a host returns the player
+ *        it already made for a key rather than a second one. No answer within
+ *        `timeoutMs` (15 s) is shown as a failure.
+ * @param {Storage} [opts.webStorage]  where the tablet remembers the player and
+ *        the run: `localStorage` by default. A host that wants nothing to outlive
+ *        the browser tab passes `sessionStorage`.
+ * @param {boolean} [opts.videoBlob]  download videos whole and play them from
+ *        memory (see Game). A host whose server cannot answer byte ranges sets it.
+ * @param {boolean} [opts.restart]  offer the Restart button. Default on; a host
+ *        running a lesson can turn it off so a pupil cannot wipe their own run.
  * @param {string} [opts.avatar]   the player's animal, when the caller already knows it
  * @param {HTMLElement} [opts.root]   where to build. Defaults to document.body.
  * @param {boolean} [opts.editor]  offer the editor. Defaults to off; a tablet in
@@ -204,15 +255,30 @@ export async function boot(opts = {}) {
     // screen existed (a session link, no player): an engine release must never
     // end a lesson, and asking would move the pupil to a new, empty slot. The
     // key is the one Game._storageKey() gives a session without a player.
+    const webStorage = opts.webStorage || browserStorage();
     const running = !!sessionId && !teamId && !opts.storage
-        && hasStoredRun(`state:${encodeURIComponent(sessionId)}:${gameId}:`);
-    const join = opts.join ?? (!!sessionId && !teamId && !running);
+        && hasStoredRun(`state:${encodeURIComponent(sessionId)}:${gameId}:`, webStorage);
+    const host = opts.join && typeof opts.join === 'object' ? opts.join : null;
+    const join = host ? true : (opts.join ?? (!!sessionId && !teamId && !running));
     if (join) {
-        const player = loadPlayer(sessionId, gameId) || {id: mintPlayerId(), ...await askWhoPlays(root, t)};
-        savePlayer(sessionId, gameId, player);
+        const player = loadPlayer(sessionId, gameId, webStorage) || await whoPlays(root, t, host, host ? joinKey(sessionId, gameId, webStorage) : null);
+        savePlayer(sessionId, gameId, player, webStorage);
         teamId = player.id;          // the save slot and the identity: stable, never shown
         playerName = player.name;    // only a label: two Aničkas stay two players
         avatar = player.avatar;
+    }
+
+    // Who is playing, in the corner, for the pupil: after "Kdo hraje?" the
+    // name and picture were otherwise only ever on the teacher's board.
+    if (playerName) {
+        const badge = root.querySelector('[data-boot="player"]');
+        const pic = avatarById(avatar);
+        const img = badge.querySelector('img');
+        if (pic) img.src = avatarSrc(pic);
+        else img.remove();
+        badge.querySelector('span').textContent = playerName;
+        badge.title = playerName;
+        badge.classList.remove('hidden');
     }
 
     const game = new Game({
@@ -222,7 +288,9 @@ export async function boot(opts = {}) {
         lang,
         i18n: {engine: engineStrings, game: gameStrings || {}},
         ...(opts.storage ? {storage: opts.storage} : {}),
+        webStorage,
         ...(opts.report ? {reportTransport: opts.report} : {}),
+        videoBlob: !!opts.videoBlob,
         sessionId,
         teamId,
         playerName,
@@ -245,12 +313,16 @@ export async function boot(opts = {}) {
     // pupil is reading it.
     opts.onGame?.(game);
 
-    restart.addEventListener('click', () => {
-        // A restart on a shared tablet is usually the next child: forget who
-        // was playing, so they are asked their own name.
-        if (join) forgetPlayer(sessionId, gameId);
-        game.restart();
-    });
+    if (opts.restart === false) {
+        restart.remove();
+    } else {
+        restart.addEventListener('click', () => {
+            // A restart on a shared tablet is usually the next child: forget who
+            // was playing, so they are asked their own name.
+            if (join) forgetPlayer(sessionId, gameId, webStorage);
+            game.restart();
+        });
+    }
 
     if (opts.editor) {
         // Loaded only when asked for. It is 53 kB that a tablet in a lesson has
