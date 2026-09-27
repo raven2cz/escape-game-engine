@@ -224,3 +224,88 @@ describe('boot() in a lesson', () => {
         expect(first.teamId).not.toBe(second.teamId);
     });
 });
+
+describe('a host that hands out the player (hosted runtime)', () => {
+    const until = (fn) => vi.waitFor(() => {
+        const v = fn();
+        if (!v) throw new Error('not yet');
+        return v;
+    });
+
+    it('the engine asks, the host registers and its id is the player; a reload does not register again', async () => {
+        const register = vi.fn(async () => ({playerId: 'p-host-0123456789'}));
+        const booting = boot({gameId: 'join-test', baseUrl: './g/', sessionId: 'L1', join: {register}});
+        await answer('Modrý tygr', 'tiger');
+        const game = await booting;
+        expect(register).toHaveBeenCalledWith({name: 'Modrý tygr', avatar: 'tiger'});
+        expect(game.teamId).toBe('p-host-0123456789');
+        expect(loadPlayer('L1', 'join-test')).toEqual({id: 'p-host-0123456789', name: 'Modrý tygr', avatar: 'tiger'});
+
+        document.body.innerHTML = '';
+        const again = vi.fn();
+        const reloaded = await boot({gameId: 'join-test', baseUrl: './g/', sessionId: 'L1', join: {register: again}});
+        expect(again).not.toHaveBeenCalled();
+        expect(reloaded.teamId).toBe('p-host-0123456789');
+    });
+
+    it('a refusal is shown on the same screen with the answer kept; the next try can succeed', async () => {
+        const register = vi.fn()
+            .mockResolvedValueOnce({error: 'Hodina je plná. Řekni to učiteli.'})
+            .mockRejectedValueOnce(new Error('offline'))
+            .mockResolvedValueOnce({playerId: 'not-an-engine-id'})
+            .mockResolvedValueOnce({playerId: 'p-host-9876543210'});
+        const booting = boot({gameId: 'join-test', baseUrl: './g/', sessionId: 'L2', join: {register}});
+        await answer('Liška', 'fox');
+        const error1 = await until(() => document.querySelector('.join-error'));
+        expect(error1.textContent).toBe('Hodina je plná. Řekni to učiteli.');
+        expect(error1.getAttribute('role')).toBe('alert');
+        // Kept: the pupil only presses Hrát again.
+        expect(document.querySelector('.join-name').value).toBe('Liška');
+        expect(document.querySelector('.join-avatar[data-avatar="fox"]').getAttribute('aria-checked')).toBe('true');
+        expect(document.querySelector('.join-play').disabled).toBe(false);
+
+        document.querySelector('.join-play').click();                                     // offline
+        await until(() => register.mock.calls.length === 2 && document.querySelector('.join-error')?.textContent.includes('nepovedlo'));
+        document.querySelector('.join-play').click();                                     // bad id
+        await until(() => register.mock.calls.length === 3 && document.querySelector('.join-error'));
+        document.querySelector('.join-play').click();                                     // ok
+        const game = await booting;
+        expect(game.teamId).toBe('p-host-9876543210');
+        expect(document.querySelector('.join-overlay')).toBeNull();
+    });
+
+    it('a host can keep everything in sessionStorage, so nothing outlives the tab', async () => {
+        sessionStorage.clear();
+        const booting = boot({
+            gameId: 'join-test', baseUrl: './g/', sessionId: 'L3', webStorage: sessionStorage,
+            join: {register: async () => ({playerId: 'p-host-session-0001'})},
+        });
+        await answer('Sova', 'owl');
+        const game = await booting;
+        game._saveState();
+        const keys = (st) => Array.from({length: st.length}, (_, i) => st.key(i)).sort();
+        expect(keys(localStorage)).toEqual([]);
+        expect(keys(sessionStorage)).toEqual([
+            'player:L3:join-test',
+            `state:L3:join-test:${encodeURIComponent('p-host-session-0001')}`,
+        ]);
+        expect(loadPlayer('L3', 'join-test', sessionStorage)?.id).toBe('p-host-session-0001');
+    });
+
+    it('restart: false leaves no Restart button for a pupil in a lesson', async () => {
+        await boot({gameId: 'join-test', baseUrl: './g/', restart: false});
+        expect(document.querySelector('[data-boot="restart"]')).toBeNull();
+        document.body.innerHTML = '';
+        await boot({gameId: 'join-test', baseUrl: './g/'});
+        expect(document.querySelector('[data-boot="restart"]')).not.toBeNull();
+    });
+
+    it('the screen suggests a nickname and says what the teacher sees', async () => {
+        const booting = boot({gameId: 'join-test', baseUrl: './g/', sessionId: 'L4'});
+        const overlay = await until(() => document.querySelector('.join-overlay'));
+        expect(overlay.querySelector('.join-name').placeholder).toBe('např. Modrý tygr');
+        expect(overlay.querySelector('.join-hint').textContent).toContain('Stačí přezdívka');
+        await answer('Koala', 'koala');
+        await booting;
+    });
+});

@@ -81,6 +81,9 @@ export class Game {
         // tablet is a DashboardReport, through `reportTransport` below. See
         // docs/DASHBOARD-API.md "What never leaves the tablet".
         this._ownsLocalStorage = !opts.storage;
+        // Which Web Storage the default keeps the run in: localStorage, or a
+        // host's sessionStorage when nothing should outlive the tab (boot()).
+        this._webStorage = opts.webStorage || globalThis.localStorage;
         this.storage = opts.storage || this._localStorage();
 
         // Which lesson, and which team within it. Both come from the caller and
@@ -2175,7 +2178,7 @@ export class Game {
         return {
             load: () => {
                 try {
-                    const raw = localStorage.getItem(this._storageKey());
+                    const raw = this._webStorage.getItem(this._storageKey());
                     return raw ? JSON.parse(raw) : null;
                 } catch {
                     return null;
@@ -2183,7 +2186,7 @@ export class Game {
             },
             save: (state) => {
                 try {
-                    localStorage.setItem(this._storageKey(), JSON.stringify(state));
+                    this._webStorage.setItem(this._storageKey(), JSON.stringify(state));
                     return true;
                 } catch { /* quota, private mode: losing a save beats throwing */
                     return false;
@@ -2191,7 +2194,7 @@ export class Game {
             },
             clear: () => {
                 try {
-                    localStorage.removeItem(this._storageKey());
+                    this._webStorage.removeItem(this._storageKey());
                 } catch { /* noop */
                 }
             },

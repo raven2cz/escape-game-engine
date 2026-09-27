@@ -1056,3 +1056,8 @@ body.item-dragging * {
 }
 .join-play:disabled { background: #b9c1bc; cursor: not-allowed; }
 .join-credits { margin: 0; text-align: center; font-size: .72rem; color: #8a9096; }
+.join-hint { margin: -4px 0 0; font-size: .8rem; line-height: 1.35; color: #5b6168; }
+.join-error {
+    margin: 0; padding: 8px 12px; border-radius: 10px; font-weight: 600; font-size: .9rem;
+    color: #8a1f14; background: #fbe3e0; border: 1px solid #efb3aa;
+}

@@ -7,6 +7,20 @@ entry is written while the change is fresh, and nobody has to predict a number.
 Versions are the engine's own. Games are versioned separately, in their own
 repository; see `docs/RELEASING.md` for which version means what.
 
+## Unreleased
+- **A host can hand out the player.** `boot({join: {register}})` asks "Kdo
+  hraje?" and passes the answer to `register({name, avatar})`, which returns
+  `{playerId}` or `{error}`. A refusal or a network failure shows the message on
+  the same screen and keeps the name and picture, so the pupil only presses
+  Hrát again. A reload reuses the stored player and does not register twice.
+- **`webStorage`** chooses where the tablet remembers the player and the run
+  (default `localStorage`). A hosted lesson passes `sessionStorage`, so a
+  closed tab forgets both.
+- **`restart: false`** leaves out the Restart button.
+- **"Kdo hraje?" recommends a nickname** ("např. Modrý tygr") and says what the
+  teacher sees and that it is deleted after the lesson. `isPlayerId` is
+  exported from `join.js`.
+
 ## 1.1.1
 - **"Stuck" means no progress, not a long stay.** The report carries
   `position.progressAt`, the last progress in the scene (entered, a task solved,
